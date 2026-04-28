@@ -1,10 +1,16 @@
 # Hostinger Deployment
 
-This project is ready to be deployed from GitHub and then updated from the server with `git pull`.
+This project is ready to be deployed from GitHub and then updated from the server with `git pull`. The production domain is `ignesstudio.com`.
 
 ## Recommended Path
 
 Use a private GitHub repository and deploy to a Hostinger VPS or a Hostinger plan that supports Laravel, SSH, Composer, PHP 8.3+, MySQL, and a public web root pointing to Laravel's `public` directory.
+
+The repository is:
+
+```text
+git@github.com:jesusDavidCas/igna.git
+```
 
 Official Hostinger references:
 
@@ -16,7 +22,7 @@ Official Hostinger references:
 
 ```bash
 cd /var/www
-git clone git@github.com:YOUR_USER/YOUR_REPOSITORY.git igna-studio
+git clone git@github.com:jesusDavidCas/igna.git igna-studio
 cd igna-studio
 
 cp .env.example .env
@@ -42,7 +48,7 @@ Set these before running `php artisan db:seed --force` in production:
 ```env
 APP_ENV=production
 APP_DEBUG=false
-APP_URL=https://your-domain.com
+APP_URL=https://ignesstudio.com
 
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
@@ -56,6 +62,24 @@ SUPER_ADMIN_PASSWORD=use-a-strong-password-here
 
 GOOGLE_DRIVE_ENABLED=false
 ```
+
+The database values come from the MySQL database created in Hostinger. Composer does not create the database; `php artisan migrate --force` creates the tables inside the database after `.env` is configured.
+
+## Domain Root
+
+The main domain must serve Laravel's `public` directory:
+
+```text
+/var/www/igna-studio/public
+```
+
+Do not point `ignesstudio.com` to the Laravel project root:
+
+```text
+/var/www/igna-studio
+```
+
+If using a Hostinger VPS, configure Nginx or Apache so the document root is `/var/www/igna-studio/public`. If using Hostinger hPanel/shared hosting, configure the website install path/document root so `public_html` exposes only the contents of Laravel's `public` directory and keeps `.env`, `storage`, `vendor`, and application code outside the public web root.
 
 ## Updating Later
 

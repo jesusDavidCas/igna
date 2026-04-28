@@ -5,6 +5,11 @@
 .env.production
 .phpactor.json
 .phpunit.result.cache
+*.pem
+*.ppk
+/igna
+/igna.pub
+/id_*
 /.codex
 /.cursor/
 /.idea

@@ -262,6 +262,8 @@ For production, set `SUPER_ADMIN_EMAIL` and `SUPER_ADMIN_PASSWORD` in `.env` bef
 
 Hostinger deployment notes and pull commands are documented in [`docs/hostinger-deployment.md`](docs/hostinger-deployment.md). A repeatable update script is available at [`scripts/deploy-hostinger.sh`](scripts/deploy-hostinger.sh).
 
+The production architecture and database/storage map are documented in [`docs/system-architecture.md`](docs/system-architecture.md).
+
 ## Deferred Items and Explicit TODO Markers
 
 The scaffold includes clear TODO markers for:
