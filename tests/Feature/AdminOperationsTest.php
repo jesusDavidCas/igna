@@ -66,14 +66,46 @@ class AdminOperationsTest extends TestCase
         $admin = User::factory()->create([
             'role' => UserRole::ADMIN,
         ]);
+        $client = User::factory()->create([
+            'role' => UserRole::CLIENT,
+        ]);
 
         $this->actingAs($admin)
             ->get(route('admin.users.index'))
             ->assertForbidden();
 
         $this->actingAs($admin)
+            ->put(route('admin.users.password.update', $client), [
+                'password' => 'ClientReset123!',
+                'password_confirmation' => 'ClientReset123!',
+            ])
+            ->assertForbidden();
+
+        $this->actingAs($admin)
             ->get(route('admin.settings.edit'))
             ->assertForbidden();
+    }
+
+    public function test_super_admin_can_reset_a_user_password(): void
+    {
+        $client = User::factory()->create([
+            'email' => 'reset.client@example.com',
+            'role' => UserRole::CLIENT,
+        ]);
+
+        $this->actingAs($this->superAdmin)
+            ->put(route('admin.users.password.update', $client), [
+                'password' => 'NewClient123!',
+                'password_confirmation' => 'NewClient123!',
+            ])
+            ->assertRedirect(route('admin.users.edit', $client));
+
+        $this->post(route('logout'));
+
+        $this->post(route('login.store'), [
+            'email' => 'reset.client@example.com',
+            'password' => 'NewClient123!',
+        ])->assertRedirect(route('client.dashboard'));
     }
 
     public function test_admin_can_toggle_ticket_file_visibility(): void

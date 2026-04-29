@@ -36,13 +36,12 @@
                 @endforeach
             </select>
         </div>
-        <div>
-            <label class="form-label">{{ __('site.form_password') }}</label>
-            <input type="password" name="password" class="form-input" @required($method === 'POST')>
-            @if ($method !== 'POST')
-                <p class="mt-2 text-xs text-stone-500">{{ __('site.password_blank_help') }}</p>
-            @endif
-        </div>
+        @if ($method === 'POST')
+            <div>
+                <label class="form-label">{{ __('site.form_password') }}</label>
+                <input type="password" name="password" class="form-input" required autocomplete="new-password">
+            </div>
+        @endif
         <div class="flex items-end">
             <label class="inline-flex items-center gap-2 text-sm text-stone-700">
                 <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $user->is_active ?? true))>

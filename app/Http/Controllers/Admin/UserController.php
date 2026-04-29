@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\UserPasswordResetRequest;
 use App\Http\Requests\Admin\UserRequest;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
@@ -67,6 +68,17 @@ class UserController extends Controller
         $user->update($payload);
 
         return redirect()->route('admin.users.edit', $user)->with('success', __('site.user_updated'));
+    }
+
+    public function updatePassword(UserPasswordResetRequest $request, User $user): RedirectResponse
+    {
+        $user->update([
+            'password' => $request->validated('password'),
+        ]);
+
+        return redirect()
+            ->route('admin.users.edit', $user)
+            ->with('success', __('site.user_password_updated'));
     }
 
     private function payload(UserRequest $request): array

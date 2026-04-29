@@ -69,6 +69,7 @@ Route::prefix('admin')
         Route::resource('blog', AdminBlogPostController::class)->parameters(['blog' => 'post'])->except(['show', 'destroy']);
 
         Route::middleware('role:'.UserRole::SUPER_ADMIN->value)->group(function (): void {
+            Route::put('/users/{user}/password', [AdminUserController::class, 'updatePassword'])->name('users.password.update');
             Route::resource('users', AdminUserController::class)->except(['show', 'destroy']);
             Route::get('/settings', [AdminSettingController::class, 'edit'])->name('settings.edit');
             Route::put('/settings', [AdminSettingController::class, 'update'])->name('settings.update');
