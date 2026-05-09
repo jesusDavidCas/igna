@@ -18,6 +18,8 @@
 /.vscode
 /.zed
 /auth.json
+/database/exports/*.sql
+/database/exports/*.tar.gz
 /node_modules
 /public/build
 /public/hot
