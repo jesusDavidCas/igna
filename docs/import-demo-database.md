@@ -140,7 +140,13 @@ Then test:
 
 ## Demo Access Notes
 
-The SQL export includes the local seeded users. If you need to change a password after import, use the super admin password reset form in:
+The SQL export includes the local seeded users. For convenience, the exported super admin email is:
+
+```text
+superadmin@ignastudio.com
+```
+
+It uses the local seeded password unless you reset it after import. If you need to change a password after import, use the super admin password reset form in:
 
 ```text
 /admin/users/{user}/edit
