@@ -14,7 +14,8 @@ class TicketStageUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'service_stage_id' => ['required', 'exists:service_stages,id'],
+            'service_stage_id' => ['nullable', 'required_without:stage_event_id', 'exists:service_stages,id'],
+            'stage_event_id' => ['nullable', 'exists:ticket_stage_events,id'],
             'notes' => ['nullable', 'string', 'max:4000'],
         ];
     }

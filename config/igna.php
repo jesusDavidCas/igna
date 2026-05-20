@@ -18,12 +18,15 @@ return [
             'ptar' => 'services.types.ptar',
         ],
     ],
-
     'service_scopes' => [
         'none' => 'services.scopes.none',
         'internal_networks' => 'services.scopes.internal_networks',
         'external_networks' => 'services.scopes.external_networks',
         'study' => 'services.scopes.study',
         'plant_project' => 'services.scopes.plant_project',
+    ],
+    'proposal_number' => [
+        'prefix' => env('IGNA_PROPOSAL_PREFIX', 'IGNA'),
+        'starting_base' => (int) env('IGNA_PROPOSAL_STARTING_BASE', 1041),
     ],
 ];

@@ -9,6 +9,7 @@ use App\Http\Requests\Admin\UserRequest;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Storage;
 
 class UserController extends Controller
 {
@@ -33,7 +34,8 @@ class UserController extends Controller
 
     public function store(UserRequest $request): RedirectResponse
     {
-        User::query()->create($this->payload($request));
+        $user = User::query()->create($this->payload($request));
+        $this->storeSignature($request, $user);
 
         return redirect()->route('admin.users.index')->with('success', __('site.user_created'));
     }
@@ -66,6 +68,7 @@ class UserController extends Controller
         }
 
         $user->update($payload);
+        $this->storeSignature($request, $user);
 
         return redirect()->route('admin.users.edit', $user)->with('success', __('site.user_updated'));
     }
@@ -93,6 +96,21 @@ class UserController extends Controller
             'is_active' => $request->boolean('is_active'),
             'password' => $request->validated('password'),
         ];
+    }
+
+    private function storeSignature(UserRequest $request, User $user): void
+    {
+        if (! $request->hasFile('signature')) {
+            return;
+        }
+
+        if ($user->signature_path) {
+            Storage::disk('public')->delete($user->signature_path);
+        }
+
+        $user->forceFill([
+            'signature_path' => $request->file('signature')->store('signatures', 'public'),
+        ])->save();
     }
 
     private function wouldRemoveLastSuperAdmin(User $user, array $payload): bool

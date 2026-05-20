@@ -31,6 +31,8 @@
                         <a href="{{ route('admin.dashboard') }}" class="panel-link {{ request()->routeIs('admin.dashboard') ? 'panel-link-active' : '' }}">{{ __('site.admin_dashboard') }}</a>
                         <a href="{{ route('admin.services.index') }}" class="panel-link {{ request()->routeIs('admin.services.*') ? 'panel-link-active' : '' }}">{{ __('site.admin_services') }}</a>
                         <a href="{{ route('admin.tickets.index') }}" class="panel-link {{ request()->routeIs('admin.tickets.*') ? 'panel-link-active' : '' }}">{{ __('site.admin_tickets') }}</a>
+                        <a href="{{ route('admin.proposals.index') }}" class="panel-link {{ request()->routeIs('admin.proposals.*') ? 'panel-link-active' : '' }}">{{ __('site.admin_proposals') }}</a>
+                        <a href="{{ route('admin.team.index') }}" class="panel-link {{ request()->routeIs('admin.team.*') ? 'panel-link-active' : '' }}">{{ __('site.admin_team') }}</a>
                         <a href="{{ route('admin.blog.index') }}" class="panel-link {{ request()->routeIs('admin.blog.*') ? 'panel-link-active' : '' }}">{{ __('site.admin_blog') }}</a>
                         @if (auth()->user()->isSuperAdmin())
                             <a href="{{ route('admin.users.index') }}" class="panel-link {{ request()->routeIs('admin.users.*') ? 'panel-link-active' : '' }}">{{ __('site.admin_users') }}</a>
@@ -44,7 +46,7 @@
 
             <div>
                 <header class="border-b border-stone-200 bg-white">
-                    <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+                    <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
                         <div>
                             <p class="text-sm text-stone-500">{{ __('site.panel_welcome') }}</p>
                             <h1 class="text-xl font-semibold text-stone-900">{{ $heading ?? 'IGNA Studio' }}</h1>
@@ -72,10 +74,59 @@
 
                 @include('partials.flash')
 
-                <main class="mx-auto max-w-6xl px-6 py-8">
+                <main class="mx-auto max-w-7xl px-6 py-8">
                     @yield('content')
                 </main>
             </div>
         </div>
+
+        <div id="confirm-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-stone-950/50 px-4">
+            <div class="w-full max-w-md rounded-[2rem] bg-white p-6 shadow-2xl">
+                <h2 id="confirm-modal-title" class="text-lg font-semibold text-stone-950"></h2>
+                <p id="confirm-modal-message" class="mt-3 text-sm leading-6 text-stone-600"></p>
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button" id="confirm-modal-cancel" class="rounded-full border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700">{{ __('site.cancel') }}</button>
+                    <button type="button" id="confirm-modal-confirm" class="rounded-full bg-olive-700 px-4 py-2 text-sm font-semibold text-white">{{ __('site.confirm_change') }}</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const modal = document.getElementById('confirm-modal');
+                const title = document.getElementById('confirm-modal-title');
+                const message = document.getElementById('confirm-modal-message');
+                const cancel = document.getElementById('confirm-modal-cancel');
+                const confirm = document.getElementById('confirm-modal-confirm');
+                let pendingForm = null;
+
+                document.querySelectorAll('form[data-confirm-title]').forEach((form) => {
+                    form.addEventListener('submit', (event) => {
+                        if (form.dataset.confirmed === 'true') return;
+                        event.preventDefault();
+                        pendingForm = form;
+                        title.textContent = form.dataset.confirmTitle;
+                        message.textContent = form.dataset.confirmMessage;
+                        confirm.className = form.dataset.confirmDanger === 'true'
+                            ? 'rounded-full bg-rose-700 px-4 py-2 text-sm font-semibold text-white'
+                            : 'rounded-full bg-olive-700 px-4 py-2 text-sm font-semibold text-white';
+                        modal.classList.remove('hidden');
+                        modal.classList.add('flex');
+                    });
+                });
+
+                cancel.addEventListener('click', () => {
+                    pendingForm = null;
+                    modal.classList.add('hidden');
+                    modal.classList.remove('flex');
+                });
+
+                confirm.addEventListener('click', () => {
+                    if (!pendingForm) return;
+                    pendingForm.dataset.confirmed = 'true';
+                    pendingForm.submit();
+                });
+            });
+        </script>
     </body>
 </html>

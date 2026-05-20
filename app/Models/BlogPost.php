@@ -6,15 +6,19 @@ use App\Enums\BlogPostStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 
 class BlogPost extends Model
 {
     use HasFactory;
+    use SoftDeletes;
 
     protected $fillable = [
         'title',
         'slug',
         'summary',
+        'header_image_path',
         'body_html',
         'status',
         'published_at',
@@ -40,6 +44,11 @@ class BlogPost extends Model
     public function updater(): BelongsTo
     {
         return $this->belongsTo(User::class, 'updated_by_user_id');
+    }
+
+    public function headerImageUrl(): ?string
+    {
+        return $this->header_image_path ? Storage::disk('public')->url($this->header_image_path) : null;
     }
 
     public function localizedTitle(): string

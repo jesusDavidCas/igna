@@ -1,4 +1,4 @@
-<form method="POST" action="{{ $action }}" class="rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
+<form method="POST" action="{{ $action }}" enctype="multipart/form-data" class="rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
     @csrf
     @if ($method !== 'POST')
         @method($method)
@@ -47,6 +47,15 @@
                 <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $user->is_active ?? true))>
                 {{ __('site.active') }}
             </label>
+        </div>
+        <div class="md:col-span-2">
+            <label class="form-label">{{ __('site.signature_image') }}</label>
+            <input type="file" name="signature" class="form-input" accept=".png,.jpg,.jpeg,.webp">
+            @if ($user->signatureUrl())
+                <div class="mt-3 inline-flex rounded-2xl border border-stone-200 bg-stone-50 p-3">
+                    <img src="{{ $user->signatureUrl() }}" alt="{{ __('site.signature_image') }}" class="h-20 max-w-xs object-contain">
+                </div>
+            @endif
         </div>
     </div>
 

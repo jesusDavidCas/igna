@@ -26,6 +26,7 @@ class UserRequest extends FormRequest
             'preferred_language' => ['required', 'in:es,en'],
             'role' => ['required', Rule::in(array_column(UserRole::cases(), 'value'))],
             'is_active' => ['nullable', 'boolean'],
+            'signature' => ['nullable', 'file', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
             'password' => $passwordRules,
         ];
     }

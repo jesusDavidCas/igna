@@ -52,8 +52,13 @@
         </div>
         <div class="md:col-span-2">
             <label class="form-label">{{ __('site.form_deliverables') }}</label>
-            <textarea name="deliverables" rows="6" class="form-input">{{ old('deliverables', is_array($service->deliverables_schema) ? implode("\n", $service->deliverables_schema) : '') }}</textarea>
-            <p class="mt-2 text-xs text-stone-500">{{ __('site.form_deliverables_help') }}</p>
+            @php
+                $structuredDeliverables = $service->relationLoaded('deliverables') && $service->deliverables->isNotEmpty()
+                    ? $service->deliverables->map(fn ($deliverable) => trim($deliverable->name.' | '.$deliverable->description))->implode("\n")
+                    : (is_array($service->deliverables_schema) ? implode("\n", $service->deliverables_schema) : '');
+            @endphp
+            <textarea name="deliverables" rows="6" class="form-input">{{ old('deliverables', $structuredDeliverables) }}</textarea>
+            <p class="mt-2 text-sm text-stone-500">{{ __('site.form_deliverables_help') }}</p>
         </div>
     </div>
 

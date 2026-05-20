@@ -13,6 +13,7 @@ class TicketFile extends Model
     protected $fillable = [
         'ticket_id',
         'uploaded_by_user_id',
+        'ticket_deliverable_id',
         'title',
         'original_name',
         'stored_name',
@@ -24,6 +25,8 @@ class TicketFile extends Model
         'google_drive_file_id',
         'google_drive_url',
         'deliverable_type',
+        'visibility',
+        'delivery_type',
         'is_client_visible',
         'watermark_status',
         'uploaded_at',
@@ -45,6 +48,18 @@ class TicketFile extends Model
     public function uploadedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by_user_id');
+    }
+
+    public function deliverable(): BelongsTo
+    {
+        return $this->belongsTo(TicketDeliverable::class, 'ticket_deliverable_id');
+    }
+
+    public function deliveryTypeLabel(): string
+    {
+        $key = "site.delivery_type_{$this->delivery_type}";
+
+        return __($key) === $key ? str($this->delivery_type)->headline()->toString() : __($key);
     }
 
     public function storageProviderLabel(): string

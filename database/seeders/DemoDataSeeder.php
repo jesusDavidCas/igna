@@ -30,6 +30,32 @@ class DemoDataSeeder extends Seeder
             ],
         );
 
+        User::query()->updateOrCreate(
+            ['email' => 'jesus@ignastudio.test'],
+            [
+                'first_name' => 'Jesús David',
+                'last_name' => 'Castañeda',
+                'phone' => '+57 300 000 1001',
+                'preferred_language' => 'es',
+                'role' => UserRole::ADMIN,
+                'is_active' => true,
+                'password' => 'Password123!',
+            ],
+        );
+
+        User::query()->updateOrCreate(
+            ['email' => 'roberto@ignastudio.test'],
+            [
+                'first_name' => 'Roberto',
+                'last_name' => 'Castañeda Pardo',
+                'phone' => '+57 300 000 1002',
+                'preferred_language' => 'es',
+                'role' => UserRole::ADMIN,
+                'is_active' => true,
+                'password' => 'Password123!',
+            ],
+        );
+
         $clients = [
             'digital' => User::query()->updateOrCreate(
                 ['email' => 'cliente.digital@ignastudio.test'],
@@ -65,31 +91,40 @@ class DemoDataSeeder extends Seeder
     {
         $posts = [
             [
+                'slug' => 'plataformas-digitales-que-si-ordenan-el-trabajo',
+                'title' => 'Plataformas digitales que sí ordenan el trabajo diario',
+                'summary' => 'Una buena plataforma no debe sentirse pesada: debe ayudar al equipo a saber qué sigue, quién responde y dónde están los archivos.',
+                'body_html' => '<p>Muchas empresas empiezan gestionando clientes, solicitudes y entregables entre chats, correos y hojas sueltas. Al principio funciona, pero con el tiempo aparecen pérdidas de información, reprocesos y preguntas repetidas.</p><p>Una plataforma digital bien diseñada no intenta reemplazar toda la operación. Primero ordena lo esencial: solicitudes, responsables, etapas, archivos y comunicación con el cliente.</p><p>El resultado no es solo tecnología. Es más claridad para vender, ejecutar y responder con confianza.</p>',
+                'status' => BlogPostStatus::PUBLISHED,
+                'published_at' => now()->subDays(8),
+                'seo_keywords' => ['plataformas digitales', 'seguimiento de proyectos', 'gestion de clientes'],
+            ],
+            [
+                'slug' => 'infraestructura-hidrica-con-documentacion-clara',
+                'title' => 'Infraestructura hídrica con documentación clara desde el inicio',
+                'summary' => 'En proyectos de acueducto, saneamiento o tratamiento, la calidad técnica también depende de cómo se organiza la información.',
+                'body_html' => '<p>Un proyecto hídrico no avanza solo con cálculos. También necesita trazabilidad: memorias, planos, criterios, versiones, observaciones y entregables claros.</p><p>Cuando la documentación se organiza por etapas y entregables, el cliente entiende mejor el avance y el equipo técnico reduce el riesgo de omitir información crítica.</p><p>Por eso conectamos diseño técnico con seguimiento operativo: cada archivo debe tener contexto, estado y propósito.</p>',
+                'status' => BlogPostStatus::PUBLISHED,
+                'published_at' => now()->subDays(3),
+                'seo_keywords' => ['infraestructura hidrica', 'acueducto', 'saneamiento'],
+            ],
+            [
+                'slug' => 'cotizaciones-tecnicas-que-ayudan-a-decidir',
+                'title' => 'Cotizaciones técnicas que ayudan a decidir, no solo a comparar precios',
+                'summary' => 'Una propuesta clara explica alcance, tiempos, pagos y entregables para que el cliente entienda qué está comprando.',
+                'body_html' => '<p>Una cotización técnica no debería ser una tabla fría de precios. Debe explicar el problema, el alcance, la ruta de trabajo y los entregables que el cliente recibirá.</p><p>Cuando una propuesta está bien estructurada, reduce malentendidos antes de iniciar el proyecto y facilita aprobar, ajustar o priorizar el trabajo.</p><p>El precio importa, pero la claridad del alcance es lo que protege la relación durante la ejecución.</p>',
+                'status' => BlogPostStatus::PUBLISHED,
+                'published_at' => now()->subDay(),
+                'seo_keywords' => ['cotizaciones tecnicas', 'propuestas', 'estructuracion de proyectos'],
+            ],
+            [
                 'slug' => 'trazabilidad-operativa-en-servicios-tecnicos',
                 'title' => 'Trazabilidad operativa en servicios técnicos',
                 'summary' => 'Cómo una estructura simple de solicitudes, etapas y archivos mejora la coordinación con clientes.',
                 'body_html' => '<p>Una plataforma ligera puede ordenar solicitudes, responsables y entregables sin convertir la operación en un sistema pesado.</p><p>La clave está en mantener servicios configurables, etapas claras y visibilidad controlada para cada cliente.</p>',
-                'status' => BlogPostStatus::PUBLISHED,
-                'published_at' => now()->subDays(8),
-                'seo_keywords' => ['operacion', 'tickets', 'servicios tecnicos'],
-            ],
-            [
-                'slug' => 'servicios-configurables-para-crecer-sin-reescribir',
-                'title' => 'Servicios configurables para crecer sin reescribir',
-                'summary' => 'La base de IGNA Studio permite agregar servicios y flujos desde el panel administrativo.',
-                'body_html' => '<p>Cuando cada servicio administra su propio flujo, el negocio puede crecer sin depender de cambios de código para cada nueva oferta.</p>',
-                'status' => BlogPostStatus::PUBLISHED,
-                'published_at' => now()->subDays(3),
-                'seo_keywords' => ['servicios', 'flujos', 'laravel'],
-            ],
-            [
-                'slug' => 'integracion-google-drive-entregables',
-                'title' => 'Integración con Google Drive para entregables',
-                'summary' => 'Nota interna sobre la siguiente capa de almacenamiento documental.',
-                'body_html' => '<p>La integración final conectará carpetas de proyecto y archivos disponibles para cliente con Google Drive como backend documental.</p>',
                 'status' => BlogPostStatus::DRAFT,
                 'published_at' => null,
-                'seo_keywords' => ['google drive', 'archivos', 'entregables'],
+                'seo_keywords' => ['operacion', 'tickets', 'servicios tecnicos'],
             ],
         ];
 

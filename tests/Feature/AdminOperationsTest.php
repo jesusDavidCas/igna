@@ -3,14 +3,19 @@
 namespace Tests\Feature;
 
 use App\Enums\UserRole;
+use App\Mail\ProjectUpdateMail;
 use App\Models\BlogPost;
+use App\Models\Proposal;
 use App\Models\Service;
 use App\Models\Setting;
+use App\Models\TeamCredentialView;
+use App\Models\TeamMember;
 use App\Models\Ticket;
 use App\Models\TicketFile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
@@ -26,6 +31,7 @@ class AdminOperationsTest extends TestCase
         parent::setUp();
 
         $this->withoutVite();
+        Mail::fake();
         $this->seed();
 
         $this->superAdmin = User::query()->where('role', UserRole::SUPER_ADMIN)->firstOrFail();
@@ -132,6 +138,40 @@ class AdminOperationsTest extends TestCase
             ->assertRedirect(route('admin.tickets.show', $ticket));
 
         $this->assertTrue($file->fresh()->is_client_visible);
+
+        Mail::assertSent(ProjectUpdateMail::class);
+    }
+
+    public function test_admin_selects_current_stage_without_auto_completing_and_can_complete_explicitly(): void
+    {
+        $this->actingAs($this->superAdmin);
+
+        $ticket = $this->createTicket()->load(['service.stages', 'stageEvents.serviceStage']);
+        $secondStage = $ticket->service->stages()->orderBy('sort_order')->skip(1)->firstOrFail();
+
+        $this->put(route('admin.tickets.stage.update', $ticket), [
+            'service_stage_id' => $secondStage->id,
+            'notes' => 'Started technical review.',
+        ])->assertRedirect(route('admin.tickets.show', $ticket));
+
+        $ticket->refresh()->load('stageEvents.serviceStage');
+
+        $firstEvent = $ticket->stageEvents->sortBy(fn ($event) => $event->serviceStage->sort_order)->first();
+        $secondEvent = $ticket->stageEvents->firstWhere('service_stage_id', $secondStage->id);
+
+        $this->assertSame('pending', $firstEvent->status->value);
+        $this->assertSame('current', $secondEvent->status->value);
+        $this->assertNotNull($secondEvent->entered_at);
+        $this->assertNull($secondEvent->completed_at);
+
+        $this->put(route('admin.tickets.stages.complete', [$ticket, $secondEvent]), [
+            'stage_event_id' => $secondEvent->id,
+            'notes' => 'Review finished.',
+        ])->assertRedirect(route('admin.tickets.show', $ticket));
+
+        $this->assertSame('completed', $secondEvent->fresh()->status->value);
+        $this->assertNotNull($secondEvent->fresh()->completed_at);
+        Mail::assertSent(ProjectUpdateMail::class);
     }
 
     public function test_admin_can_create_classified_service_with_deliverables(): void
@@ -243,6 +283,237 @@ class AdminOperationsTest extends TestCase
         Storage::disk('public')->assertExists($faviconPath);
     }
 
+    public function test_admin_can_manage_team_profile_and_private_credential_document(): void
+    {
+        Storage::fake('local');
+
+        $this->actingAs($this->superAdmin);
+
+        $response = $this->post(route('admin.team.store'), [
+            'name' => 'Mariana Torres',
+            'slug' => 'mariana-torres',
+            'role' => 'Engineering coordinator',
+            'short_description' => 'Coordinates technical documentation and client follow-up.',
+            'bio' => "Water infrastructure coordination\nProject documentation",
+            'expertise' => "Hydraulic planning\nClient communication",
+            'is_active' => '1',
+            'sort_order' => 3,
+        ]);
+
+        $member = TeamMember::query()->where('slug', 'mariana-torres')->firstOrFail();
+
+        $response->assertRedirect(route('admin.team.edit', $member));
+        $this->assertDatabaseHas('team_members', [
+            'id' => $member->id,
+            'slug' => 'mariana-torres',
+        ]);
+
+        $this->post(route('admin.team.credentials.store', $member), [
+            'title' => 'Civil engineering diploma',
+            'institution' => 'Universidad Nacional',
+            'issued_at' => '2024-02-01',
+            'document' => UploadedFile::fake()->image('diploma.jpg', 900, 1200),
+            'is_public' => '1',
+            'sort_order' => 1,
+        ])->assertRedirect(route('admin.team.edit', $member));
+
+        $credential = $member->credentials()->firstOrFail();
+
+        Storage::disk('local')->assertExists($credential->document_path);
+
+        $viewUrl = URL::temporarySignedRoute('team.credentials.show', now()->addMinutes(5), [
+            'teamMember' => $member,
+            'credential' => $credential,
+        ]);
+
+        $this->get($viewUrl)
+            ->assertOk()
+            ->assertSee('Civil engineering diploma');
+
+        $this->assertSame(1, TeamCredentialView::query()->where('team_credential_id', $credential->id)->count());
+
+        $previewUrl = URL::temporarySignedRoute('team.credentials.preview', now()->addMinutes(5), [
+            'teamMember' => $member,
+            'credential' => $credential,
+            'page' => 1,
+        ]);
+
+        $this->get($previewUrl)
+            ->assertOk()
+            ->assertHeader('content-type', 'image/jpeg');
+    }
+
+    public function test_admin_can_create_proposal_with_calculated_totals(): void
+    {
+        $client = User::factory()->create([
+            'role' => UserRole::CLIENT,
+            'is_active' => true,
+            'phone' => '+57 300 555 1212',
+        ]);
+
+        $this->actingAs($this->superAdmin);
+
+        $this->post(route('admin.proposals.store'), [
+            'client_user_id' => $client->id,
+            'title' => 'Water system assessment',
+            'subject' => 'Proposal for initial technical diagnosis',
+            'description' => 'We will review the available inputs and define the next technical steps.',
+            'scope' => 'Initial review, findings summary, and recommendations.',
+            'timeline_months' => 1,
+            'timeline_weeks' => 3,
+            'payment_schedule' => [
+                ['label' => 'Start', 'percentage' => '50'],
+                ['label' => 'Delivery', 'percentage' => '50'],
+            ],
+            'status' => 'draft',
+            'tax_rate' => '19',
+            'issued_at' => now()->toDateString(),
+            'valid_until' => now()->addDays(15)->toDateString(),
+            'validity_days' => '15',
+            'items' => [
+                ['category' => 'Studies', 'item_code' => 'ST-01', 'description' => 'Technical diagnosis', 'unit' => 'unit', 'quantity' => '2', 'unit_value' => '500000'],
+                ['category' => 'Reports', 'item_code' => 'RP-01', 'description' => 'Recommendations report', 'unit' => 'unit', 'quantity' => '1', 'unit_value' => '300000'],
+            ],
+        ])->assertRedirect();
+
+        $proposal = Proposal::query()->where('client_user_id', $client->id)->firstOrFail();
+
+        $this->assertSame('IGNA-'.now()->format('Y').'-1042', $proposal->proposal_number);
+        $this->assertEquals(1300000, (float) $proposal->subtotal);
+        $this->assertEquals(247000, (float) $proposal->tax_total);
+        $this->assertEquals(1547000, (float) $proposal->total);
+        $this->assertSame(1, $proposal->timeline_months);
+        $this->assertSame(3, $proposal->timeline_weeks);
+        $this->assertEquals(50.0, $proposal->payment_schedule[0]['percentage']);
+        $this->assertCount(2, $proposal->items);
+
+        $this->get(route('admin.proposals.show', $proposal))
+            ->assertOk()
+            ->assertSee(__('site.generate_pdf'))
+            ->assertSee(__('site.create_whatsapp_link'))
+            ->assertSee(__('site.whatsapp_share_title'))
+            ->assertSee(__('site.open_whatsapp'))
+            ->assertSee(__('site.whatsapp_final_preview'))
+            ->assertSee('data-whatsapp-panel', false)
+            ->assertSee('data-whatsapp-preview', false)
+            ->assertSee('*Water system assessment*')
+            ->assertSee('300 555 1212')
+            ->assertSee('proposals/'.$proposal->id.'/view', false)
+            ->assertDontSee(__('site.print_proposal'))
+            ->assertSee('Water system assessment')
+            ->assertSee('Technical diagnosis');
+
+        $this->get(route('admin.proposals.pdf', $proposal))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
+        $this->get(URL::signedRoute('proposals.public.show', $proposal))
+            ->assertOk()
+            ->assertSee('Water system assessment')
+            ->assertSee('Technical diagnosis');
+
+        $this->get(route('proposals.public.show', $proposal))
+            ->assertForbidden();
+    }
+
+    public function test_proposal_form_keeps_excel_upload_in_edit_and_uses_dynamic_rows(): void
+    {
+        $this->actingAs($this->superAdmin);
+
+        $create = $this->get(route('admin.proposals.create'))
+            ->assertOk()
+            ->assertSee(__('site.add_item'))
+            ->assertSee(__('site.add_payment'))
+            ->assertSee(__('site.proposal_description_template_help'))
+            ->assertSee(__('site.proposal_timeline_help'))
+            ->assertSee(__('site.grand_total_value'));
+
+        $create->assertSee('proposal-payment-row', false);
+        $this->assertSame(2, substr_count($create->getContent(), 'data-existing-row="payment"'));
+        $this->assertSame(7, substr_count($create->getContent(), 'data-existing-row="item"'));
+
+        $this->post(route('admin.proposals.store'), [
+            'title' => 'Proposal layout check',
+            'subject' => 'Internal layout verification',
+            'description' => 'Short description.',
+            'scope' => 'Short scope.',
+            'timeline_months' => 1,
+            'timeline_weeks' => 0,
+            'payment_schedule' => [
+                ['label' => 'Start', 'percentage' => '50'],
+                ['label' => 'Delivery', 'percentage' => '50'],
+            ],
+            'status' => 'draft',
+            'tax_rate' => '0',
+            'issued_at' => now()->toDateString(),
+            'validity_days' => '30',
+            'items' => [
+                ['category' => 'General', 'item_code' => 'G-01', 'description' => 'Layout item', 'unit' => 'und', 'quantity' => '1', 'unit_value' => '100000'],
+                ['category' => '', 'item_code' => 'Optional', 'description' => 'Optional non-costed service', 'unit' => '', 'quantity' => '', 'unit_value' => ''],
+            ],
+        ])->assertRedirect();
+
+        $proposal = Proposal::query()->where('title', 'Proposal layout check')->firstOrFail();
+
+        $this->get(route('admin.proposals.show', $proposal))
+            ->assertOk()
+            ->assertSee(__('site.generate_pdf'))
+            ->assertDontSee(__('site.upload_excel_file'));
+
+        $this->get(route('admin.proposals.edit', $proposal))
+            ->assertOk()
+            ->assertSee(__('site.upload_excel_file'))
+            ->assertSee(__('site.excel_upload_help'))
+            ->assertSee('proposal-excel-upload', false);
+
+        $this->get(route('admin.proposals.index'))
+            ->assertOk()
+            ->assertSee('rounded-full bg-olive-50', false)
+            ->assertSee($proposal->proposal_number);
+    }
+
+    public function test_proposal_validity_days_are_stored_and_displayed(): void
+    {
+        $client = User::factory()->create([
+            'role' => UserRole::CLIENT,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($this->superAdmin);
+
+        $this->post(route('admin.proposals.store'), [
+            'client_user_id' => $client->id,
+            'title' => 'Sanitary network quote',
+            'subject' => 'Proposal for network design',
+            'description' => 'Technical proposal content.',
+            'scope' => 'Network design and deliverables.',
+            'timeline_months' => 1,
+            'timeline_weeks' => 0,
+            'payment_schedule' => [
+                ['label' => 'Anticipo', 'percentage' => '40'],
+                ['label' => 'Acta parcial', 'percentage' => '40'],
+                ['label' => 'Cierre', 'percentage' => '20'],
+            ],
+            'status' => 'draft',
+            'tax_rate' => '19',
+            'issued_at' => '2026-05-16',
+            'validity_days' => '30',
+            'items' => [
+                ['category' => 'Instalaciones de redes sanitarias', 'item_code' => '2.1', 'description' => 'Diseño sanitario', 'unit' => 'und', 'quantity' => '1', 'unit_value' => '1000000'],
+            ],
+        ])->assertRedirect();
+
+        $proposal = Proposal::query()->where('title', 'Sanitary network quote')->firstOrFail();
+
+        $this->assertSame(30, $proposal->validity_days);
+        $this->assertSame('2026-06-15', $proposal->valid_until?->toDateString());
+
+        $this->get(route('admin.proposals.show', $proposal))
+            ->assertOk()
+            ->assertSee(__('site.proposal_validity_days', ['days' => 30]))
+            ->assertSee('2026-06-15');
+    }
+
     public function test_admin_panel_locale_switch_changes_dashboard_copy(): void
     {
         $this->actingAs($this->superAdmin);
@@ -350,6 +621,10 @@ class AdminOperationsTest extends TestCase
             'target_date' => now()->addWeeks(2)->toDateString(),
         ]);
 
-        return Ticket::query()->latest()->firstOrFail();
+        return Ticket::query()
+            ->where('project_name', 'Assigned Portal Project')
+            ->where('email', 'public.client@example.com')
+            ->latest('id')
+            ->firstOrFail();
     }
 }

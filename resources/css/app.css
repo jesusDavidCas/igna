@@ -40,7 +40,7 @@
     }
 
     .section-copy {
-        @apply mt-4 text-base leading-8 text-stone-600;
+        @apply mt-4 text-[17px] leading-8 text-stone-600;
     }
 
     .form-label {
@@ -48,7 +48,7 @@
     }
 
     .form-input {
-        @apply block w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm outline-none transition focus:border-olive-700 focus:ring-2 focus:ring-olive-100;
+        @apply block w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-base text-stone-900 shadow-sm outline-none transition focus:border-olive-700 focus:ring-2 focus:ring-olive-100;
     }
 
     .panel-link {
@@ -57,5 +57,41 @@
 
     .panel-link-active {
         @apply bg-white/10 text-white;
+    }
+}
+
+@media print {
+    @page {
+        size: A4 landscape;
+        margin: 12mm;
+    }
+
+    body {
+        background: #fff !important;
+    }
+
+    aside,
+    header,
+    nav,
+    .print\:hidden {
+        display: none !important;
+    }
+
+    main {
+        max-width: none !important;
+        width: 100% !important;
+        padding: 0 !important;
+    }
+
+    .proposal-print {
+        break-inside: auto;
+        color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .proposal-print section,
+    .proposal-print table,
+    .proposal-print tr {
+        break-inside: avoid;
     }
 }

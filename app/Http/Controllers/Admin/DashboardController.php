@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\BlogPost;
+use App\Models\Proposal;
 use App\Models\Service;
 use App\Models\Ticket;
 use App\Models\User;
@@ -21,6 +22,7 @@ class DashboardController extends Controller
                 'clients' => User::query()->where('role', 'client')->count(),
             ],
             'recentTickets' => Ticket::query()->with(['service', 'currentStage'])->latest()->limit(6)->get(),
+            'recentProposals' => Proposal::query()->with('client')->latest()->limit(4)->get(),
         ]);
     }
 }

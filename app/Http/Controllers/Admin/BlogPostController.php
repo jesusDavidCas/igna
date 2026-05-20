@@ -8,6 +8,7 @@ use App\Models\BlogPost;
 use App\Support\Html\HtmlSanitizer;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Storage;
 
 class BlogPostController extends Controller
 {
@@ -27,11 +28,12 @@ class BlogPostController extends Controller
 
     public function store(BlogPostRequest $request): RedirectResponse
     {
-        BlogPost::query()->create([
+        $post = BlogPost::query()->create([
             ...$this->payload($request),
             'created_by_user_id' => $request->user()->id,
             'updated_by_user_id' => $request->user()->id,
         ]);
+        $this->storeHeaderImage($request, $post);
 
         return redirect()->route('admin.blog.index')->with('success', __('site.blog_created'));
     }
@@ -49,8 +51,16 @@ class BlogPostController extends Controller
             ...$this->payload($request),
             'updated_by_user_id' => $request->user()->id,
         ]);
+        $this->storeHeaderImage($request, $post);
 
         return redirect()->route('admin.blog.edit', $post)->with('success', __('site.blog_updated'));
+    }
+
+    public function destroy(BlogPost $post): RedirectResponse
+    {
+        $post->delete();
+
+        return redirect()->route('admin.blog.index')->with('success', __('site.blog_deleted'));
     }
 
     private function payload(BlogPostRequest $request): array
@@ -71,5 +81,20 @@ class BlogPostController extends Controller
                 ->values()
                 ->all(),
         ];
+    }
+
+    private function storeHeaderImage(BlogPostRequest $request, BlogPost $post): void
+    {
+        if (! $request->hasFile('header_image')) {
+            return;
+        }
+
+        if ($post->header_image_path) {
+            Storage::disk('public')->delete($post->header_image_path);
+        }
+
+        $post->forceFill([
+            'header_image_path' => $request->file('header_image')->store('blog/headers', 'public'),
+        ])->save();
     }
 }

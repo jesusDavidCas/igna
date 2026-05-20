@@ -17,6 +17,7 @@ class TicketController extends Controller
             'currentStage',
             'stageEvents.serviceStage',
             'files' => fn ($query) => $query->where('is_client_visible', true),
+            'deliverables.files' => fn ($query) => $query->where('is_client_visible', true),
         ]);
 
         return view('client.tickets.show', [

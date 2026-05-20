@@ -33,9 +33,9 @@
                             <div>
                                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">{{ $ticket->ticket_code }}</p>
                                 <h2 class="mt-3 text-3xl font-semibold text-stone-950">{{ $ticket->localizedProjectName() }}</h2>
-                                <p class="mt-2 text-sm text-stone-600">{{ $ticket->service->localizedName() }}</p>
+                                <p class="mt-2 text-base text-stone-600">{{ $ticket->service->localizedName() }}</p>
                             </div>
-                            <div class="rounded-2xl bg-olive-50 px-4 py-3 text-sm text-olive-900">
+                            <div class="rounded-2xl bg-olive-50 px-4 py-3 text-[15px] text-olive-900">
                                 <p class="font-semibold">{{ __('site.current_stage') }}</p>
                                 <p class="mt-1">{{ $ticket->currentStage?->localizedName() ?? __('site.pending_assignment') }}</p>
                             </div>
@@ -46,23 +46,45 @@
 
                     <div class="rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
                         <h3 class="text-lg font-semibold text-stone-950">{{ __('site.client_files') }}</h3>
-                        <div class="mt-5 space-y-4">
-                            @forelse ($ticket->files as $file)
-                                @include('partials.ticket-file-card', [
-                                    'file' => $file,
-                                    'downloadUrl' => URL::temporarySignedRoute('tracking.files.download', now()->addMinutes(30), [
-                                        'ticket' => $ticket,
+                        <div class="mt-5 space-y-5">
+                            @foreach ($ticket->deliverables as $deliverable)
+                                @if ($deliverable->files->isNotEmpty())
+                                    <section class="rounded-2xl bg-stone-50 p-4">
+                                        <p class="font-semibold text-stone-950">{{ $deliverable->name }}</p>
+                                        <div class="mt-4 space-y-3">
+                                            @foreach ($deliverable->files as $file)
+                                                @include('partials.ticket-file-card', [
+                                                    'file' => $file,
+                                                    'downloadUrl' => URL::temporarySignedRoute('tracking.files.download', now()->addMinutes(30), [
+                                                        'ticket' => $ticket,
+                                                        'file' => $file,
+                                                        'email_hash' => hash('sha256', strtolower($ticket->email)),
+                                                    ]),
+                                                ])
+                                            @endforeach
+                                        </div>
+                                    </section>
+                                @endif
+                            @endforeach
+                            @if ($ticket->deliverables->isEmpty())
+                                @foreach ($ticket->files as $file)
+                                    @include('partials.ticket-file-card', [
                                         'file' => $file,
-                                        'email_hash' => hash('sha256', strtolower($ticket->email)),
-                                    ]),
-                                ])
-                            @empty
+                                        'downloadUrl' => URL::temporarySignedRoute('tracking.files.download', now()->addMinutes(30), [
+                                            'ticket' => $ticket,
+                                            'file' => $file,
+                                            'email_hash' => hash('sha256', strtolower($ticket->email)),
+                                        ]),
+                                    ])
+                                @endforeach
+                            @endif
+                            @if ($ticket->files->isEmpty() && $ticket->deliverables->every(fn ($deliverable) => $deliverable->files->isEmpty()))
                                 <p class="text-sm text-stone-500">{{ __('site.no_client_files') }}</p>
-                            @endforelse
+                            @endif
                         </div>
                     </div>
                 @else
-                    <div class="rounded-[2rem] border border-dashed border-stone-300 bg-stone-50 p-8 text-sm leading-7 text-stone-500">
+                    <div class="rounded-[2rem] border border-dashed border-stone-300 bg-stone-50 p-8 text-base leading-7 text-stone-500">
                         {{ __('site.tracking_empty') }}
                     </div>
                 @endif

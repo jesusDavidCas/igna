@@ -1,4 +1,4 @@
-<form method="POST" action="{{ $action }}" class="rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
+<form method="POST" action="{{ $action }}" enctype="multipart/form-data" class="rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
     @csrf
     @if ($method !== 'POST')
         @method($method)
@@ -16,6 +16,13 @@
         <div>
             <label class="form-label">{{ __('site.form_summary') }}</label>
             <textarea name="summary" rows="3" class="form-input" required>{{ old('summary', $post->summary) }}</textarea>
+        </div>
+        <div>
+            <label class="form-label">{{ __('site.header_image') }}</label>
+            <input type="file" name="header_image" class="form-input" accept=".png,.jpg,.jpeg,.webp">
+            @if ($post->headerImageUrl())
+                <img src="{{ $post->headerImageUrl() }}" alt="{{ $post->title }}" class="mt-3 h-32 rounded-2xl object-cover">
+            @endif
         </div>
         <div>
             <label class="form-label">{{ __('site.form_body_html') }}</label>

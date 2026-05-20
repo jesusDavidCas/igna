@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Models\BlogPost;
 use App\Models\Service;
+use App\Models\TeamMember;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 
@@ -24,13 +25,21 @@ class LandingController extends Controller
                 ->latest('published_at')
                 ->limit(3)
                 ->get(),
-            'teamProfiles' => $this->teamProfiles(),
+            'teamProfiles' => TeamMember::query()
+                ->where('is_active', true)
+                ->with('publicCredentials')
+                ->orderBy('sort_order')
+                ->get(),
         ]);
     }
 
     public function team(string $slug): View
     {
-        $profile = collect($this->teamProfiles())->firstWhere('slug', $slug);
+        $profile = TeamMember::query()
+            ->where('slug', $slug)
+            ->where('is_active', true)
+            ->with('publicCredentials')
+            ->first();
 
         abort_if($profile === null, 404);
 
@@ -46,43 +55,5 @@ class LandingController extends Controller
         $request->session()->put('locale', $locale);
 
         return back();
-    }
-
-    private function teamProfiles(): array
-    {
-        return [
-            [
-                'slug' => 'jesus-david-castaneda',
-                'name' => 'Jesús David Castañeda',
-                'role' => __('site.team_jesus_role'),
-                'summary' => __('site.team_jesus_summary'),
-                'bio' => [
-                    __('site.team_jesus_bio_1'),
-                    __('site.team_jesus_bio_2'),
-                ],
-                'expertise' => [
-                    __('site.team_jesus_expertise_1'),
-                    __('site.team_jesus_expertise_2'),
-                    __('site.team_jesus_expertise_3'),
-                    __('site.team_jesus_expertise_4'),
-                ],
-            ],
-            [
-                'slug' => 'roberto-castaneda-pardo',
-                'name' => 'Roberto Castañeda Pardo',
-                'role' => __('site.team_roberto_role'),
-                'summary' => __('site.team_roberto_summary'),
-                'bio' => [
-                    __('site.team_roberto_bio_1'),
-                    __('site.team_roberto_bio_2'),
-                ],
-                'expertise' => [
-                    __('site.team_roberto_expertise_1'),
-                    __('site.team_roberto_expertise_2'),
-                    __('site.team_roberto_expertise_3'),
-                    __('site.team_roberto_expertise_4'),
-                ],
-            ],
-        ];
     }
 }

@@ -3,8 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\Service;
+use App\Models\TeamMember;
 use App\Models\Ticket;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
 class PublicPlatformTest extends TestCase
@@ -16,6 +21,7 @@ class PublicPlatformTest extends TestCase
         parent::setUp();
 
         $this->withoutVite();
+        Mail::fake();
         $this->seed();
     }
 
@@ -89,5 +95,81 @@ class PublicPlatformTest extends TestCase
             'project_description' => 'Proyecto de prueba para validar el flujo.',
             'target_date' => now()->addWeeks(2)->toDateString(),
         ])->assertSessionHasErrors('service_id');
+    }
+
+    public function test_public_pdf_credential_view_has_protected_open_fallback(): void
+    {
+        Storage::fake('local');
+
+        $member = TeamMember::query()->firstOrFail();
+        $path = UploadedFile::fake()->create('credential.pdf', 32, 'application/pdf')
+            ->storeAs("team/credentials/{$member->slug}", 'credential.pdf', 'local');
+
+        $credential = $member->credentials()->create([
+            'title' => 'Professional diploma',
+            'institution' => 'Universidad de prueba',
+            'document_path' => $path,
+            'original_name' => 'credential.pdf',
+            'mime_type' => 'application/pdf',
+            'size_bytes' => 32000,
+            'preview_page_count' => 0,
+            'is_public' => true,
+            'sort_order' => 1,
+        ]);
+
+        $url = URL::temporarySignedRoute('team.credentials.show', now()->addMinutes(5), [
+            'teamMember' => $member,
+            'credential' => $credential,
+        ]);
+
+        $this->get($url)
+            ->assertOk()
+            ->assertSee('Professional diploma')
+            ->assertSee(__('site.open_pdf_new_tab'))
+            ->assertSee(__('site.protected_pdf_download_note'))
+            ->assertSee('toolbar=1', false)
+            ->assertSee('<object', false);
+    }
+
+    public function test_public_pdf_credential_file_route_returns_watermarked_derivative(): void
+    {
+        Storage::fake('local');
+
+        $source = new \FPDF;
+        $source->AddPage();
+        $source->SetFont('Helvetica', 'B', 18);
+        $source->Cell(0, 10, 'Original credential content');
+
+        $member = TeamMember::query()->firstOrFail();
+        $path = "team/credentials/{$member->slug}/credential.pdf";
+        Storage::disk('local')->put($path, $source->Output('S'));
+
+        $credential = $member->credentials()->create([
+            'title' => 'Protected diploma',
+            'institution' => 'Universidad de prueba',
+            'document_path' => $path,
+            'original_name' => 'credential.pdf',
+            'mime_type' => 'application/pdf',
+            'size_bytes' => Storage::disk('local')->size($path),
+            'preview_page_count' => 1,
+            'is_public' => true,
+            'sort_order' => 1,
+        ]);
+
+        $url = URL::temporarySignedRoute('team.credentials.file', now()->addMinutes(5), [
+            'teamMember' => $member,
+            'credential' => $credential,
+        ]);
+
+        $response = $this->get($url);
+
+        $response
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf')
+            ->assertHeader('content-disposition', 'inline; filename="credential-protected.pdf"');
+
+        $this->assertStringStartsWith('%PDF', $response->getContent());
+        $this->assertStringContainsString('IGNA STUDIO', $response->getContent());
+        $this->assertStringContainsString('DOCUMENTO NO CONTROLADO', $response->getContent());
     }
 }

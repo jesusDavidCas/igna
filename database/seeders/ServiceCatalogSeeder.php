@@ -201,6 +201,18 @@ class ServiceCatalogSeeder extends Seeder
                     ],
                 );
             }
+
+            foreach ($payload['deliverables_schema'] as $deliverableIndex => $deliverable) {
+                $service->deliverables()->updateOrCreate(
+                    ['name' => $deliverable],
+                    [
+                        'description' => null,
+                        'sort_order' => $deliverableIndex + 1,
+                        'is_active' => true,
+                        'is_client_visible_by_default' => true,
+                    ],
+                );
+            }
         }
     }
 

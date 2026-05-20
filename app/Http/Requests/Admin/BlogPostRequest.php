@@ -20,6 +20,7 @@ class BlogPostRequest extends FormRequest
         return [
             'title' => ['required', 'string', 'max:180'],
             'summary' => ['required', 'string', 'max:1000'],
+            'header_image' => ['nullable', 'file', 'mimes:png,jpg,jpeg,webp', 'max:4096'],
             'body_html' => ['required', 'string'],
             'status' => ['required', 'in:draft,published'],
             'published_at' => ['nullable', 'date'],

@@ -33,6 +33,21 @@ class BrandSettings
         ];
     }
 
+    public function pdfPayload(): array
+    {
+        $payload = $this->publicPayload();
+
+        if (! Schema::hasTable('settings')) {
+            return [...$payload, 'logo_data_uri' => null];
+        }
+
+        $logoPath = Setting::query()->where('key', 'brand_logo_path')->value('value');
+
+        $payload['logo_data_uri'] = $this->dataUri($logoPath);
+
+        return $payload;
+    }
+
     private function publicUrl(?string $path): ?string
     {
         if (! $path) {
@@ -40,5 +55,16 @@ class BrandSettings
         }
 
         return Storage::disk('public')->url($path);
+    }
+
+    private function dataUri(?string $path): ?string
+    {
+        if (! $path || ! Storage::disk('public')->exists($path)) {
+            return null;
+        }
+
+        $mimeType = Storage::disk('public')->mimeType($path) ?: 'image/png';
+
+        return 'data:'.$mimeType.';base64,'.base64_encode(Storage::disk('public')->get($path));
     }
 }

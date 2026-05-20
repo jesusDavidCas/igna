@@ -11,7 +11,7 @@ class SettingSeeder extends Seeder
     {
         $settings = [
             ['group' => 'company', 'key' => 'company_name', 'value' => 'IGNA Studio', 'type' => 'string', 'is_public' => true],
-            ['group' => 'company', 'key' => 'support_email', 'value' => 'admin@ignastudio.com', 'type' => 'string', 'is_public' => true],
+            ['group' => 'company', 'key' => 'support_email', 'value' => 'support@ignastudio.com', 'type' => 'string', 'is_public' => true],
             ['group' => 'branding', 'key' => 'brand_logo_text', 'value' => 'IG', 'type' => 'string', 'is_public' => true],
             ['group' => 'branding', 'key' => 'brand_logo_path', 'value' => null, 'type' => 'file', 'is_public' => true],
             ['group' => 'branding', 'key' => 'brand_favicon_path', 'value' => null, 'type' => 'file', 'is_public' => true],

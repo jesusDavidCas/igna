@@ -43,6 +43,7 @@ class TicketTrackingController extends Controller
                 'currentStage',
                 'stageEvents.serviceStage',
                 'files' => fn ($query) => $query->where('is_client_visible', true),
+                'deliverables.files' => fn ($query) => $query->where('is_client_visible', true),
             ])
             ->where('ticket_code', strtoupper($ticketCode))
             ->where('email', $email)

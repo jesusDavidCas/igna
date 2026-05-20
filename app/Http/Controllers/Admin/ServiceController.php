@@ -45,16 +45,20 @@ class ServiceController extends Controller
 
     public function store(ServiceRequest $request): RedirectResponse
     {
-        Service::query()->create($this->payload($request) + [
+        $service = Service::query()->create($this->payload($request) + [
             'sort_order' => (Service::query()->max('sort_order') ?? 0) + 1,
         ]);
+        $this->syncDeliverables($service, $request->validated('deliverables'));
 
         return redirect()->route('admin.services.index')->with('success', __('site.service_created'));
     }
 
     public function edit(Service $service): View
     {
-        $service->load(['stages' => fn ($query) => $query->orderBy('sort_order')]);
+        $service->load([
+            'stages' => fn ($query) => $query->orderBy('sort_order'),
+            'deliverables',
+        ]);
 
         return view('admin.services.edit', [
             'service' => $service,
@@ -66,6 +70,7 @@ class ServiceController extends Controller
     public function update(ServiceRequest $request, Service $service): RedirectResponse
     {
         $service->update($this->payload($request));
+        $this->syncDeliverables($service, $request->validated('deliverables'));
 
         return redirect()->route('admin.services.edit', $service)->with('success', __('site.service_updated'));
     }
@@ -89,5 +94,27 @@ class ServiceController extends Controller
             'deliverables_schema' => $deliverables,
             'is_active' => $request->boolean('is_active'),
         ];
+    }
+
+    private function syncDeliverables(Service $service, ?string $rawDeliverables): void
+    {
+        $deliverables = collect(preg_split('/\r\n|\r|\n/', (string) $rawDeliverables))
+            ->map(fn (string $line): string => trim($line))
+            ->filter()
+            ->values();
+
+        $service->deliverables()->delete();
+
+        $deliverables->each(function (string $line, int $index) use ($service): void {
+            [$name, $description] = array_pad(array_map('trim', explode('|', $line, 2)), 2, null);
+
+            $service->deliverables()->create([
+                'name' => $name,
+                'description' => $description,
+                'sort_order' => $index + 1,
+                'is_active' => true,
+                'is_client_visible_by_default' => true,
+            ]);
+        });
     }
 }

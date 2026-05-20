@@ -67,6 +67,11 @@ class Ticket extends Model
         return $this->hasMany(TicketFile::class)->latest('uploaded_at');
     }
 
+    public function deliverables(): HasMany
+    {
+        return $this->hasMany(TicketDeliverable::class)->orderBy('sort_order');
+    }
+
     public function localizedProjectName(): string
     {
         return $this->localizedDemoValue('project_name', $this->project_name);

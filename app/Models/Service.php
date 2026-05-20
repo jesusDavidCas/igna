@@ -36,6 +36,11 @@ class Service extends Model
         return $this->hasMany(ServiceStage::class)->orderBy('sort_order');
     }
 
+    public function deliverables(): HasMany
+    {
+        return $this->hasMany(ServiceDeliverable::class)->orderBy('sort_order');
+    }
+
     public function tickets(): HasMany
     {
         return $this->hasMany(Ticket::class);

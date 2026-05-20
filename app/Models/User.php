@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 
 class User extends Authenticatable
 {
@@ -23,6 +24,7 @@ class User extends Authenticatable
         'preferred_language',
         'role',
         'is_active',
+        'signature_path',
         'password',
     ];
 
@@ -56,6 +58,21 @@ class User extends Authenticatable
     public function uploadedFiles(): HasMany
     {
         return $this->hasMany(TicketFile::class, 'uploaded_by_user_id');
+    }
+
+    public function proposals(): HasMany
+    {
+        return $this->hasMany(Proposal::class, 'client_user_id');
+    }
+
+    public function signedProposals(): HasMany
+    {
+        return $this->hasMany(Proposal::class, 'signer_user_id');
+    }
+
+    public function signatureUrl(): ?string
+    {
+        return $this->signature_path ? Storage::disk('public')->url($this->signature_path) : null;
     }
 
     public function canAccessAdmin(): bool

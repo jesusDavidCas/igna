@@ -14,6 +14,7 @@
                         <th class="pb-3">{{ __('site.form_title') }}</th>
                         <th class="pb-3">{{ __('site.form_status') }}</th>
                         <th class="pb-3">{{ __('site.form_slug') }}</th>
+                        <th class="pb-3 text-right">{{ __('site.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-stone-100">
@@ -22,6 +23,13 @@
                             <td class="py-3"><a class="font-semibold text-olive-700" href="{{ route('admin.blog.edit', $post) }}">{{ $post->title }}</a></td>
                             <td class="py-3">{{ $post->status->label() }}</td>
                             <td class="py-3">{{ $post->slug }}</td>
+                            <td class="py-3 text-right">
+                                <form method="POST" action="{{ route('admin.blog.destroy', $post) }}" data-confirm-title="{{ __('site.confirm_delete_post_title') }}" data-confirm-message="{{ __('site.confirm_delete_post_message') }}" data-confirm-danger="true">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="rounded-full border border-rose-200 px-3 py-1.5 text-sm font-semibold text-rose-700">{{ __('site.delete') }}</button>
+                                </form>
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>
