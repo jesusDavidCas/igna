@@ -1,11 +1,12 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "igna-studio/platform",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
+    "description": "Lightweight Laravel business platform for IGNA Studio services, requests, tickets, files, blog, team credentials, and proposals.",
     "keywords": [
+        "igna-studio",
         "laravel",
-        "framework"
+        "business-platform"
     ],
     "license": "MIT",
     "require": {

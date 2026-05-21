@@ -124,7 +124,7 @@ php artisan view:cache
 Open:
 
 ```text
-https://ignesstudio.com
+https://ignastudio.com
 ```
 
 Then test:

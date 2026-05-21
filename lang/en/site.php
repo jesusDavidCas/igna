@@ -11,6 +11,7 @@ return [
     'nav_tracking' => 'Tracking',
     'nav_login' => 'Login',
     'nav_workspace' => 'Go to workspace',
+    'mobile_menu' => 'Open navigation menu',
     'language_switch' => 'Language',
     'language_spanish' => 'Spanish',
     'language_english' => 'English',

@@ -37,15 +37,15 @@
 
     <section class="relative overflow-hidden bg-gradient-to-b from-stone-100 via-stone-50 to-stone-50">
         <div class="absolute inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_top_left,_rgba(104,123,92,0.22),_transparent_50%)]"></div>
-        <div class="mx-auto grid max-w-7xl gap-12 px-6 py-20 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:py-28">
+        <div class="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 sm:py-20 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:py-28">
             <div class="relative">
-                <p class="inline-flex rounded-full border border-olive-300 bg-olive-100 px-4 py-1 text-sm font-semibold uppercase tracking-[0.2em] text-olive-900">
+                <p class="inline-flex rounded-full border border-olive-300 bg-olive-100 px-4 py-1.5 text-xs font-semibold uppercase leading-5 tracking-[0.18em] text-olive-900 sm:text-sm sm:tracking-[0.2em]">
                     {{ __('site.hero_eyebrow') }}
                 </p>
-                <h1 class="mt-6 max-w-4xl text-5xl font-semibold leading-tight text-stone-950 lg:text-6xl">
+                <h1 class="mt-6 max-w-4xl text-[2.35rem] font-semibold leading-[1.1] text-stone-950 sm:text-5xl lg:text-6xl">
                     {{ __('site.hero_title') }}
                 </h1>
-                <p class="mt-6 max-w-2xl text-lg leading-8 text-stone-600">
+                <p class="mt-5 max-w-2xl text-[17px] leading-8 text-stone-600 sm:mt-6 sm:text-lg">
                     {{ __('site.hero_description') }}
                 </p>
                 <div class="mt-10 flex flex-wrap gap-4">

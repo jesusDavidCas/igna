@@ -3,7 +3,7 @@
 This guide explains how to deploy the IGNA Studio Laravel platform to the main domain:
 
 ```text
-https://ignesstudio.com
+https://ignastudio.com
 ```
 
 The project repository is:
@@ -36,7 +36,7 @@ Have these values ready from Hostinger:
 - MySQL database name.
 - MySQL database username.
 - MySQL database password.
-- Main domain: `ignesstudio.com`.
+- Main domain: `ignastudio.com`.
 
 Also make sure your server can access the GitHub repository. Since the repository is private, the server SSH key must be added to GitHub as a deploy key or to your GitHub account.
 
@@ -118,7 +118,7 @@ Use your real Hostinger database values:
 ```env
 APP_ENV=production
 APP_DEBUG=false
-APP_URL=https://ignesstudio.com
+APP_URL=https://ignastudio.com
 
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
@@ -260,7 +260,7 @@ php artisan config:cache
 
 This is the most important deployment rule.
 
-Your domain `ignesstudio.com` must point to Laravel's `public` directory:
+Your domain `ignastudio.com` must point to Laravel's `public` directory:
 
 ```text
 /var/www/igna-studio/public
@@ -297,7 +297,7 @@ If Hostinger forces the website to use `public_html`, the safe structure is:
 Open:
 
 ```text
-https://ignesstudio.com
+https://ignastudio.com
 ```
 
 Then test:

@@ -165,7 +165,7 @@ class GoogleDriveFileManager
             throw new RuntimeException('Google Drive service account JSON file is not configured or cannot be read.');
         }
 
-        $client = new GoogleClient();
+        $client = new GoogleClient;
         $client->setApplicationName(config('app.name', 'IGNA Studio').' Drive Storage');
         $client->setAuthConfig($serviceAccountPath);
         $client->setScopes([Drive::DRIVE]);

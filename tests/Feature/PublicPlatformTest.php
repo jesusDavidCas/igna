@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Mail\ProjectUpdateMail;
 use App\Mail\AdminNewTicketMail;
+use App\Mail\ProjectUpdateMail;
 use App\Models\Service;
 use App\Models\TeamMember;
 use App\Models\Ticket;

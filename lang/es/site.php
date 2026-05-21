@@ -11,6 +11,7 @@ return [
     'nav_tracking' => 'Seguimiento',
     'nav_login' => 'Ingreso',
     'nav_workspace' => 'Ir al espacio de trabajo',
+    'mobile_menu' => 'Abrir menú de navegación',
     'language_switch' => 'Idioma',
     'language_spanish' => 'Español',
     'language_english' => 'Inglés',

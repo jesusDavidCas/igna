@@ -1,12 +1,12 @@
 # IGNA Studio System Architecture
 
-This platform is a Laravel application for `ignesstudio.com`. Laravel owns the business logic, Blade renders the UI, MySQL stores the business data, and private file storage holds uploaded files until Google Drive is enabled in a later phase.
+This platform is a Laravel application for `ignastudio.com`. Laravel owns the business logic, Blade renders the UI, MySQL stores the business data, and private file storage holds uploaded files until Google Drive is enabled in a later phase.
 
 ## Production Shape
 
 ```text
 Browser
-  -> https://ignesstudio.com
+  -> https://ignastudio.com
   -> Web server document root: /path/to/igna/public
   -> Laravel application: /path/to/igna
   -> MySQL database: Hostinger/MySQL server
@@ -73,7 +73,7 @@ The database stores the file metadata in `ticket_files`. The binary file is not 
 
 ## Main Domain Deployment Rule
 
-`ignesstudio.com` should serve:
+`ignastudio.com` should serve:
 
 ```text
 /path/to/igna/public
