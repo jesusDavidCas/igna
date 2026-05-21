@@ -54,7 +54,7 @@ class BrandSettings
             return null;
         }
 
-        return Storage::disk('public')->url($path);
+        return url(Storage::disk('public')->url($path));
     }
 
     private function dataUri(?string $path): ?string

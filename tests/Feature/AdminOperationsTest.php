@@ -174,6 +174,25 @@ class AdminOperationsTest extends TestCase
         Mail::assertSent(ProjectUpdateMail::class);
     }
 
+    public function test_project_update_email_uses_branded_customer_template(): void
+    {
+        $ticket = $this->createTicket()->fresh(['currentStage', 'service', 'stageEvents.serviceStage']);
+
+        $html = (new ProjectUpdateMail(
+            ticket: $ticket,
+            type: 'stage_changed',
+            headline: 'Your project moved forward',
+            message: 'We are reviewing your information and preparing the next step.',
+        ))->render();
+
+        $this->assertStringContainsString('IGNA Studio', $html);
+        $this->assertStringContainsString('Your project moved forward', $html);
+        $this->assertStringContainsString(__('site.email_project_summary'), $html);
+        $this->assertStringContainsString(__('site.email_next_steps'), $html);
+        $this->assertStringContainsString(__('site.email_view_tracking'), $html);
+        $this->assertStringContainsString($ticket->ticket_code, $html);
+    }
+
     public function test_admin_can_create_classified_service_with_deliverables(): void
     {
         $this->actingAs($this->superAdmin);

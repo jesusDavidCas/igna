@@ -15,12 +15,16 @@ class ProjectUpdateMail extends Mailable
     use Queueable;
     use SerializesModels;
 
+    public ?string $updateMessage;
+
     public function __construct(
         public Ticket $ticket,
         public string $type,
         public string $headline,
-        public ?string $message = null,
-    ) {}
+        ?string $message = null,
+    ) {
+        $this->updateMessage = $message;
+    }
 
     public function envelope(): Envelope
     {
@@ -35,6 +39,7 @@ class ProjectUpdateMail extends Mailable
             view: 'emails.project-update',
             with: [
                 'brand' => app(BrandSettings::class)->publicPayload(),
+                'supportEmail' => config('mail.reply_to.address') ?: config('mail.from.address'),
                 'trackingUrl' => route('tracking.index'),
             ],
         );
