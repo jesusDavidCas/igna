@@ -410,6 +410,8 @@ return [
     'email_request_received_message' => 'Tu solicitud quedó registrada con el ticket :ticket. Puedes usar tu código y correo para seguir el avance.',
     'email_stage_changed_headline' => 'Tu proyecto está ahora en: :stage',
     'email_stage_completed_headline' => 'Etapa completada: :stage',
+    'email_stage_reopened_headline' => 'Etapa reabierta para revisión: :stage',
+    'email_stage_reopened_message' => 'Reabrimos esta etapa para hacer una corrección o revisar un detalle adicional. La línea de tiempo del proyecto sigue disponible en tu espacio de seguimiento.',
     'email_file_available_headline' => 'Hay un nuevo archivo disponible',
     'email_file_available_message' => 'El archivo ":file" ya está disponible en tu espacio de seguimiento.',
     'credential_uncontrolled_warning' => 'Documento no controlado / Uncontrolled document · Solo para consulta / For reference only.',

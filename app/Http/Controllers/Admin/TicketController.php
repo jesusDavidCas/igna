@@ -144,6 +144,7 @@ class TicketController extends Controller
         TicketStageUpdateRequest $request,
         Ticket $ticket,
         TicketStageEvent $event,
+        ProjectNotificationService $projectNotificationService,
     ): RedirectResponse {
         abort_unless($event->ticket_id === $ticket->id, 404);
 
@@ -155,6 +156,13 @@ class TicketController extends Controller
             'changed_by_user_id' => $request->user()->id,
             'notes' => trim(($event->notes ? $event->notes."\n\n" : '').'['.now()->format('Y-m-d H:i').'] '.__('site.admin_correction_note')),
         ]);
+
+        $projectNotificationService->notifyTicket(
+            $ticket,
+            'stage_reopened',
+            __('site.email_stage_reopened_headline', ['stage' => $event->serviceStage->localizedName()]),
+            $request->validated('notes') ?: __('site.email_stage_reopened_message'),
+        );
 
         return redirect()->route('admin.tickets.show', $ticket)->with('success', __('site.ticket_stage_reopened'));
     }

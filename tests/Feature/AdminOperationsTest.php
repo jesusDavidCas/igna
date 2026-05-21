@@ -134,12 +134,14 @@ class AdminOperationsTest extends TestCase
             ->firstOrFail();
         $this->assertFalse($file->is_client_visible);
 
+        Mail::fake();
+
         $this->put(route('admin.tickets.files.visibility.update', [$ticket, $file]))
             ->assertRedirect(route('admin.tickets.show', $ticket));
 
         $this->assertTrue($file->fresh()->is_client_visible);
 
-        Mail::assertSent(ProjectUpdateMail::class);
+        Mail::assertSent(ProjectUpdateMail::class, fn (ProjectUpdateMail $mail): bool => $mail->type === 'file_available');
     }
 
     public function test_admin_selects_current_stage_without_auto_completing_and_can_complete_explicitly(): void
@@ -148,6 +150,8 @@ class AdminOperationsTest extends TestCase
 
         $ticket = $this->createTicket()->load(['service.stages', 'stageEvents.serviceStage']);
         $secondStage = $ticket->service->stages()->orderBy('sort_order')->skip(1)->firstOrFail();
+
+        Mail::fake();
 
         $this->put(route('admin.tickets.stage.update', $ticket), [
             'service_stage_id' => $secondStage->id,
@@ -163,6 +167,7 @@ class AdminOperationsTest extends TestCase
         $this->assertSame('current', $secondEvent->status->value);
         $this->assertNotNull($secondEvent->entered_at);
         $this->assertNull($secondEvent->completed_at);
+        Mail::assertSent(ProjectUpdateMail::class, fn (ProjectUpdateMail $mail): bool => $mail->type === 'stage_changed');
 
         $this->put(route('admin.tickets.stages.complete', [$ticket, $secondEvent]), [
             'stage_event_id' => $secondEvent->id,
@@ -171,7 +176,7 @@ class AdminOperationsTest extends TestCase
 
         $this->assertSame('completed', $secondEvent->fresh()->status->value);
         $this->assertNotNull($secondEvent->fresh()->completed_at);
-        Mail::assertSent(ProjectUpdateMail::class);
+        Mail::assertSent(ProjectUpdateMail::class, fn (ProjectUpdateMail $mail): bool => $mail->type === 'stage_completed');
     }
 
     public function test_project_update_email_uses_branded_customer_template(): void
@@ -191,6 +196,28 @@ class AdminOperationsTest extends TestCase
         $this->assertStringContainsString(__('site.email_next_steps'), $html);
         $this->assertStringContainsString(__('site.email_view_tracking'), $html);
         $this->assertStringContainsString($ticket->ticket_code, $html);
+    }
+
+    public function test_reopening_a_completed_stage_sends_customer_notification(): void
+    {
+        $this->actingAs($this->superAdmin);
+
+        $ticket = $this->createTicket()->load(['service.stages', 'stageEvents.serviceStage']);
+        $event = $ticket->stageEvents->first();
+
+        $this->put(route('admin.tickets.stages.complete', [$ticket, $event]), [
+            'stage_event_id' => $event->id,
+            'notes' => 'Completed by mistake.',
+        ])->assertRedirect(route('admin.tickets.show', $ticket));
+
+        Mail::fake();
+
+        $this->put(route('admin.tickets.stages.reopen', [$ticket, $event]), [
+            'stage_event_id' => $event->id,
+            'notes' => 'Reopened for correction.',
+        ])->assertRedirect(route('admin.tickets.show', $ticket));
+
+        Mail::assertSent(ProjectUpdateMail::class, fn (ProjectUpdateMail $mail): bool => $mail->type === 'stage_reopened');
     }
 
     public function test_admin_can_create_classified_service_with_deliverables(): void

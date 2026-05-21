@@ -410,6 +410,8 @@ return [
     'email_request_received_message' => 'Your request was registered with ticket :ticket. You can use your ticket code and email to track progress.',
     'email_stage_changed_headline' => 'Your project is now in: :stage',
     'email_stage_completed_headline' => 'Stage completed: :stage',
+    'email_stage_reopened_headline' => 'Stage reopened for review: :stage',
+    'email_stage_reopened_message' => 'We reopened this stage to make a correction or review an additional detail. The project timeline remains available in your tracking space.',
     'email_file_available_headline' => 'A new file is available',
     'email_file_available_message' => 'The file ":file" is now available in your tracking space.',
     'credential_uncontrolled_warning' => 'Documento no controlado / Uncontrolled document · Solo para consulta / For reference only.',
