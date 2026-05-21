@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Mail\ProjectUpdateMail;
+use App\Mail\AdminNewTicketMail;
 use App\Models\Service;
 use App\Models\TeamMember;
 use App\Models\Ticket;
@@ -79,6 +80,7 @@ class PublicPlatformTest extends TestCase
         $this->assertCount($service->stages()->count(), $ticket->stageEvents);
 
         Mail::assertSent(ProjectUpdateMail::class, fn (ProjectUpdateMail $mail): bool => $mail->type === 'request_received');
+        Mail::assertSent(AdminNewTicketMail::class);
     }
 
     public function test_public_request_rejects_inactive_services(): void

@@ -57,6 +57,8 @@ class TicketLifecycleService
                 __('site.email_request_received_message', ['ticket' => $ticket->ticket_code]),
             );
 
+            $this->projectNotificationService->notifyAdminsNewTicket($ticket);
+
             return $ticket->fresh(['service', 'currentStage', 'stageEvents.serviceStage']);
         });
     }
