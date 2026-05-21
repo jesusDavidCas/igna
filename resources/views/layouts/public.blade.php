@@ -43,11 +43,11 @@
                 <div class="flex flex-1 flex-wrap items-center justify-end gap-2 sm:flex-none sm:gap-3">
                     <details class="group relative lg:hidden">
                         <summary aria-label="{{ __('site.mobile_menu') }}" class="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full border border-stone-300 bg-stone-50 text-stone-700 transition hover:border-olive-600 hover:text-olive-700 [&::-webkit-details-marker]:hidden">
-                            <span class="grid gap-1.5">
-                                <span class="block h-0.5 w-4 rounded-full bg-current transition group-open:translate-y-2 group-open:rotate-45"></span>
-                                <span class="block h-0.5 w-4 rounded-full bg-current transition group-open:opacity-0"></span>
-                                <span class="block h-0.5 w-4 rounded-full bg-current transition group-open:-translate-y-2 group-open:-rotate-45"></span>
-                            </span>
+                            <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2">
+                                <path d="M5 7h14"></path>
+                                <path d="M5 12h14"></path>
+                                <path d="M5 17h14"></path>
+                            </svg>
                         </summary>
                         <div class="fixed left-4 right-4 top-28 z-50 rounded-[1.5rem] border border-stone-200 bg-white p-3 text-sm font-semibold text-stone-700 shadow-2xl shadow-stone-900/10 sm:left-auto sm:right-6 sm:w-80">
                             <a href="{{ route('home') }}#services" class="block rounded-2xl px-4 py-3 transition hover:bg-olive-50 hover:text-olive-800">{{ __('site.nav_services') }}</a>
