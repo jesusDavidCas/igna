@@ -25,7 +25,9 @@ return new class extends Migration
 
         Schema::create('proposal_service_template_items', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('proposal_service_template_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('proposal_service_template_id')
+                ->constrained('proposal_service_templates', 'id', 'pst_items_template_fk')
+                ->cascadeOnDelete();
             $table->string('item_code', 40)->nullable();
             $table->text('description_es');
             $table->text('description_en')->nullable();
