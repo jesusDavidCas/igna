@@ -112,16 +112,23 @@
     <div class="rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
         <h2 class="text-lg font-semibold text-stone-950">{{ __('site.itemized_costs') }}</h2>
         <p class="mt-2 text-[15px] leading-6 text-stone-500">{{ __('site.itemized_costs_help') }}</p>
-        @if ($method !== 'POST')
-            <div class="mt-5 rounded-2xl border border-dashed border-olive-200 bg-olive-50 p-4">
-                <label class="form-label">{{ __('site.upload_excel_file') }}</label>
-                <input id="proposal-excel-upload" type="file" name="source_excel_file" accept=".xls,.xlsx,.csv" class="form-input bg-white">
-                <p class="mt-2 text-[15px] leading-6 text-olive-900">{{ __('site.excel_upload_help') }}</p>
-                @if ($proposal->source_excel_original_name)
-                    <p class="mt-2 text-sm font-semibold text-olive-900">{{ $proposal->source_excel_original_name }}</p>
-                @endif
-            </div>
-        @endif
+
+        <div class="mt-5 rounded-2xl border border-dashed border-olive-200 bg-olive-50 p-4">
+            <label class="form-label">{{ __('site.select_service_template') }}</label>
+            <select
+                class="form-input bg-white"
+                data-proposal-template-select
+                data-template-replace-message="{{ __('site.confirm_replace_cost_items_with_template') }}"
+            >
+                <option value="">{{ __('site.keep_current_cost_items') }}</option>
+                @foreach ($proposalTemplates as $template)
+                    <option value="{{ $template->id }}">
+                        {{ str_pad((string) $template->service_number, 2, '0', STR_PAD_LEFT) }} · {{ $template->localizedName() }}
+                    </option>
+                @endforeach
+            </select>
+            <p class="mt-2 text-[15px] leading-6 text-olive-900">{{ __('site.service_template_help') }}</p>
+        </div>
 
         <div class="mt-5 overflow-x-auto rounded-2xl border border-stone-200">
             <table class="min-w-[1120px] table-fixed text-left text-sm">
@@ -193,6 +200,8 @@
             const addPaymentButton = document.getElementById('add-proposal-payment');
             const grandTotal = document.querySelector('[data-items-grand-total]');
             const description = document.querySelector('[name="description"][data-default-template]');
+            const templateSelect = document.querySelector('[data-proposal-template-select]');
+            const proposalTemplates = @json($proposalTemplatePayload ?? []);
 
             description?.addEventListener('focus', () => {
                 if (description.value.trim() === '') {
@@ -231,6 +240,10 @@
                     row.querySelectorAll('[name]').forEach((field) => {
                         field.name = field.name.replace(new RegExp(`${prefix}\\\\[\\\\d+\\\\]`), `${prefix}[${index}]`);
                     });
+                    const descriptionField = row.querySelector('textarea[name*="[description]"]');
+                    if (descriptionField) {
+                        descriptionField.required = index === 0;
+                    }
                 });
             };
 
@@ -248,6 +261,29 @@
                 document.querySelectorAll('[data-remove-row="item"]').forEach((button) => bindRemove(button, itemsContainer, '.proposal-item-row', 'items'));
                 document.querySelectorAll('[data-remove-row="payment"]').forEach((button) => bindRemove(button, paymentsContainer, '.proposal-payment-row', 'payment_schedule'));
             };
+
+            const itemRowHtml = (index, item = {}) => `
+                <td class="px-4 py-3 align-top"><input type="hidden" name="items[${index}][category]" value="${escapeAttribute(item.category || '')}"><input name="items[${index}][item_code]" value="${escapeAttribute(item.item_code || '')}" class="form-input"></td>
+                <td class="px-4 py-3 align-top"><textarea name="items[${index}][description]" rows="3" class="form-input" ${index === 0 ? 'required' : ''}>${escapeHtml(item.description || '')}</textarea></td>
+                <td class="px-4 py-3 align-top"><input name="items[${index}][unit]" value="${escapeAttribute(item.unit || '')}" class="form-input"></td>
+                <td class="px-4 py-3 align-top"><input data-cost-field="quantity" inputmode="numeric" name="items[${index}][quantity]" value="${escapeAttribute(item.quantity ?? '')}" class="form-input"></td>
+                <td class="px-4 py-3 align-top"><input data-cost-field="unit_value" inputmode="decimal" name="items[${index}][unit_value]" value="${escapeAttribute(item.unit_value ?? '')}" class="form-input"></td>
+                <td class="px-4 py-3 align-top text-right"><output data-line-total class="inline-flex min-h-11 w-full items-center justify-end rounded-xl bg-stone-50 px-3 font-semibold text-stone-900">—</output></td>
+                <td class="px-4 py-3 align-top"><button type="button" data-remove-row="item" data-confirm-message="{{ __('site.confirm_delete_item_row_message') }}" class="rounded-full border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700">{{ __('site.remove') }}</button></td>
+            `;
+
+            function escapeHtml(value) {
+                return String(value)
+                    .replaceAll('&', '&amp;')
+                    .replaceAll('<', '&lt;')
+                    .replaceAll('>', '&gt;');
+            }
+
+            function escapeAttribute(value) {
+                return escapeHtml(value)
+                    .replaceAll('"', '&quot;')
+                    .replaceAll("'", '&#039;');
+            }
 
             addPaymentButton?.addEventListener('click', () => {
                 const index = paymentsContainer.querySelectorAll('.proposal-payment-row').length;
@@ -267,18 +303,35 @@
                 const index = itemsContainer.querySelectorAll('.proposal-item-row').length;
                 const row = document.createElement('tr');
                 row.className = 'proposal-item-row';
-                row.innerHTML = `
-                    <td class="px-4 py-3 align-top"><input type="hidden" name="items[${index}][category]" value=""><input name="items[${index}][item_code]" class="form-input"></td>
-                    <td class="px-4 py-3 align-top"><textarea name="items[${index}][description]" rows="3" class="form-input"></textarea></td>
-                    <td class="px-4 py-3 align-top"><input name="items[${index}][unit]" class="form-input"></td>
-                    <td class="px-4 py-3 align-top"><input data-cost-field="quantity" inputmode="numeric" name="items[${index}][quantity]" class="form-input"></td>
-                    <td class="px-4 py-3 align-top"><input data-cost-field="unit_value" inputmode="decimal" name="items[${index}][unit_value]" class="form-input"></td>
-                    <td class="px-4 py-3 align-top text-right"><output data-line-total class="inline-flex min-h-11 w-full items-center justify-end rounded-xl bg-stone-50 px-3 font-semibold text-stone-900">—</output></td>
-                    <td class="px-4 py-3 align-top"><button type="button" data-remove-row="item" data-confirm-message="{{ __('site.confirm_delete_item_row_message') }}" class="rounded-full border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700">{{ __('site.remove') }}</button></td>
-                `;
+                row.innerHTML = itemRowHtml(index);
                 itemsContainer.appendChild(row);
                 bindRemove(row.querySelector('[data-remove-row="item"]'), itemsContainer, '.proposal-item-row', 'items');
                 row.querySelectorAll('[data-cost-field]').forEach((field) => field.addEventListener('input', recalculateItems));
+            });
+
+            templateSelect?.addEventListener('change', () => {
+                const template = proposalTemplates[templateSelect.value];
+
+                if (!template) return;
+
+                if (!window.confirm(templateSelect.dataset.templateReplaceMessage)) {
+                    templateSelect.value = '';
+                    return;
+                }
+
+                itemsContainer.innerHTML = '';
+                const rows = template.items?.length ? template.items : [{}, {}];
+
+                rows.forEach((item, index) => {
+                    const row = document.createElement('tr');
+                    row.className = 'proposal-item-row';
+                    row.innerHTML = itemRowHtml(index, item);
+                    itemsContainer.appendChild(row);
+                    bindRemove(row.querySelector('[data-remove-row="item"]'), itemsContainer, '.proposal-item-row', 'items');
+                    row.querySelectorAll('[data-cost-field]').forEach((field) => field.addEventListener('input', recalculateItems));
+                });
+
+                recalculateItems();
             });
 
             bindRemoveButtons();

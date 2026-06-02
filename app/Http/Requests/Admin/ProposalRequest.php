@@ -70,7 +70,6 @@ class ProposalRequest extends FormRequest
             'payment_schedule.*.label' => ['nullable', 'string', 'max:120'],
             'payment_schedule.*.percentage' => ['required', 'numeric', 'min:0.01', 'max:100'],
             'payment_schedule.*.notes' => ['nullable', 'string', 'max:240'],
-            'source_excel_file' => ['nullable', 'file', 'mimes:xls,xlsx,csv', 'max:10240'],
             'status' => ['required', Rule::in(['draft', 'sent', 'approved', 'rejected'])],
             'tax_rate' => ['required', 'numeric', 'min:0', 'max:100'],
             'issued_at' => ['nullable', 'date'],

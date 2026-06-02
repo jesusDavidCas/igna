@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ProposalRequest;
 use App\Models\Proposal;
+use App\Models\ProposalServiceTemplate;
 use App\Models\User;
 use App\Support\Proposals\ProposalNumberGenerator;
 use App\Support\Settings\BrandSettings;
@@ -13,11 +14,10 @@ use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 
 class ProposalController extends Controller
@@ -31,6 +31,8 @@ class ProposalController extends Controller
 
     public function create(): View
     {
+        $proposalTemplates = $this->proposalTemplates();
+
         return view('admin.proposals.create', [
             'proposal' => new Proposal([
                 'status' => 'draft',
@@ -48,7 +50,9 @@ class ProposalController extends Controller
                 ['label' => __('site.payment_start'), 'percentage' => '50'],
                 ['label' => __('site.payment_delivery'), 'percentage' => '50'],
             ],
-            'items' => $this->defaultItems(),
+            'items' => $this->emptyItems(),
+            'proposalTemplates' => $proposalTemplates,
+            'proposalTemplatePayload' => $this->proposalTemplatePayload($proposalTemplates),
         ]);
     }
 
@@ -62,7 +66,6 @@ class ProposalController extends Controller
             ]);
 
             $this->syncItems($proposal, $request->validated('items'));
-            $this->storeExcelFile($request, $proposal);
 
             return $proposal;
         });
@@ -108,6 +111,8 @@ class ProposalController extends Controller
 
     public function edit(Proposal $proposal): View
     {
+        $proposalTemplates = $this->proposalTemplates();
+
         return view('admin.proposals.edit', [
             'proposal' => $proposal->load('items'),
             'clients' => $this->clients(),
@@ -126,6 +131,8 @@ class ProposalController extends Controller
                 'quantity' => $item->quantity,
                 'unit_value' => $item->unit_value,
             ])->all(),
+            'proposalTemplates' => $proposalTemplates,
+            'proposalTemplatePayload' => $this->proposalTemplatePayload($proposalTemplates),
         ]);
     }
 
@@ -135,31 +142,9 @@ class ProposalController extends Controller
             $proposal->update($this->payload($request));
             $proposal->items()->delete();
             $this->syncItems($proposal, $request->validated('items'));
-            $this->storeExcelFile($request, $proposal);
         });
 
         return redirect()->route('admin.proposals.show', $proposal)->with('success', __('site.proposal_updated'));
-    }
-
-    public function uploadExcel(Request $request, Proposal $proposal): RedirectResponse
-    {
-        $validated = $request->validate([
-            'excel_file' => ['required', 'file', 'mimes:xls,xlsx,csv', 'max:10240'],
-        ]);
-
-        if ($proposal->source_excel_path) {
-            Storage::disk('local')->delete($proposal->source_excel_path);
-        }
-
-        $file = $validated['excel_file'];
-
-        $proposal->update([
-            'source_excel_path' => $file->store("proposals/{$proposal->proposal_number}", 'local'),
-            'source_excel_original_name' => $file->getClientOriginalName(),
-        ]);
-
-        // TODO: Parse the uploaded Excel file and map rows into proposal_items.
-        return redirect()->route('admin.proposals.edit', $proposal)->with('success', __('site.proposal_excel_uploaded'));
     }
 
     private function clients()
@@ -244,26 +229,6 @@ class ProposalController extends Controller
         }
     }
 
-    private function storeExcelFile(Request $request, Proposal $proposal): void
-    {
-        if (! $request->hasFile('source_excel_file')) {
-            return;
-        }
-
-        if ($proposal->source_excel_path) {
-            Storage::disk('local')->delete($proposal->source_excel_path);
-        }
-
-        $file = $request->file('source_excel_file');
-
-        $proposal->forceFill([
-            'source_excel_path' => $file->store("proposals/{$proposal->proposal_number}", 'local'),
-            'source_excel_original_name' => $file->getClientOriginalName(),
-        ])->save();
-
-        // TODO: Parse this Excel file and map budget rows into proposal_items.
-    }
-
     private function timelineText(int $months, int $weeks): string
     {
         $parts = [];
@@ -286,65 +251,39 @@ class ProposalController extends Controller
             ->implode("\n");
     }
 
-    private function defaultItems(): array
+    private function emptyItems(): array
     {
         return [
-            [
-                'category' => '',
-                'item_code' => '1',
-                'description' => 'Levantamiento topográfico con RTK, con las especificaciones que exige el ministerio, incluye: instalación de mojones cada 500 m.',
-                'unit' => 'km',
-                'quantity' => '15',
-                'unit_value' => '500000',
-            ],
-            [
-                'category' => '',
-                'item_code' => '2',
-                'description' => 'Diseño hidráulico del proyecto de la red de acueducto, incluye planta de tratamiento de agua potable, red de aducción, conducción y distribución hacia los usuarios, cuadros de cálculo, modelo en EPANET y planos hidráulicos terminados.',
-                'unit' => 'Und',
-                'quantity' => '1',
-                'unit_value' => '10000000',
-            ],
-            [
-                'category' => '',
-                'item_code' => '3',
-                'description' => 'Diseño hidráulico de la planta de tratamiento de aguas residuales.',
-                'unit' => 'Und',
-                'quantity' => '1',
-                'unit_value' => '8000000',
-            ],
-            [
-                'category' => '',
-                'item_code' => '4',
-                'description' => 'Estudio hidrológico de la cuenca, incluye modelos en HEC-HMS y HEC-RAS.',
-                'unit' => 'Und',
-                'quantity' => '1',
-                'unit_value' => '5000000',
-            ],
-            [
-                'category' => '',
-                'item_code' => __('site.calculated_item_code'),
-                'description' => 'Cálculo y elaboración del presupuesto, análisis de precios unitarios, cantidades de obra, programación de obra, especificaciones técnicas, presupuesto de administración, imprevistos y utilidad, interventoría, factor multiplicador y cotizaciones.',
-                'unit' => 'Und',
-                'quantity' => '',
-                'unit_value' => '',
-            ],
-            [
-                'category' => '',
-                'item_code' => __('site.optional_item_code'),
-                'description' => 'Diseño hidráulico de alcantarillado sanitario',
-                'unit' => '',
-                'quantity' => '',
-                'unit_value' => '',
-            ],
-            [
-                'category' => '',
-                'item_code' => __('site.optional_item_code'),
-                'description' => 'Diseño hidráulico de alcantarillado pluvial',
-                'unit' => '',
-                'quantity' => '',
-                'unit_value' => '',
-            ],
+            ['category' => '', 'item_code' => '', 'description' => '', 'unit' => '', 'quantity' => '', 'unit_value' => ''],
+            ['category' => '', 'item_code' => '', 'description' => '', 'unit' => '', 'quantity' => '', 'unit_value' => ''],
         ];
+    }
+
+    private function proposalTemplates(): Collection
+    {
+        return ProposalServiceTemplate::query()
+            ->with('items')
+            ->active()
+            ->ordered()
+            ->get();
+    }
+
+    private function proposalTemplatePayload(Collection $templates): array
+    {
+        return $templates
+            ->mapWithKeys(fn (ProposalServiceTemplate $template): array => [
+                $template->id => [
+                    'label' => sprintf('%02d · %s', $template->service_number, $template->localizedName()),
+                    'items' => $template->items->map(fn ($item): array => [
+                        'category' => '',
+                        'item_code' => $item->item_code ?? '',
+                        'description' => $item->localizedDescription(),
+                        'unit' => $item->unit ?? '',
+                        'quantity' => $item->quantity ?? '',
+                        'unit_value' => $item->unit_value ?? '',
+                    ])->values()->all(),
+                ],
+            ])
+            ->all();
     }
 }

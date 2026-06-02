@@ -462,21 +462,31 @@ class AdminOperationsTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_proposal_form_keeps_excel_upload_in_edit_and_uses_dynamic_rows(): void
+    public function test_proposal_form_uses_service_templates_instead_of_excel_upload(): void
     {
         $this->actingAs($this->superAdmin);
+
+        $this->assertDatabaseHas('proposal_service_templates', [
+            'service_number' => 1,
+            'code' => 'ENG-001',
+        ]);
 
         $create = $this->get(route('admin.proposals.create'))
             ->assertOk()
             ->assertSee(__('site.add_item'))
             ->assertSee(__('site.add_payment'))
+            ->assertSee(__('site.select_service_template'))
+            ->assertSee('data-proposal-template-select', false)
+            ->assertSee('data-template-replace-message', false)
             ->assertSee(__('site.proposal_description_template_help'))
             ->assertSee(__('site.proposal_timeline_help'))
-            ->assertSee(__('site.grand_total_value'));
+            ->assertSee(__('site.grand_total_value'))
+            ->assertDontSee(__('site.upload_excel_file'))
+            ->assertDontSee('proposal-excel-upload', false);
 
         $create->assertSee('proposal-payment-row', false);
         $this->assertSame(2, substr_count($create->getContent(), 'data-existing-row="payment"'));
-        $this->assertSame(7, substr_count($create->getContent(), 'data-existing-row="item"'));
+        $this->assertSame(2, substr_count($create->getContent(), 'data-existing-row="item"'));
 
         $this->post(route('admin.proposals.store'), [
             'title' => 'Proposal layout check',
@@ -504,13 +514,17 @@ class AdminOperationsTest extends TestCase
         $this->get(route('admin.proposals.show', $proposal))
             ->assertOk()
             ->assertSee(__('site.generate_pdf'))
+            ->assertSee(__('site.proposal_terms_title'))
             ->assertDontSee(__('site.upload_excel_file'));
 
         $this->get(route('admin.proposals.edit', $proposal))
             ->assertOk()
-            ->assertSee(__('site.upload_excel_file'))
-            ->assertSee(__('site.excel_upload_help'))
-            ->assertSee('proposal-excel-upload', false);
+            ->assertSee(__('site.select_service_template'))
+            ->assertDontSee(__('site.upload_excel_file'))
+            ->assertDontSee(__('site.excel_upload_help'))
+            ->assertDontSee('proposal-excel-upload', false);
+
+        $this->post("/admin/proposals/{$proposal->id}/excel")->assertNotFound();
 
         $this->get(route('admin.proposals.index'))
             ->assertOk()

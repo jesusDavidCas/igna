@@ -11,5 +11,7 @@
         'selectedSignerId' => $selectedSignerId,
         'paymentSchedule' => $paymentSchedule,
         'items' => $items,
+        'proposalTemplates' => $proposalTemplates,
+        'proposalTemplatePayload' => $proposalTemplatePayload,
     ])
 @endsection

@@ -13,63 +13,117 @@
             line-height: 1.45;
         }
         .header {
-            background: #1c1917;
-            border-radius: 16px;
-            color: #fff;
-            padding: 22px 26px;
+            background: #ffffff;
+            border: 1px solid #e7e5e4;
+            border-bottom: 2px solid #d8e6cf;
+            border-radius: 18px;
+            color: #1c1917;
+            padding: 14px 16px;
         }
         .brand-row {
             display: table;
+            table-layout: fixed;
             width: 100%;
         }
+        .brand-logo,
         .brand-main,
         .brand-side {
             display: table-cell;
-            vertical-align: top;
+            vertical-align: middle;
+        }
+        .brand-logo {
+            width: 18%;
+        }
+        .brand-main {
+            padding: 0 16px;
+            width: 56%;
         }
         .brand-side {
             text-align: right;
-            width: 32%;
+            width: 26%;
         }
         .eyebrow {
-            color: #b8cba9;
+            color: #52664a;
             font-size: 8.5px;
             font-weight: 700;
             letter-spacing: 1.8px;
             text-transform: uppercase;
         }
         h1 {
-            font-size: 21px;
+            font-size: 19px;
             line-height: 1.15;
-            margin: 10px 0 8px;
+            margin: 7px 0 5px;
         }
         h2 {
             font-size: 12px;
             margin: 0 0 8px;
         }
         .subject {
-            color: #d6d3d1;
+            color: #57534e;
             font-size: 10.5px;
             margin: 0;
         }
         .logo-mark {
-            background: #52664a;
+            background: #ffffff;
+            border: 1px solid #d8e6cf;
             border-radius: 999px;
+            color: #52664a;
             display: inline-block;
             font-weight: 700;
             height: 36px;
             line-height: 36px;
-            margin-bottom: 8px;
             text-align: center;
             width: 36px;
         }
         .logo-img {
-            border-radius: 999px;
-            display: inline-block;
-            height: 42px;
-            margin-bottom: 8px;
-            object-fit: cover;
-            width: 42px;
+            display: block;
+            height: auto;
+            max-height: 54px;
+            max-width: 132px;
+            width: auto;
+        }
+        .meta-box {
+            background: #fafaf9;
+            border: 1px solid #e7e5e4;
+            border-radius: 12px;
+            padding: 10px 12px;
+        }
+        .meta-box strong {
+            display: block;
+            margin-top: 4px;
+        }
+        .soft-card {
+            background: #fafaf9;
+            border: 1px solid #e7e5e4;
+            border-radius: 14px;
+            padding: 13px 15px;
+        }
+        .soft-card h2 {
+            color: #1c1917;
+        }
+        .soft-card p {
+            margin: 0;
+        }
+        .info-label {
+            color: #78716c;
+            font-size: 8.8px;
+            font-weight: 700;
+            letter-spacing: 1.6px;
+            text-transform: uppercase;
+        }
+        .info-value {
+            color: #1c1917;
+            margin-top: 6px;
+        }
+        .info-muted {
+            color: #78716c;
+            margin-top: 3px;
+        }
+        .rounded-table {
+            border: 1px solid #e7e5e4;
+            border-radius: 14px;
+            margin-top: 14px;
+            overflow: hidden;
         }
         .section {
             border: 1px solid #e7e5e4;
@@ -104,25 +158,25 @@
         }
         .budget {
             border-collapse: collapse;
-            margin-top: 14px;
             table-layout: fixed;
             width: 100%;
         }
         .budget th {
-            border-bottom: 1px solid #d6d3d1;
-            color: #57534e;
+            background: #f4f7f1;
+            border-bottom: 1px solid #d8e6cf;
+            color: #3f4f39;
             font-size: 8.8px;
-            padding: 7px 6px;
+            padding: 8px 7px;
             text-align: left;
             text-transform: uppercase;
         }
         .budget td {
             border-bottom: 1px solid #f5f5f4;
-            padding: 7px 6px;
+            padding: 8px 7px;
             vertical-align: top;
         }
         .category-row td {
-            background: #f2f6ef;
+            background: #f4f7f1;
             color: #42543b;
             font-weight: 700;
         }
@@ -131,10 +185,10 @@
             white-space: nowrap;
         }
         .code { width: 10%; }
-        .description { width: 42%; }
+        .description { width: 46%; }
         .unit { width: 9%; }
         .quantity { width: 9%; }
-        .money { width: 15%; }
+        .money { width: 13%; }
         .summary-grid {
             display: table;
             margin-top: 16px;
@@ -151,6 +205,7 @@
             width: 55%;
         }
         .signature-box {
+            background: #fafaf9;
             border: 1px solid #e7e5e4;
             border-radius: 14px;
             min-height: 122px;
@@ -168,9 +223,10 @@
             padding-top: 8px;
         }
         .totals {
-            background: #1c1917;
+            background: #fafaf9;
+            border: 1px solid #d8e6cf;
             border-radius: 14px;
-            color: #fff;
+            color: #1c1917;
             padding: 14px;
             width: 45%;
         }
@@ -186,10 +242,18 @@
             text-align: right;
         }
         .grand-total {
-            border-top: 1px solid rgba(255, 255, 255, .25);
+            border-top: 1px solid #b8cba9;
             font-size: 13px;
             font-weight: 700;
             padding-top: 9px;
+        }
+        .total-accent {
+            color: #42543b;
+            font-weight: 700;
+        }
+        .terms-section p {
+            color: #57534e;
+            margin: 0 0 7px;
         }
         .page-break { page-break-before: always; }
     </style>
@@ -197,99 +261,121 @@
 <body>
     <header class="header">
         <div class="brand-row">
+            <div class="brand-logo">
+                @if (! empty($brand['logo_data_uri']))
+                    <img src="{{ $brand['logo_data_uri'] }}" alt="{{ $brand['company_name'] ?? 'IGNA Studio' }}" class="logo-img">
+                @else
+                    <div class="logo-mark">{{ $brand['logo_text'] ?? 'IG' }}</div>
+                @endif
+            </div>
             <div class="brand-main">
                 <div class="eyebrow">{{ __('site.quote_proposal') }}</div>
                 <h1>{{ $proposal->title }}</h1>
                 <p class="subject">{{ $proposal->subject }}</p>
             </div>
             <div class="brand-side">
-                @if (! empty($brand['logo_data_uri']))
-                    <img src="{{ $brand['logo_data_uri'] }}" alt="{{ $brand['company_name'] ?? 'IGNA Studio' }}" class="logo-img">
-                @else
-                    <div class="logo-mark">{{ $brand['logo_text'] ?? 'IG' }}</div>
-                @endif
-                <div class="eyebrow">{{ $brand['company_name'] ?? 'IGNA Studio' }}</div>
-                <div>{{ $proposal->proposal_number }}</div>
-                @if ($proposal->issued_at)
-                    <div class="muted">{{ $proposal->issued_at->format('Y-m-d') }}</div>
-                @endif
+                <div class="meta-box">
+                    <div class="eyebrow">{{ $brand['company_name'] ?? 'IGNA Studio' }}</div>
+                    <strong>{{ $proposal->proposal_number }}</strong>
+                    @if ($proposal->issued_at)
+                        <div class="muted">{{ $proposal->issued_at->format('Y-m-d') }}</div>
+                    @endif
+                </div>
             </div>
         </div>
     </header>
 
     <section class="info-grid">
-        <div class="info-cell section">
-            <div class="eyebrow">{{ __('site.client_account') }}</div>
-            <strong>{{ $proposal->client?->name ?? __('site.unassigned') }}</strong><br>
-            <span class="muted">{{ $proposal->client?->email }}</span>
+        <div class="info-cell">
+            <div class="soft-card">
+                <div class="info-label">{{ __('site.client_account') }}</div>
+                <div class="info-value"><strong>{{ $proposal->client?->name ?? __('site.unassigned') }}</strong></div>
+                <div class="info-muted">{{ $proposal->client?->email }}</div>
+            </div>
         </div>
-        <div class="info-cell section">
-            <div class="eyebrow">{{ __('site.subject') }}</div>
-            {{ $proposal->subject }}
+        <div class="info-cell">
+            <div class="soft-card">
+                <div class="info-label">{{ __('site.subject') }}</div>
+                <div class="info-value">{{ $proposal->subject }}</div>
+            </div>
         </div>
-        <div class="info-cell section">
-            <div class="eyebrow">{{ __('site.validity_days') }}</div>
-            {{ $proposal->validityLabel() }}<br>
-            @if ($proposal->valid_until)
-                <span class="muted">{{ __('site.valid_until') }}: {{ $proposal->valid_until->format('Y-m-d') }}</span>
-            @endif
-        </div>
-    </section>
-
-    <section class="two-grid">
-        <div class="two-cell section">
-            <h2>{{ __('site.proposal_description') }}</h2>
-            {!! nl2br(e($proposal->description ?: '—')) !!}
-        </div>
-        <div class="two-cell section">
-            <h2>{{ __('site.proposal_scope') }}</h2>
-            {!! nl2br(e($proposal->scope ?: '—')) !!}
+        <div class="info-cell">
+            <div class="soft-card">
+                <div class="info-label">{{ __('site.validity_days') }}</div>
+                <div class="info-value">{{ $proposal->validityLabel() }}</div>
+                @if ($proposal->valid_until)
+                    <div class="info-muted">{{ __('site.valid_until') }}: {{ $proposal->valid_until->format('Y-m-d') }}</div>
+                @endif
+            </div>
         </div>
     </section>
 
     <section class="two-grid">
-        <div class="two-cell section">
-            <h2>{{ __('site.proposal_timeline') }}</h2>
-            {{ $proposal->formattedTimeline() }}
+        <div class="two-cell">
+            <div class="soft-card">
+                <h2>{{ __('site.proposal_description') }}</h2>
+                {!! nl2br(e($proposal->description ?: '—')) !!}
+            </div>
         </div>
-        <div class="two-cell section">
-            <h2>{{ __('site.proposal_payment_plan') }}</h2>
-            @foreach ($proposal->paymentScheduleRows() as $payment)
-                <div>
-                    <strong>{{ number_format((float) ($payment['percentage'] ?? 0), 1) }}%</strong>
-                    {{ $payment['label'] ?? __('site.payment_installment') }}
-                    @if (! empty($payment['notes']))
-                        <span class="muted"> · {{ $payment['notes'] }}</span>
-                    @endif
-                </div>
-            @endforeach
+        <div class="two-cell">
+            <div class="soft-card">
+                <h2>{{ __('site.proposal_scope') }}</h2>
+                {!! nl2br(e($proposal->scope ?: '—')) !!}
+            </div>
         </div>
     </section>
 
-    <table class="budget">
-        <thead>
-            <tr>
-                <th class="code">{{ __('site.item_code') }}</th>
-                <th class="description">{{ __('site.item_description') }}</th>
-                <th class="unit">{{ __('site.unit_abbr') }}</th>
-                <th class="quantity num">{{ __('site.qty_abbr') }}</th>
-                <th class="money num">{{ __('site.unit_value_label') }}</th>
-                <th class="money num">{{ __('site.total_value_label') }}</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach ($proposal->items as $item)
+    <section class="two-grid">
+        <div class="two-cell">
+            <div class="soft-card">
+                <h2>{{ __('site.proposal_timeline') }}</h2>
+                {{ $proposal->formattedTimeline() }}
+            </div>
+        </div>
+        <div class="two-cell">
+            <div class="soft-card">
+                <h2>{{ __('site.proposal_payment_plan') }}</h2>
+                @foreach ($proposal->paymentScheduleRows() as $payment)
+                    <div>
+                        <strong>{{ number_format((float) ($payment['percentage'] ?? 0), 1) }}%</strong>
+                        {{ $payment['label'] ?? __('site.payment_installment') }}
+                        @if (! empty($payment['notes']))
+                            <span class="muted"> · {{ $payment['notes'] }}</span>
+                        @endif
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    </section>
+
+    <div class="rounded-table">
+        <table class="budget">
+            <thead>
                 <tr>
-                    <td>{{ $item->item_code ?: '—' }}</td>
-                    <td>{{ $item->description }}</td>
-                    <td>{{ $item->unit ?: '—' }}</td>
-                    <td class="num">{{ (int) $item->quantity > 0 ? number_format((int) $item->quantity) : '—' }}</td>
-                    <td class="num">{{ (float) $item->unit_value > 0 ? number_format((float) $item->unit_value, 2) : '—' }}</td>
-                    <td class="num">{{ (float) $item->subtotal > 0 ? number_format((float) $item->subtotal, 2) : '—' }}</td>
+                    <th class="code">{{ __('site.item_code') }}</th>
+                    <th class="description">{{ __('site.item_description') }}</th>
+                    <th class="unit">{{ __('site.unit_abbr') }}</th>
+                    <th class="quantity num">{{ __('site.qty_abbr') }}</th>
+                    <th class="money num">{{ __('site.unit_value_label') }}</th>
+                    <th class="money num">{{ __('site.total_value_label') }}</th>
                 </tr>
-            @endforeach
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @foreach ($proposal->items as $item)
+                    <tr>
+                        <td>{{ $item->item_code ?: '—' }}</td>
+                        <td>{{ $item->description }}</td>
+                        <td>{{ $item->unit ?: '—' }}</td>
+                        <td class="num">{{ (int) $item->quantity > 0 ? number_format((int) $item->quantity) : '—' }}</td>
+                        <td class="num">{{ (float) $item->unit_value > 0 ? number_format((float) $item->unit_value, 2) : '—' }}</td>
+                        <td class="num">{{ (float) $item->subtotal > 0 ? number_format((float) $item->subtotal, 2) : '—' }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+
+    @include('proposals.partials.terms-pdf')
 
     <section class="summary-grid">
         <div class="signature">
@@ -307,8 +393,8 @@
         <div class="totals">
             <div class="total-row"><span>{{ __('site.subtotal') }}</span><span>{{ number_format((float) $proposal->subtotal, 2) }}</span></div>
             <div class="total-row"><span>{{ __('site.taxes') }} ({{ number_format((float) $proposal->tax_rate, 2) }}%)</span><span>{{ number_format((float) $proposal->tax_total, 2) }}</span></div>
-            <div class="total-row grand-total"><span>{{ __('site.total') }}</span><span>{{ number_format((float) $proposal->total, 2) }}</span></div>
-            <div style="border-top: 1px solid rgba(255,255,255,.2); margin-top: 10px; padding-top: 10px;">
+            <div class="total-row grand-total total-accent"><span>{{ __('site.total') }}</span><span>{{ number_format((float) $proposal->total, 2) }}</span></div>
+            <div style="border-top: 1px solid #b8cba9; margin-top: 10px; padding-top: 10px;">
                 {{ $proposal->validityLabel() }}
                 @if ($proposal->valid_until)
                     <br>{{ __('site.valid_until') }}: {{ $proposal->valid_until->format('Y-m-d') }}

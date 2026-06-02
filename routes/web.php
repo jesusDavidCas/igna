@@ -12,6 +12,8 @@ use App\Http\Controllers\Admin\TeamMemberController as AdminTeamMemberController
 use App\Http\Controllers\Admin\TicketController as AdminTicketController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\NewPasswordController;
+use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Client\PortalController;
 use App\Http\Controllers\Client\TicketController as ClientTicketController;
 use App\Http\Controllers\Public\BlogController;
@@ -59,6 +61,14 @@ Route::middleware('guest')->group(function (): void {
     Route::post('/login', [AuthenticatedSessionController::class, 'store'])
         ->middleware('throttle:5,1')
         ->name('login.store');
+    Route::get('/forgot-password', [PasswordResetLinkController::class, 'create'])->name('password.request');
+    Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])
+        ->middleware('throttle:3,1')
+        ->name('password.email');
+    Route::get('/reset-password/{token}', [NewPasswordController::class, 'create'])->name('password.reset');
+    Route::post('/reset-password', [NewPasswordController::class, 'store'])
+        ->middleware('throttle:5,1')
+        ->name('password.update');
 });
 
 Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
@@ -93,7 +103,6 @@ Route::prefix('admin')
         Route::delete('/team/{teamMember}/credentials/{credential}', [AdminTeamCredentialController::class, 'destroy'])->name('team.credentials.destroy');
         Route::get('/proposals/{proposal}/pdf', [AdminProposalController::class, 'pdf'])->name('proposals.pdf');
         Route::resource('proposals', AdminProposalController::class)->except(['destroy']);
-        Route::post('/proposals/{proposal}/excel', [AdminProposalController::class, 'uploadExcel'])->name('proposals.excel.upload');
 
         Route::middleware('role:'.UserRole::SUPER_ADMIN->value)->group(function (): void {
             Route::put('/users/{user}/password', [AdminUserController::class, 'updatePassword'])->name('users.password.update');

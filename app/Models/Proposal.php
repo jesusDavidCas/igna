@@ -25,8 +25,6 @@ class Proposal extends Model
         'timeline',
         'payment_plan',
         'payment_schedule',
-        'source_excel_path',
-        'source_excel_original_name',
         'status',
         'tax_rate',
         'subtotal',

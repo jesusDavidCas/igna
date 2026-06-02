@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\UserRole;
+use App\Notifications\PasswordResetNotification;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -78,6 +79,11 @@ class User extends Authenticatable
     public function canAccessAdmin(): bool
     {
         return $this->role?->canAccessAdmin() ?? false;
+    }
+
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify((new PasswordResetNotification($token))->locale($this->preferred_language ?: app()->getLocale()));
     }
 
     public function isSuperAdmin(): bool

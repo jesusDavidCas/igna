@@ -120,14 +120,6 @@
                                                 {{ __('services.scopes.'.$service->service_scope) !== 'services.scopes.'.$service->service_scope ? __('services.scopes.'.$service->service_scope) : $service->service_scope }}
                                             </p>
                                         @endif
-
-                                        @if ($service->stages->isNotEmpty())
-                                            <div class="mt-5 flex flex-wrap gap-2">
-                                                @foreach ($service->stages->take(3) as $stage)
-                                                    <span class="inline-flex min-h-8 items-center justify-center rounded-full bg-white px-3 py-1 text-center text-sm font-medium leading-5 text-stone-500 ring-1 ring-stone-200">{{ $stage->localizedName() }}</span>
-                                                @endforeach
-                                            </div>
-                                        @endif
                                     </article>
                                 @endforeach
                             </div>
