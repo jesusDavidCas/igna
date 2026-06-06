@@ -395,6 +395,12 @@ return [
         'This proposal covers only the scope described in this document. Any modification, adjustment, redesign, expansion, additional visit, extraordinary review, or requirement not included before the final delivery may generate additional costs, which will be communicated and agreed upon with the client in advance.',
         'Changes resulting from architectural, construction, regulatory, scope-related, or client-provided information updates may affect timelines, quantities, budget, and project deliverables.',
     ],
+    'proposal_terms_compact' => [
+        'Technical support available Monday to Saturday, 7:00 a.m. to 5:00 p.m.',
+        'Calls, virtual meetings, technical visits, and on-site support must be scheduled in advance.',
+        'Any change, redesign, additional visit, extraordinary review, or new requirement outside this proposal may generate additional costs.',
+        'Changes in architecture, construction, regulations, scope, or client-provided information may affect time, quantities, budget, and deliverables.',
+    ],
     'no_proposals_yet' => 'No proposals have been created yet.',
     'update_stage_help' => 'This selects the active stage only. Use the completion control below when a stage has formally finished.',
     'stage_completion_control' => 'Stage completion',

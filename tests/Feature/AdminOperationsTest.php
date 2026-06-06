@@ -415,7 +415,6 @@ class AdminOperationsTest extends TestCase
             'tax_rate' => '19',
             'issued_at' => now()->toDateString(),
             'valid_until' => now()->addDays(15)->toDateString(),
-            'validity_days' => '15',
             'items' => [
                 ['category' => 'Studies', 'item_code' => 'ST-01', 'description' => 'Technical diagnosis', 'unit' => 'unit', 'quantity' => '2', 'unit_value' => '500000'],
                 ['category' => 'Reports', 'item_code' => 'RP-01', 'description' => 'Recommendations report', 'unit' => 'unit', 'quantity' => '1', 'unit_value' => '300000'],
@@ -489,7 +488,6 @@ class AdminOperationsTest extends TestCase
             'status' => 'draft',
             'tax_rate' => '0',
             'issued_at' => now()->toDateString(),
-            'validity_days' => '30',
             'items' => [
                 ['category' => 'General', 'item_code' => 'P-01', 'description' => 'Prospect item', 'unit' => 'und', 'quantity' => '1', 'unit_value' => '250000'],
             ],
@@ -536,7 +534,6 @@ class AdminOperationsTest extends TestCase
             'status' => 'draft',
             'tax_rate' => '0',
             'issued_at' => now()->toDateString(),
-            'validity_days' => '30',
             'items' => [
                 ['category' => 'General', 'item_code' => 'L-01', 'description' => 'Legacy item', 'unit' => 'und', 'quantity' => '1', 'unit_value' => '100000'],
             ],
@@ -573,7 +570,10 @@ class AdminOperationsTest extends TestCase
             ->assertSee(__('site.proposal_timeline_help'))
             ->assertSee(__('site.grand_total_value'))
             ->assertDontSee(__('site.upload_excel_file'))
-            ->assertDontSee('proposal-excel-upload', false);
+            ->assertDontSee('proposal-excel-upload', false)
+            ->assertDontSee('name="validity_days"', false)
+            ->assertSee('name="issued_at"', false)
+            ->assertSee('name="valid_until"', false);
 
         $create->assertSee('proposal-payment-row', false);
         $this->assertSame(2, substr_count($create->getContent(), 'data-existing-row="payment"'));
@@ -593,7 +593,6 @@ class AdminOperationsTest extends TestCase
             'status' => 'draft',
             'tax_rate' => '0',
             'issued_at' => now()->toDateString(),
-            'validity_days' => '30',
             'items' => [
                 ['category' => 'General', 'item_code' => 'G-01', 'description' => 'Layout item', 'unit' => 'und', 'quantity' => '1', 'unit_value' => '100000'],
                 ['category' => '', 'item_code' => 'Optional', 'description' => 'Optional non-costed service', 'unit' => '', 'quantity' => '', 'unit_value' => ''],
@@ -613,7 +612,10 @@ class AdminOperationsTest extends TestCase
             ->assertSee(__('site.select_service_template'))
             ->assertDontSee(__('site.upload_excel_file'))
             ->assertDontSee(__('site.excel_upload_help'))
-            ->assertDontSee('proposal-excel-upload', false);
+            ->assertDontSee('proposal-excel-upload', false)
+            ->assertDontSee('name="validity_days"', false)
+            ->assertSee('name="issued_at"', false)
+            ->assertSee('name="valid_until"', false);
 
         $this->post("/admin/proposals/{$proposal->id}/excel")->assertNotFound();
 
@@ -623,7 +625,7 @@ class AdminOperationsTest extends TestCase
             ->assertSee($proposal->proposal_number);
     }
 
-    public function test_proposal_validity_days_are_stored_and_displayed(): void
+    public function test_proposal_validity_is_calculated_from_valid_until_and_displayed(): void
     {
         $client = User::factory()->create([
             'role' => UserRole::CLIENT,
@@ -648,7 +650,7 @@ class AdminOperationsTest extends TestCase
             'status' => 'draft',
             'tax_rate' => '19',
             'issued_at' => '2026-05-16',
-            'validity_days' => '30',
+            'valid_until' => '2026-06-15',
             'items' => [
                 ['category' => 'Instalaciones de redes sanitarias', 'item_code' => '2.1', 'description' => 'Diseño sanitario', 'unit' => 'und', 'quantity' => '1', 'unit_value' => '1000000'],
             ],
@@ -661,7 +663,7 @@ class AdminOperationsTest extends TestCase
 
         $this->get(route('admin.proposals.show', $proposal))
             ->assertOk()
-            ->assertSee(__('site.proposal_validity_days', ['days' => 30]))
+            ->assertSee(__('site.valid_until').': 2026-06-15')
             ->assertSee('2026-06-15');
     }
 

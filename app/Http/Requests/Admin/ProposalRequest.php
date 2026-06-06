@@ -77,7 +77,6 @@ class ProposalRequest extends FormRequest
             'tax_rate' => ['required', 'numeric', 'min:0', 'max:100'],
             'issued_at' => ['nullable', 'date'],
             'valid_until' => ['nullable', 'date', 'after_or_equal:issued_at'],
-            'validity_days' => ['required', 'integer', 'min:1', 'max:365'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.category' => ['nullable', 'string', 'max:120'],
             'items.*.item_code' => ['nullable', 'string', 'max:40'],

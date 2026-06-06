@@ -63,10 +63,6 @@
                 <label class="form-label">{{ __('site.valid_until') }}</label>
                 <input type="date" name="valid_until" value="{{ old('valid_until', optional($proposal->valid_until)->format('Y-m-d')) }}" class="form-input">
             </div>
-            <div>
-                <label class="form-label">{{ __('site.validity_days') }}</label>
-                <input type="number" step="1" min="1" max="365" name="validity_days" value="{{ old('validity_days', $proposal->validity_days ?? 30) }}" class="form-input" required>
-            </div>
             <div class="md:col-span-2">
                 <label class="form-label">{{ __('site.proposal_description') }}</label>
                 @php

@@ -109,9 +109,6 @@
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">{{ __('site.validity_days') }}</p>
                 <p class="mt-2 text-stone-950">{{ $proposal->validityLabel() }}</p>
-                @if ($proposal->valid_until)
-                    <p class="text-[15px] text-stone-500">{{ __('site.valid_until') }}: {{ $proposal->valid_until->format('Y-m-d') }}</p>
-                @endif
             </div>
         </div>
 
@@ -193,9 +190,6 @@
                 <div class="flex justify-between"><span>{{ __('site.taxes') }} ({{ number_format((float) $proposal->tax_rate, 2) }}%)</span><span>{{ number_format((float) $proposal->tax_total, 2) }}</span></div>
                 <div class="flex justify-between border-t border-white/10 pt-3 text-lg font-semibold"><span>{{ __('site.total') }}</span><span>{{ number_format((float) $proposal->total, 2) }}</span></div>
                 <p class="border-t border-white/10 pt-3 text-[15px] text-stone-300">{{ $proposal->validityLabel() }}</p>
-                @if ($proposal->valid_until)
-                    <p class="text-[15px] text-stone-300">{{ __('site.valid_until') }}: {{ $proposal->valid_until->format('Y-m-d') }}</p>
-                @endif
             </div>
         </div>
         </div>

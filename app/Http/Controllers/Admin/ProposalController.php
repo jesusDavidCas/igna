@@ -186,9 +186,11 @@ class ProposalController extends Controller
             ])
             ->values()
             ->all();
-        $validityDays = (int) $request->validated('validity_days');
         $issuedAt = $request->validated('issued_at');
-        $validUntil = $request->validated('valid_until') ?: ($issuedAt ? Carbon::parse($issuedAt)->addDays($validityDays)->toDateString() : null);
+        $validUntil = $request->validated('valid_until') ?: ($issuedAt ? Carbon::parse($issuedAt)->addDays(30)->toDateString() : null);
+        $validityDays = $issuedAt && $validUntil
+            ? (int) max(1, Carbon::parse($issuedAt)->diffInDays(Carbon::parse($validUntil)))
+            : 30;
 
         return [
             'client_user_id' => $request->validated('client_user_id'),

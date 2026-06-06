@@ -107,6 +107,10 @@ class Proposal extends Model
 
     public function validityLabel(): string
     {
+        if ($this->valid_until) {
+            return __('site.valid_until').': '.$this->valid_until->format('Y-m-d');
+        }
+
         return __('site.proposal_validity_days', ['days' => $this->validity_days ?: 30]);
     }
 

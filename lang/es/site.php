@@ -395,6 +395,12 @@ return [
         'La propuesta contempla únicamente el alcance descrito en este documento. Cualquier modificación, ajuste, rediseño, ampliación, visita adicional, revisión extraordinaria o requerimiento no incluido antes de la entrega final podrá generar costos adicionales, los cuales serán informados y acordados previamente con el cliente.',
         'Los cambios derivados de modificaciones arquitectónicas, constructivas, normativas, de alcance o de información suministrada por el cliente podrán afectar tiempos, cantidades, presupuesto y entregables del proyecto.',
     ],
+    'proposal_terms_compact' => [
+        'Soporte técnico disponible de lunes a sábado, de 7:00 a. m. a 5:00 p. m.',
+        'Las llamadas, reuniones virtuales, visitas técnicas y acompañamientos presenciales deben coordinarse previamente.',
+        'Cualquier ajuste, rediseño, visita adicional, revisión extraordinaria o nuevo requerimiento fuera de esta propuesta podrá generar costos adicionales.',
+        'Los cambios arquitectónicos, constructivos, normativos, de alcance o de información suministrada por el cliente podrán afectar tiempos, cantidades, presupuesto y entregables.',
+    ],
     'no_proposals_yet' => 'Aún no se han creado propuestas.',
     'update_stage_help' => 'Esto solo selecciona la etapa activa. Usa el control de finalización cuando una etapa haya terminado formalmente.',
     'stage_completion_control' => 'Finalización de etapas',

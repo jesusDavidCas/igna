@@ -3,35 +3,39 @@
 <head>
     <meta charset="utf-8">
     <style>
-        @page { size: A4 landscape; margin: 5mm; }
+        @page { size: A4 landscape; margin: 7mm; }
         * { box-sizing: border-box; }
         body {
             margin: 0;
             background: #ffffff;
             color: #1c1917;
             font-family: "DejaVu Sans", sans-serif;
-            font-size: 9.6px;
-            line-height: 1.45;
+            font-size: 9.25px;
+            line-height: 1.38;
         }
-        body.density-spacious { font-size: 10.1px; }
-        body.density-compact { font-size: 9px; line-height: 1.34; }
+        body.density-spacious { font-size: 9.65px; }
+        body.density-compact { font-size: 8.8px; line-height: 1.3; }
         .sheet {
             border: 1px solid #dce8d2;
-            border-radius: 18px;
-            padding: 11px;
-            width: 100%;
+            border-radius: 16px;
+            padding: 8px;
+            width: auto;
+        }
+        body.density-spacious .sheet,
+        body.density-normal .sheet {
+            min-height: 182mm;
         }
         .grid {
             border-collapse: separate;
-            border-spacing: 8px;
+            border-spacing: 6px;
             table-layout: fixed;
             width: 100%;
         }
         .card {
             background: #ffffff;
             border: 1px solid #e7e5e4;
-            border-radius: 12px;
-            padding: 11px 12px;
+            border-radius: 11px;
+            padding: 8px 9px;
             vertical-align: top;
         }
         .soft {
@@ -53,9 +57,9 @@
         }
         .title {
             color: #11100f;
-            font-size: 18.6px;
+            font-size: 17.5px;
             line-height: 1.12;
-            margin: 6px 0 4px;
+            margin: 4px 0 3px;
         }
         .subtitle {
             color: #57534e;
@@ -73,9 +77,9 @@
         }
         .qr {
             display: block;
-            height: 74px;
-            margin: 5px auto 3px;
-            width: 74px;
+            height: 66px;
+            margin: 4px auto 2px;
+            width: 66px;
         }
         .logo-row {
             border-collapse: collapse;
@@ -83,15 +87,18 @@
             width: 100%;
         }
         .logo-cell {
-            padding-right: 9px;
+            padding: 0 10px 0 0;
+            text-align: center;
             vertical-align: middle;
-            width: 32%;
+            width: 30%;
         }
         .logo-img {
             display: block;
             height: auto;
-            max-height: 42px;
-            max-width: 118px;
+            margin: 0 auto;
+            max-height: 40px;
+            max-width: 112px;
+            object-fit: contain;
             width: auto;
         }
         .logo-mark {
@@ -108,17 +115,17 @@
         }
         .meta-cell {
             vertical-align: middle;
-            width: 68%;
+            width: 70%;
         }
         .main-layout {
             border-collapse: separate;
-            border-spacing: 8px;
+            border-spacing: 6px;
             table-layout: fixed;
             width: 100%;
         }
         .summary-layout {
             border-collapse: separate;
-            border-spacing: 8px;
+            border-spacing: 6px;
             table-layout: fixed;
             width: 100%;
         }
@@ -143,13 +150,13 @@
         }
         .stack {
             border-collapse: separate;
-            border-spacing: 0 8px;
+            border-spacing: 0 6px;
             table-layout: fixed;
             width: 100%;
         }
         .copy {
             color: #57534e;
-            line-height: 1.52;
+            line-height: 1.42;
             margin: 0;
         }
         .description-card,
@@ -157,14 +164,14 @@
         .timeline-card,
         .items-card,
         .terms-card { height: auto; }
-        body.density-compact .sheet { padding: 9px; }
+        body.density-compact .sheet { padding: 7px; }
         body.density-compact .grid,
         body.density-compact .main-layout { border-spacing: 6px; }
         body.density-compact .stack { border-spacing: 0 6px; }
-        body.density-compact .card { padding: 8px 9px; }
+        body.density-compact .card { padding: 7px 8px; }
         .payment-row {
             border-bottom: 1px solid #ece7dc;
-            padding: 3px 0;
+            padding: 2px 0;
         }
         .payment-row:last-child {
             border-bottom: 0;
@@ -180,20 +187,20 @@
             color: #3f4f39;
             font-size: 7.5px;
             letter-spacing: 0.5px;
-            padding: 6px 6px;
+            padding: 5px 5px;
             text-align: left;
             text-transform: uppercase;
         }
         .budget td {
             border-bottom: 1px solid #f1f1ef;
-            font-size: 9.2px;
-            line-height: 1.45;
-            padding: 7px 6px;
+            font-size: 8.8px;
+            line-height: 1.34;
+            padding: 5px 5px;
             vertical-align: top;
         }
-        body.density-spacious .budget td { font-size: 9.7px; padding: 8px 6px; }
+        body.density-spacious .budget td { font-size: 9.1px; padding: 6px 5px; }
         body.density-compact .budget th { font-size: 6.9px; padding: 4px 5px; }
-        body.density-compact .budget td { font-size: 8.2px; line-height: 1.28; padding: 4px 5px; }
+        body.density-compact .budget td { font-size: 8px; line-height: 1.22; padding: 4px 5px; }
         .budget .num {
             text-align: right;
             white-space: nowrap;
@@ -211,22 +218,28 @@
             letter-spacing: 0.8px;
             text-transform: uppercase;
         }
-        .terms p {
-            color: #57534e;
-            font-size: 8.5px;
-            line-height: 1.42;
-            margin: 0 0 4px;
+        .terms ul {
+            margin: 0;
+            padding-left: 12px;
         }
-        body.density-spacious .terms p { font-size: 8.9px; line-height: 1.48; }
-        body.density-compact .terms p { font-size: 7.4px; line-height: 1.3; margin-bottom: 3px; }
+        .terms li {
+            color: #57534e;
+            font-size: 8.2px;
+            line-height: 1.28;
+            margin: 0 0 2px;
+        }
+        body.density-spacious .terms li { font-size: 8.4px; line-height: 1.3; }
+        body.density-compact .terms li { font-size: 7.2px; line-height: 1.2; margin-bottom: 1px; }
         .bottom {
             border-collapse: separate;
-            border-spacing: 8px 0;
+            border-spacing: 6px 0;
             table-layout: fixed;
             width: 100%;
         }
+        body.density-spacious .bottom { margin-top: 18px; }
+        body.density-normal .bottom { margin-top: 12px; }
         body.fill-bottom .bottom {
-            margin-top: 20px;
+            margin-top: 12px;
         }
         .signature-cell {
             width: 58%;
@@ -242,8 +255,8 @@
         }
         .signature-line {
             border-top: 1px solid #a8a29e;
-            margin-top: 7px;
-            padding-top: 5px;
+            margin-top: 5px;
+            padding-top: 4px;
         }
         .totals {
             background: #f5f8f1;
@@ -253,7 +266,7 @@
             border-bottom: 1px solid #dce8d2;
             display: table;
             font-size: 9.8px;
-            padding: 3px 0;
+            padding: 2px 0;
             width: 100%;
         }
         .total-row span {
@@ -267,7 +280,7 @@
             font-size: 13px;
             font-weight: 700;
         }
-        .bottom .card { padding-bottom: 9px; padding-top: 9px; }
+        .bottom .card { padding-bottom: 7px; padding-top: 7px; }
     </style>
 </head>
 @php
@@ -286,8 +299,7 @@
     $descriptionLimit = $density === 'compact' ? 430 : 620;
     $scopeLimit = $density === 'compact' ? 260 : 460;
     $itemDescriptionLimit = $density === 'compact' ? 112 : ($density === 'normal' ? 140 : 170);
-    $termLimit = $density === 'compact' ? 170 : 245;
-    $terms = collect(__('site.proposal_terms_paragraphs'))->take($density === 'compact' ? 3 : 4);
+    $terms = collect(__('site.proposal_terms_compact'));
     $usesLongFlow = $itemCount > 8 || $textVolume > 1800;
     $fillsBottom = $density === 'compact' && $itemCount >= 5 && $itemCount <= 6 && $textVolume < 1400;
 @endphp
@@ -402,9 +414,11 @@
 
             <div class="card soft terms terms-card long-terms">
                 <h2 class="block-title">{{ __('site.proposal_terms_title') }}</h2>
-                @foreach ($terms as $paragraph)
-                    <p>{{ \Illuminate\Support\Str::limit($paragraph, $termLimit) }}</p>
-                @endforeach
+                <ul>
+                    @foreach ($terms as $paragraph)
+                        <li>{{ $paragraph }}</li>
+                    @endforeach
+                </ul>
             </div>
         @else
             <table class="main-layout">
@@ -483,9 +497,11 @@
                             <tr>
                                 <td class="card soft terms terms-card">
                                     <h2 class="block-title">{{ __('site.proposal_terms_title') }}</h2>
-                                    @foreach ($terms as $paragraph)
-                                        <p>{{ \Illuminate\Support\Str::limit($paragraph, $termLimit) }}</p>
-                                    @endforeach
+                                    <ul>
+                                        @foreach ($terms as $paragraph)
+                                            <li>{{ $paragraph }}</li>
+                                        @endforeach
+                                    </ul>
                                 </td>
                             </tr>
                         </table>
@@ -512,9 +528,6 @@
                     <div class="total-row grand"><span>{{ __('site.total') }}</span><span>{{ number_format((float) $proposal->total, 2) }}</span></div>
                     <div class="tiny muted" style="margin-top: 6px;">
                         {{ $proposal->validityLabel() }}
-                        @if ($proposal->valid_until)
-                            · {{ __('site.valid_until') }}: {{ $proposal->valid_until->format('Y-m-d') }}
-                        @endif
                     </div>
                 </td>
             </tr>
