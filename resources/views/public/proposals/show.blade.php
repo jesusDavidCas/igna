@@ -8,8 +8,8 @@
             <div class="grid gap-6 md:grid-cols-3">
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">{{ __('site.client_account') }}</p>
-                    <p class="mt-2 text-base text-stone-950">{{ $proposal->client?->name ?? __('site.unassigned') }}</p>
-                    <p class="text-[15px] text-stone-500">{{ $proposal->client?->email }}</p>
+                    <p class="mt-2 text-base text-stone-950">{{ $proposal->clientDisplayName() }}</p>
+                    <p class="text-[15px] text-stone-500">{{ $proposal->clientDisplayEmail() }}</p>
                 </div>
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">{{ __('site.proposal_timeline') }}</p>

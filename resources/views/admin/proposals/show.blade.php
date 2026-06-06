@@ -7,10 +7,10 @@
             'name' => $client->name,
             'phone' => $client->phone,
         ])->values();
-        $whatsappDefaultClient = $proposal->client ? [
-            'id' => $proposal->client->id,
-            'name' => $proposal->client->name,
-            'phone' => $proposal->client->phone,
+        $whatsappDefaultClient = $proposal->client || $proposal->prospect_name || $proposal->prospect_phone ? [
+            'id' => $proposal->client?->id,
+            'name' => $proposal->clientDisplayName(),
+            'phone' => $proposal->clientDisplayPhone(),
         ] : null;
     @endphp
 
@@ -60,7 +60,7 @@
                 </div>
                 <div>
                     <label class="form-label">{{ __('site.recipient_name') }}</label>
-                    <input data-whatsapp-name value="{{ $proposal->client?->name }}" class="form-input">
+                    <input data-whatsapp-name value="{{ $proposal->clientDisplayName() !== __('site.unassigned') ? $proposal->clientDisplayName() : '' }}" class="form-input">
                 </div>
                 <div class="grid gap-4 md:grid-cols-[0.35fr_0.65fr]">
                     <div>
@@ -69,7 +69,7 @@
                     </div>
                     <div>
                         <label class="form-label">{{ __('site.phone_number') }}</label>
-                        <input data-whatsapp-phone value="{{ $proposal->client?->phone }}" inputmode="tel" class="form-input">
+                        <input data-whatsapp-phone value="{{ $proposal->clientDisplayPhone() }}" inputmode="tel" class="form-input">
                     </div>
                 </div>
                 <div>
@@ -99,8 +99,8 @@
         <div class="grid gap-6 md:grid-cols-2 print:grid-cols-3">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">{{ __('site.client_account') }}</p>
-                <p class="mt-2 text-stone-950">{{ $proposal->client?->name ?? __('site.unassigned') }}</p>
-                <p class="text-[15px] text-stone-500">{{ $proposal->client?->email }}</p>
+                <p class="mt-2 text-stone-950">{{ $proposal->clientDisplayName() }}</p>
+                <p class="text-[15px] text-stone-500">{{ $proposal->clientDisplayEmail() }}</p>
             </div>
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">{{ __('site.subject') }}</p>

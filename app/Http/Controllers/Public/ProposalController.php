@@ -16,4 +16,16 @@ class ProposalController extends Controller
             'brand' => $brandSettings->publicPayload(),
         ]);
     }
+
+    public function showByToken(string $publicToken, BrandSettings $brandSettings): View
+    {
+        $proposal = Proposal::query()
+            ->where('public_token', $publicToken)
+            ->firstOrFail();
+
+        return view('public.proposals.show', [
+            'proposal' => $proposal->load(['client', 'signer', 'items']),
+            'brand' => $brandSettings->publicPayload(),
+        ]);
+    }
 }

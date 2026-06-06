@@ -59,6 +59,9 @@ class ProposalRequest extends FormRequest
     {
         return [
             'client_user_id' => ['nullable', Rule::exists('users', 'id')->where('role', UserRole::CLIENT->value)],
+            'prospect_name' => ['nullable', 'string', 'max:180'],
+            'prospect_email' => ['nullable', 'email', 'max:180'],
+            'prospect_phone' => ['nullable', 'string', 'max:80'],
             'signer_user_id' => ['nullable', Rule::exists('users', 'id')->whereIn('role', [UserRole::SUPER_ADMIN->value, UserRole::ADMIN->value])],
             'title' => ['required', 'string', 'max:180'],
             'subject' => ['required', 'string', 'max:180'],

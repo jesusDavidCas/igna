@@ -15,6 +15,21 @@
                     @endforeach
                 </select>
             </div>
+            <div class="rounded-2xl border border-olive-100 bg-olive-50 px-4 py-3 text-[15px] leading-6 text-olive-950">
+                {{ __('site.prospect_fields_help') }}
+            </div>
+            <div>
+                <label class="form-label">{{ __('site.prospect_name') }}</label>
+                <input name="prospect_name" value="{{ old('prospect_name', $proposal->prospect_name) }}" class="form-input">
+            </div>
+            <div>
+                <label class="form-label">{{ __('site.prospect_email') }}</label>
+                <input type="email" name="prospect_email" value="{{ old('prospect_email', $proposal->prospect_email) }}" class="form-input">
+            </div>
+            <div>
+                <label class="form-label">{{ __('site.prospect_phone') }}</label>
+                <input name="prospect_phone" value="{{ old('prospect_phone', $proposal->prospect_phone) }}" class="form-input">
+            </div>
             <div>
                 <label class="form-label">{{ __('site.proposal_signer') }}</label>
                 <select name="signer_user_id" class="form-input">

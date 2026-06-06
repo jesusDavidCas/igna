@@ -432,6 +432,7 @@ class AdminOperationsTest extends TestCase
         $this->assertSame(3, $proposal->timeline_weeks);
         $this->assertEquals(50.0, $proposal->payment_schedule[0]['percentage']);
         $this->assertCount(2, $proposal->items);
+        $this->assertNotEmpty($proposal->public_token);
 
         $this->get(route('admin.proposals.show', $proposal))
             ->assertOk()
@@ -444,7 +445,7 @@ class AdminOperationsTest extends TestCase
             ->assertSee('data-whatsapp-preview', false)
             ->assertSee('*Water system assessment*')
             ->assertSee('300 555 1212')
-            ->assertSee('proposals/'.$proposal->id.'/view', false)
+            ->assertSee('proposals/public/'.$proposal->public_token, false)
             ->assertDontSee(__('site.print_proposal'))
             ->assertSee('Water system assessment')
             ->assertSee('Technical diagnosis');
@@ -458,8 +459,98 @@ class AdminOperationsTest extends TestCase
             ->assertSee('Water system assessment')
             ->assertSee('Technical diagnosis');
 
+        $this->get(route('proposals.public.token.show', $proposal->public_token))
+            ->assertOk()
+            ->assertSee('Water system assessment')
+            ->assertSee('Technical diagnosis');
+
         $this->get(route('proposals.public.show', $proposal))
             ->assertForbidden();
+    }
+
+    public function test_admin_can_create_proposal_for_unregistered_prospect(): void
+    {
+        $this->actingAs($this->superAdmin);
+
+        $this->post(route('admin.proposals.store'), [
+            'prospect_name' => 'Constructora Río Claro',
+            'prospect_email' => 'proyectos@example.com',
+            'prospect_phone' => '+57 310 000 1111',
+            'title' => 'Prospect proposal',
+            'subject' => 'Technical quote for prospect',
+            'description' => 'Proposal for an unregistered prospect.',
+            'scope' => 'Scope summary.',
+            'timeline_months' => 1,
+            'timeline_weeks' => 0,
+            'payment_schedule' => [
+                ['label' => 'Start', 'percentage' => '50'],
+                ['label' => 'Delivery', 'percentage' => '50'],
+            ],
+            'status' => 'draft',
+            'tax_rate' => '0',
+            'issued_at' => now()->toDateString(),
+            'validity_days' => '30',
+            'items' => [
+                ['category' => 'General', 'item_code' => 'P-01', 'description' => 'Prospect item', 'unit' => 'und', 'quantity' => '1', 'unit_value' => '250000'],
+            ],
+        ])->assertRedirect();
+
+        $proposal = Proposal::query()->where('title', 'Prospect proposal')->firstOrFail();
+
+        $this->assertNull($proposal->client_user_id);
+        $this->assertSame('Constructora Río Claro', $proposal->clientDisplayName());
+
+        $this->get(route('admin.proposals.show', $proposal))
+            ->assertOk()
+            ->assertSee('Constructora Río Claro')
+            ->assertSee('310 000 1111')
+            ->assertSee('proposals/public/'.$proposal->public_token, false);
+
+        $this->get(route('proposals.public.token.show', $proposal->public_token))
+            ->assertOk()
+            ->assertSee('Constructora Río Claro')
+            ->assertSee('Prospect item');
+    }
+
+    public function test_legacy_proposal_without_public_token_self_heals_on_admin_detail(): void
+    {
+        $client = User::factory()->create([
+            'role' => UserRole::CLIENT,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($this->superAdmin);
+
+        $this->post(route('admin.proposals.store'), [
+            'client_user_id' => $client->id,
+            'title' => 'Legacy proposal',
+            'subject' => 'Token backfill check',
+            'description' => 'Existing proposal without token.',
+            'scope' => 'Scope summary.',
+            'timeline_months' => 1,
+            'timeline_weeks' => 0,
+            'payment_schedule' => [
+                ['label' => 'Start', 'percentage' => '50'],
+                ['label' => 'Delivery', 'percentage' => '50'],
+            ],
+            'status' => 'draft',
+            'tax_rate' => '0',
+            'issued_at' => now()->toDateString(),
+            'validity_days' => '30',
+            'items' => [
+                ['category' => 'General', 'item_code' => 'L-01', 'description' => 'Legacy item', 'unit' => 'und', 'quantity' => '1', 'unit_value' => '100000'],
+            ],
+        ])->assertRedirect();
+
+        $proposal = Proposal::query()->where('title', 'Legacy proposal')->firstOrFail();
+        $proposal->forceFill(['public_token' => null])->saveQuietly();
+
+        $this->get(route('admin.proposals.show', $proposal))
+            ->assertOk()
+            ->assertSee('Legacy proposal')
+            ->assertSee('proposals/public/', false);
+
+        $this->assertNotEmpty($proposal->fresh()->public_token);
     }
 
     public function test_proposal_form_uses_service_templates_instead_of_excel_upload(): void

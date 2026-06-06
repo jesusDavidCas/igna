@@ -9,6 +9,7 @@ use App\Models\Proposal;
 use App\Models\ProposalServiceTemplate;
 use App\Models\User;
 use App\Support\Proposals\ProposalNumberGenerator;
+use App\Support\Proposals\ProposalQrCode;
 use App\Support\Settings\BrandSettings;
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -18,7 +19,6 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\URL;
 
 class ProposalController extends Controller
 {
@@ -81,13 +81,14 @@ class ProposalController extends Controller
             'proposal' => $proposal,
             'brand' => $brandSettings->pdfPayload(),
             'clients' => $this->clients(),
-            'proposalAccessUrl' => URL::signedRoute('proposals.public.show', $proposal),
+            'proposalAccessUrl' => $proposal->publicUrl(),
         ]);
     }
 
-    public function pdf(Proposal $proposal, BrandSettings $brandSettings): Response
+    public function pdf(Proposal $proposal, BrandSettings $brandSettings, ProposalQrCode $qrCode): Response
     {
         $proposal->load(['client', 'createdBy', 'signer', 'items']);
+        $proposalAccessUrl = $proposal->publicUrl();
 
         $options = new Options;
         $options->set('isRemoteEnabled', false);
@@ -98,6 +99,8 @@ class ProposalController extends Controller
         $dompdf->loadHtml(view('admin.proposals.pdf', [
             'proposal' => $proposal,
             'brand' => $brandSettings->pdfPayload(),
+            'proposalAccessUrl' => $proposalAccessUrl,
+            'qrCodeDataUri' => $qrCode->dataUri($proposalAccessUrl),
         ])->render());
         $dompdf->setPaper('a4', 'landscape');
         $dompdf->render();
@@ -189,6 +192,9 @@ class ProposalController extends Controller
 
         return [
             'client_user_id' => $request->validated('client_user_id'),
+            'prospect_name' => $request->validated('prospect_name'),
+            'prospect_email' => $request->validated('prospect_email'),
+            'prospect_phone' => $request->validated('prospect_phone'),
             'signer_user_id' => $request->validated('signer_user_id'),
             'title' => $request->validated('title'),
             'subject' => $request->validated('subject'),

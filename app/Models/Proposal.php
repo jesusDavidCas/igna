@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 
 class Proposal extends Model
 {
@@ -13,7 +16,11 @@ class Proposal extends Model
 
     protected $fillable = [
         'proposal_number',
+        'public_token',
         'client_user_id',
+        'prospect_name',
+        'prospect_email',
+        'prospect_phone',
         'created_by_user_id',
         'signer_user_id',
         'title',
@@ -49,6 +56,13 @@ class Proposal extends Model
             'valid_until' => 'date',
             'validity_days' => 'integer',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (Proposal $proposal): void {
+            $proposal->public_token ??= static::newPublicToken();
+        });
     }
 
     public function client(): BelongsTo
@@ -96,11 +110,69 @@ class Proposal extends Model
         return __('site.proposal_validity_days', ['days' => $this->validity_days ?: 30]);
     }
 
+    public function publicUrl(): string
+    {
+        $publicToken = $this->ensurePublicToken();
+
+        if ($publicToken) {
+            return route('proposals.public.token.show', $publicToken);
+        }
+
+        return URL::signedRoute('proposals.public.show', $this);
+    }
+
+    public function publicRouteKey(): string
+    {
+        return $this->public_token ?: (string) $this->getKey();
+    }
+
+    public function ensurePublicToken(): ?string
+    {
+        if (filled($this->public_token)) {
+            return $this->public_token;
+        }
+
+        if (! $this->exists || ! Schema::hasColumn($this->getTable(), 'public_token')) {
+            return null;
+        }
+
+        $this->forceFill([
+            'public_token' => static::newPublicToken(),
+        ])->saveQuietly();
+
+        return $this->public_token;
+    }
+
+    public function clientDisplayName(): string
+    {
+        return $this->client?->name
+            ?: ($this->prospect_name ?: __('site.unassigned'));
+    }
+
+    public function clientDisplayEmail(): ?string
+    {
+        return $this->client?->email ?: $this->prospect_email;
+    }
+
+    public function clientDisplayPhone(): ?string
+    {
+        return $this->client?->phone ?: $this->prospect_phone;
+    }
+
     public function paymentScheduleRows(): array
     {
         return collect($this->payment_schedule ?? [])
             ->filter(fn (array $payment): bool => filled($payment['label'] ?? null) || filled($payment['percentage'] ?? null) || filled($payment['notes'] ?? null))
             ->values()
             ->all();
+    }
+
+    private static function newPublicToken(): string
+    {
+        do {
+            $token = Str::random(40);
+        } while (static::query()->where('public_token', $token)->exists());
+
+        return $token;
     }
 }

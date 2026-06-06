@@ -52,6 +52,9 @@ Route::get('/tracking/tickets/{ticket}/files/{file}', [TicketFileDownloadControl
 
 Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
 Route::get('/blog/{post:slug}', [BlogController::class, 'show'])->name('blog.show');
+Route::get('/proposals/public/{publicToken}', [ProposalController::class, 'showByToken'])
+    ->middleware('throttle:30,1')
+    ->name('proposals.public.token.show');
 Route::get('/proposals/{proposal}/view', [ProposalController::class, 'show'])
     ->middleware(['signed', 'throttle:30,1'])
     ->name('proposals.public.show');
