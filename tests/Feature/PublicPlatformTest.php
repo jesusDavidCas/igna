@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Mail\AdminNewTicketMail;
 use App\Mail\ProjectUpdateMail;
+use App\Models\BlogPost;
+use App\Models\Proposal;
 use App\Models\Service;
 use App\Models\TeamMember;
 use App\Models\Ticket;
@@ -33,6 +35,166 @@ class PublicPlatformTest extends TestCase
         $this->get('/tracking')->assertOk();
         $this->get('/blog')->assertOk();
         $this->get('/login')->assertOk();
+    }
+
+    public function test_public_pages_include_expected_seo_metadata(): void
+    {
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('<link rel="canonical" href="https://ignastudio.com/">', false)
+            ->assertSee('<meta property="og:title"', false)
+            ->assertSee('<meta name="twitter:card" content="summary_large_image">', false)
+            ->assertSee('application/ld+json', false)
+            ->assertDontSee('noindex');
+
+        $this->get('/blog')
+            ->assertOk()
+            ->assertSee('<title>'.__('site.seo_blog_title').'</title>', false)
+            ->assertSee('<link rel="canonical" href="https://ignastudio.com/blog">', false);
+
+        $this->get('/tracking')
+            ->assertOk()
+            ->assertSee('<meta name="robots" content="noindex, nofollow">', false);
+
+        $this->get('/login')
+            ->assertOk()
+            ->assertSee('<meta name="robots" content="noindex, nofollow">', false);
+    }
+
+    public function test_www_host_redirects_to_canonical_non_www_host(): void
+    {
+        $this->get('https://www.ignastudio.com/blog?source=test')
+            ->assertStatus(301)
+            ->assertRedirect('https://ignastudio.com/blog?source=test');
+    }
+
+    public function test_www_host_redirect_preserves_state_changing_request_method_and_query(): void
+    {
+        $this->post('https://www.ignastudio.com/request?source=ad', [])
+            ->assertStatus(308)
+            ->assertRedirect('https://ignastudio.com/request?source=ad');
+    }
+
+    public function test_seo_resources_include_public_content_and_exclude_private_surfaces(): void
+    {
+        $post = BlogPost::query()->create([
+            'title' => 'Useful project tracking guide',
+            'slug' => 'useful-project-tracking-guide',
+            'summary' => 'A practical guide for client project tracking.',
+            'body_html' => '<p>Project tracking content.</p>',
+            'status' => 'published',
+            'published_at' => now(),
+        ]);
+
+        BlogPost::query()->create([
+            'title' => 'Dummy post',
+            'slug' => 'dfsdf',
+            'summary' => 'Placeholder content.',
+            'body_html' => '<p>Placeholder content.</p>',
+            'status' => 'published',
+            'published_at' => now(),
+        ]);
+
+        $sitemap = $this->get('/sitemap.xml')
+            ->assertOk()
+            ->assertHeader('content-type', 'application/xml; charset=UTF-8')
+            ->assertSee('https://ignastudio.com/', false)
+            ->assertSee('https://ignastudio.com/blog/'.$post->slug, false)
+            ->assertDontSee('/login', false)
+            ->assertDontSee('/tracking', false)
+            ->assertDontSee('/blog/dfsdf', false)
+            ->assertDontSee('/markdown/', false);
+
+        $this->assertStringStartsWith('<?xml version="1.0" encoding="UTF-8"?>', $sitemap->getContent());
+
+        $this->get('/robots.txt')
+            ->assertOk()
+            ->assertSee('User-agent: *')
+            ->assertSee('Sitemap: https://ignastudio.com/sitemap.xml');
+
+        $this->get('/llms.txt')
+            ->assertOk()
+            ->assertSee('IGNA Studio')
+            ->assertSee('https://ignastudio.com/markdown/home.md')
+            ->assertDontSee('dfsdf');
+
+        $this->get('/LLMMS.pub.txt')
+            ->assertStatus(301)
+            ->assertRedirect('/llms.txt');
+
+        $this->get('/markdown/home.md')
+            ->assertOk()
+            ->assertHeader('X-Robots-Tag', 'noindex, follow')
+            ->assertSee('# IGNA Studio');
+
+        $this->get('/blog/dfsdf')->assertNotFound();
+    }
+
+    public function test_share_link_and_credential_views_are_noindex_and_excluded_from_seo_resources(): void
+    {
+        Storage::fake('local');
+
+        $proposal = Proposal::query()->create([
+            'proposal_number' => 'IGNA-2026-1999',
+            'title' => 'Private shared proposal',
+            'subject' => 'Private review link',
+            'description' => 'Client-specific proposal content.',
+            'scope' => 'Private scope.',
+            'timeline_months' => 1,
+            'timeline_weeks' => 0,
+            'payment_schedule' => [
+                ['label' => 'Start', 'percentage' => 100],
+            ],
+            'status' => 'sent',
+            'tax_rate' => 0,
+            'subtotal' => 100000,
+            'tax_total' => 0,
+            'total' => 100000,
+            'issued_at' => now(),
+            'valid_until' => now()->addDays(30),
+            'validity_days' => 30,
+        ]);
+
+        $member = TeamMember::query()->firstOrFail();
+        $path = UploadedFile::fake()->create('credential.pdf', 32, 'application/pdf')
+            ->storeAs("team/credentials/{$member->slug}", 'credential.pdf', 'local');
+
+        $credential = $member->credentials()->create([
+            'title' => 'Private SEO boundary credential',
+            'institution' => 'Universidad de prueba',
+            'document_path' => $path,
+            'original_name' => 'credential.pdf',
+            'mime_type' => 'application/pdf',
+            'size_bytes' => 32000,
+            'preview_page_count' => 0,
+            'is_public' => true,
+            'sort_order' => 1,
+        ]);
+
+        $this->get(route('proposals.public.token.show', $proposal->public_token))
+            ->assertOk()
+            ->assertSee('<meta name="robots" content="noindex, nofollow">', false)
+            ->assertDontSee('<link rel="canonical"', false);
+
+        $credentialUrl = URL::temporarySignedRoute('team.credentials.show', now()->addMinutes(5), [
+            'teamMember' => $member,
+            'credential' => $credential,
+        ]);
+
+        $this->get($credentialUrl)
+            ->assertOk()
+            ->assertSee('<meta name="robots" content="noindex, nofollow">', false)
+            ->assertDontSee('<link rel="canonical"', false);
+
+        $this->get('/sitemap.xml')
+            ->assertOk()
+            ->assertDontSee('proposals/public', false)
+            ->assertDontSee('/credentials/', false);
+
+        $this->get('/llms.txt')
+            ->assertOk()
+            ->assertDontSee('Private shared proposal')
+            ->assertDontSee('Private SEO boundary credential');
     }
 
     public function test_locale_switch_changes_public_copy(): void
@@ -176,5 +338,41 @@ class PublicPlatformTest extends TestCase
         $this->assertStringStartsWith('%PDF', $response->getContent());
         $this->assertStringContainsString('IGNA STUDIO', $response->getContent());
         $this->assertStringContainsString('DOCUMENTO NO CONTROLADO', $response->getContent());
+    }
+
+    public function test_private_or_mismatched_credentials_are_not_publicly_accessible_even_with_signed_urls(): void
+    {
+        Storage::fake('local');
+
+        $members = TeamMember::query()->take(2)->get();
+        $this->assertCount(2, $members);
+
+        $path = UploadedFile::fake()->create('credential.pdf', 32, 'application/pdf')
+            ->storeAs("team/credentials/{$members[0]->slug}", 'credential.pdf', 'local');
+
+        $credential = $members[0]->credentials()->create([
+            'title' => 'Private credential',
+            'institution' => 'Universidad de prueba',
+            'document_path' => $path,
+            'original_name' => 'credential.pdf',
+            'mime_type' => 'application/pdf',
+            'size_bytes' => 32000,
+            'preview_page_count' => 0,
+            'is_public' => false,
+            'sort_order' => 1,
+        ]);
+
+        $privateUrl = URL::temporarySignedRoute('team.credentials.show', now()->addMinutes(5), [
+            'teamMember' => $members[0],
+            'credential' => $credential,
+        ]);
+
+        $mismatchedUrl = URL::temporarySignedRoute('team.credentials.show', now()->addMinutes(5), [
+            'teamMember' => $members[1],
+            'credential' => $credential,
+        ]);
+
+        $this->get($privateUrl)->assertNotFound();
+        $this->get($mismatchedUrl)->assertNotFound();
     }
 }

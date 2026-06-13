@@ -1,4 +1,4 @@
-@extends('layouts.public', ['title' => 'IGNA Studio'])
+@extends('layouts.public')
 
 @section('content')
     @php

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+    <title id="title">IGNA Studio</title>
+    <desc id="desc">IGNA Studio social sharing card</desc>
+    <rect width="1200" height="630" fill="#f5f4ef"/>
+    <circle cx="170" cy="160" r="70" fill="#52664a"/>
+    <text x="170" y="176" text-anchor="middle" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="#ffffff">IG</text>
+    <text x="280" y="145" font-family="Arial, sans-serif" font-size="44" font-weight="700" letter-spacing="14" fill="#1c1917">IGNA Studio</text>
+    <text x="280" y="205" font-family="Arial, sans-serif" font-size="28" fill="#57534e">Digital systems and water infrastructure support</text>
+    <rect x="90" y="300" width="1020" height="170" rx="42" fill="#ffffff" stroke="#dce8d2" stroke-width="3"/>
+    <text x="140" y="370" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#1c1917">Clear execution for complex technical projects</text>
+    <text x="140" y="425" font-family="Arial, sans-serif" font-size="25" fill="#57534e">Lightweight digital tools, project tracking, and water infrastructure engineering.</text>
+</svg>

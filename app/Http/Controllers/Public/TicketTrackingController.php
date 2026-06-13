@@ -5,11 +5,12 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Public\TrackTicketRequest;
 use App\Models\Ticket;
+use App\Support\Seo\SeoManager;
 use Illuminate\Contracts\View\View;
 
 class TicketTrackingController extends Controller
 {
-    public function index(): View
+    public function index(SeoManager $seo): View
     {
         $ticket = null;
         $lookup = session('tracking_lookup');
@@ -20,6 +21,12 @@ class TicketTrackingController extends Controller
 
         return view('public.tracking', [
             'ticket' => $ticket,
+            'seo' => $seo->meta([
+                'title' => __('site.seo_tracking_title'),
+                'description' => __('site.seo_tracking_description'),
+                'canonical' => $seo->canonicalUrl('/tracking'),
+                'robots' => 'noindex, nofollow',
+            ]),
         ]);
     }
 
@@ -32,6 +39,12 @@ class TicketTrackingController extends Controller
 
         return view('public.tracking', [
             'ticket' => $ticket,
+            'seo' => app(SeoManager::class)->meta([
+                'title' => __('site.seo_tracking_title'),
+                'description' => __('site.seo_tracking_description'),
+                'canonical' => app(SeoManager::class)->canonicalUrl('/tracking'),
+                'robots' => 'noindex, nofollow',
+            ]),
         ]);
     }
 

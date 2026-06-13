@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Support\Seo\SeoManager;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -14,10 +15,16 @@ use Illuminate\Validation\Rules\Password as PasswordRule;
 
 class NewPasswordController extends Controller
 {
-    public function create(Request $request, string $token): View
+    public function create(Request $request, SeoManager $seo, string $token): View
     {
         return view('auth.reset-password', [
             'email' => $request->query('email'),
+            'seo' => $seo->meta([
+                'title' => __('site.seo_reset_password_title'),
+                'description' => __('site.reset_access_password_intro'),
+                'canonical' => $seo->canonicalUrl('/reset-password'),
+                'robots' => 'noindex, nofollow',
+            ]),
             'token' => $token,
         ]);
     }

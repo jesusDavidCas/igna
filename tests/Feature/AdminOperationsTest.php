@@ -711,6 +711,83 @@ class AdminOperationsTest extends TestCase
             ->assertHeader('content-disposition');
     }
 
+    public function test_client_cannot_access_another_clients_ticket_or_files(): void
+    {
+        $owner = User::query()->where('email', 'cliente.digital@ignastudio.test')->firstOrFail();
+        $intruder = User::factory()->create([
+            'role' => UserRole::CLIENT,
+            'is_active' => true,
+        ]);
+        $ticket = Ticket::query()->where('client_user_id', $owner->id)->firstOrFail();
+        $file = $ticket->files()->where('is_client_visible', true)->firstOrFail();
+
+        $this->actingAs($intruder)
+            ->get(route('client.tickets.show', $ticket))
+            ->assertNotFound();
+
+        $this->actingAs($intruder)
+            ->get(route('client.tickets.files.download', [$ticket, $file]))
+            ->assertNotFound();
+    }
+
+    public function test_proposal_validation_rejects_invalid_payment_totals_and_fractional_quantities(): void
+    {
+        $this->actingAs($this->superAdmin);
+
+        $this->post(route('admin.proposals.store'), [
+            'title' => 'Invalid proposal',
+            'subject' => 'Invalid math',
+            'description' => 'Invalid proposal payload.',
+            'scope' => 'Scope summary.',
+            'timeline_months' => 0,
+            'timeline_weeks' => 0,
+            'payment_schedule' => [
+                ['label' => 'Start', 'percentage' => '50'],
+                ['label' => 'Delivery', 'percentage' => '40'],
+            ],
+            'status' => 'draft',
+            'tax_rate' => '19',
+            'issued_at' => now()->toDateString(),
+            'items' => [
+                ['category' => 'General', 'item_code' => 'G-01', 'description' => 'Fractional quantity item', 'unit' => 'und', 'quantity' => '1.5', 'unit_value' => '100000'],
+            ],
+        ])
+            ->assertSessionHasErrors(['payment_schedule', 'timeline_months', 'items.0.quantity']);
+    }
+
+    public function test_proposal_totals_handle_zero_tax_and_decimal_unit_values(): void
+    {
+        $this->actingAs($this->superAdmin);
+
+        $this->post(route('admin.proposals.store'), [
+            'title' => 'Decimal price proposal',
+            'subject' => 'No tax calculation',
+            'description' => 'Checks decimal prices and no-tax totals.',
+            'scope' => 'Scope summary.',
+            'timeline_months' => 0,
+            'timeline_weeks' => 2,
+            'payment_schedule' => [
+                ['label' => 'Full payment', 'percentage' => '100'],
+            ],
+            'status' => 'draft',
+            'tax_rate' => '0',
+            'issued_at' => now()->toDateString(),
+            'items' => [
+                ['category' => 'General', 'item_code' => 'D-01', 'description' => 'Decimal unit value', 'unit' => 'und', 'quantity' => '3', 'unit_value' => '100.55'],
+                ['category' => 'General', 'item_code' => 'D-02', 'description' => 'Zero value optional item', 'unit' => '', 'quantity' => '', 'unit_value' => ''],
+            ],
+        ])->assertRedirect();
+
+        $proposal = Proposal::query()->where('title', 'Decimal price proposal')->firstOrFail();
+
+        $this->assertEquals(301.65, (float) $proposal->subtotal);
+        $this->assertEquals(0.00, (float) $proposal->tax_total);
+        $this->assertEquals(301.65, (float) $proposal->total);
+        $this->assertSame(0, $proposal->timeline_months);
+        $this->assertSame(2, $proposal->timeline_weeks);
+        $this->assertCount(2, $proposal->items);
+    }
+
     public function test_public_tracking_download_uses_signed_available_file_link(): void
     {
         $ticket = Ticket::query()->where('project_name', 'Portal de seguimiento comercial')->firstOrFail();

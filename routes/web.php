@@ -19,6 +19,7 @@ use App\Http\Controllers\Client\TicketController as ClientTicketController;
 use App\Http\Controllers\Public\BlogController;
 use App\Http\Controllers\Public\LandingController;
 use App\Http\Controllers\Public\ProposalController;
+use App\Http\Controllers\Public\SeoResourceController;
 use App\Http\Controllers\Public\ServiceRequestController;
 use App\Http\Controllers\Public\TeamCredentialController;
 use App\Http\Controllers\Public\TicketTrackingController;
@@ -27,6 +28,17 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', LandingController::class)->name('home');
 Route::get('/team/{slug}', [LandingController::class, 'team'])->name('team.show');
+Route::get('/sitemap.xml', [SeoResourceController::class, 'sitemap'])->name('seo.sitemap');
+Route::get('/robots.txt', [SeoResourceController::class, 'robots'])->name('seo.robots');
+Route::get('/llms.txt', [SeoResourceController::class, 'llms'])->name('seo.llms');
+Route::get('/LLMMS.pub.txt', [SeoResourceController::class, 'llmsAlias'])->name('seo.llms.alias');
+Route::get('/markdown/{page}.md', [SeoResourceController::class, 'markdown'])->name('seo.markdown.page');
+Route::get('/markdown/team/{slug}.md', [SeoResourceController::class, 'teamMarkdown'])->name('seo.markdown.team');
+Route::get('/markdown/blog/{post:slug}.md', [SeoResourceController::class, 'blogMarkdown'])->name('seo.markdown.blog');
+
+// Credentials viewing and rendering routes are secured via:
+// 1. Signed URLs (URL::signedRoute / URL::temporarySignedRoute) to prevent ID enumeration.
+// 2. Strict request throttling to block brute-force scraping attempts.
 Route::get('/team/{teamMember:slug}/credentials/{credential}/view', [TeamCredentialController::class, 'show'])
     ->middleware(['signed', 'throttle:20,1'])
     ->name('team.credentials.show');
@@ -52,6 +64,10 @@ Route::get('/tracking/tickets/{ticket}/files/{file}', [TicketFileDownloadControl
 
 Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
 Route::get('/blog/{post:slug}', [BlogController::class, 'show'])->name('blog.show');
+
+// Public proposal routing handles two types of client access:
+// 1. Token-based URL using a non-predictable 40-character string (similar to Google Docs links).
+// 2. Signed URL using temporary HMAC signatures for secure proposal preview verification.
 Route::get('/proposals/public/{publicToken}', [ProposalController::class, 'showByToken'])
     ->middleware('throttle:30,1')
     ->name('proposals.public.token.show');
@@ -78,6 +94,8 @@ Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
     ->middleware('auth')
     ->name('logout');
 
+// Admin area access is strictly locked to Super Admin and Admin roles.
+// Users must be authenticated, active, and matching the requested role enum values.
 Route::prefix('admin')
     ->name('admin.')
     ->middleware(['auth', 'role:'.UserRole::SUPER_ADMIN->value.','.UserRole::ADMIN->value])

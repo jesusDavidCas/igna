@@ -1,4 +1,4 @@
-@extends('layouts.public', ['title' => __('site.reset_access_password')])
+@extends('layouts.public')
 
 @section('content')
     <section class="mx-auto max-w-xl px-6 py-20 lg:px-8">

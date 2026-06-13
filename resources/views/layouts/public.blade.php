@@ -7,13 +7,41 @@
         $accessLabel = auth()->check() ? __('site.nav_workspace') : __('site.nav_login');
     @endphp
     <head>
+        @php
+            $seo = $seo ?? app(\App\Support\Seo\SeoManager::class)->meta([
+                'title' => $title ?? null,
+                'description' => $metaDescription ?? null,
+                'robots' => $robots ?? null,
+            ]);
+            $isNoindex = str_contains($seo['robots'], 'noindex');
+        @endphp
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>{{ $title ?? 'IGNA Studio' }}</title>
-        <meta name="description" content="{{ $metaDescription ?? __('site.meta_description') }}">
+        <title>{{ $seo['title'] }}</title>
+        <meta name="description" content="{{ $seo['description'] }}">
+        <meta name="robots" content="{{ $seo['robots'] }}">
+        @unless ($isNoindex)
+            <link rel="canonical" href="{{ $seo['canonical'] }}">
+        @endunless
+        <meta property="og:site_name" content="{{ $seo['site_name'] }}">
+        <meta property="og:title" content="{{ $seo['title'] }}">
+        <meta property="og:description" content="{{ $seo['description'] }}">
+        @unless ($isNoindex)
+            <meta property="og:url" content="{{ $seo['canonical'] }}">
+        @endunless
+        <meta property="og:type" content="{{ $seo['type'] }}">
+        <meta property="og:image" content="{{ $seo['image'] }}">
+        <meta property="og:locale" content="{{ $seo['locale'] }}">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="{{ $seo['title'] }}">
+        <meta name="twitter:description" content="{{ $seo['description'] }}">
+        <meta name="twitter:image" content="{{ $seo['image'] }}">
         @if (! empty($brandSettings['favicon_url']))
             <link rel="icon" href="{{ $brandSettings['favicon_url'] }}">
         @endif
+        @foreach ($seo['schema'] as $schema)
+            <script type="application/ld+json">{!! json_encode($schema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) !!}</script>
+        @endforeach
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="bg-stone-50 text-stone-900">

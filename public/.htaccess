@@ -5,6 +5,10 @@
 
     RewriteEngine On
 
+    # Canonical SEO host: keep HTTPS non-www as the single indexed domain.
+    RewriteCond %{HTTP_HOST} ^www\.ignastudio\.com$ [NC]
+    RewriteRule ^ https://ignastudio.com%{REQUEST_URI} [L,R=301]
+
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]

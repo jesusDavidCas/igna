@@ -3,6 +3,7 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="robots" content="noindex, nofollow">
         <title>{{ $title ?? 'IGNA Studio' }}</title>
         @if (! empty($brandSettings['favicon_url']))
             <link rel="icon" href="{{ $brandSettings['favicon_url'] }}">

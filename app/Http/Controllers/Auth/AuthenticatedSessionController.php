@@ -4,15 +4,23 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Support\Seo\SeoManager;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 
 class AuthenticatedSessionController extends Controller
 {
-    public function create(): View
+    public function create(SeoManager $seo): View
     {
-        return view('auth.login');
+        return view('auth.login', [
+            'seo' => $seo->meta([
+                'title' => __('site.nav_login').' | IGNA Studio',
+                'description' => __('site.login_intro'),
+                'canonical' => $seo->canonicalUrl('/login'),
+                'robots' => 'noindex, nofollow',
+            ]),
+        ]);
     }
 
     public function store(LoginRequest $request): RedirectResponse

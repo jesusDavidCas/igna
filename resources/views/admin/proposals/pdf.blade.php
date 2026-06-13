@@ -284,12 +284,17 @@
     </style>
 </head>
 @php
+    // To ensure Dompdf successfully renders images without triggering remote connection blocks, 
+    // we read the signature file from disk and convert it into a base64 Data URI string.
     $signatureDataUri = null;
     if ($proposal->signer?->signature_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($proposal->signer->signature_path)) {
         $signatureMime = \Illuminate\Support\Facades\Storage::disk('public')->mimeType($proposal->signer->signature_path) ?: 'image/png';
         $signatureDataUri = 'data:'.$signatureMime.';base64,'.base64_encode(\Illuminate\Support\Facades\Storage::disk('public')->get($proposal->signer->signature_path));
     }
 
+    // Dynamic layout density control:
+    // Fits normal proposals with up to 3 cost items comfortably onto a single page.
+    // If the items count or text volume exceeds thresholds, shifts layout to a compact style.
     $itemsByCategory = $proposal->items->groupBy(fn ($item) => $item->category ?: '');
     $itemCount = $proposal->items->count();
     $textVolume = mb_strlen((string) $proposal->description) + mb_strlen((string) $proposal->scope);

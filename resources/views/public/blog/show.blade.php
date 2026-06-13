@@ -1,4 +1,4 @@
-@extends('layouts.public', ['title' => $post->localizedTitle()])
+@extends('layouts.public')
 
 @section('content')
     <article class="mx-auto max-w-4xl px-6 py-16 lg:px-8">

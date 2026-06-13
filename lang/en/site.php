@@ -2,6 +2,15 @@
 
 return [
     'meta_description' => 'Practical digital systems and water infrastructure engineering support for teams that need clear, reliable execution.',
+    'seo_home_description' => 'Lightweight digital systems, project tracking, and water engineering support for turning complex needs into clear deliverables.',
+    'seo_blog_title' => 'IGNA Studio Blog | Digital systems and water infrastructure',
+    'seo_blog_description' => 'Practical guides about digital platforms, project tracking, technical proposals, and water infrastructure delivery.',
+    'seo_tracking_title' => 'Project tracking | IGNA Studio',
+    'seo_tracking_description' => 'Check the progress of your request or project with your ticket code and email address.',
+    'seo_forgot_password_title' => 'Recover access | IGNA Studio',
+    'seo_reset_password_title' => 'Reset password | IGNA Studio',
+    'private_proposal_meta_description' => 'Private IGNA Studio proposal available only through an authorized access link.',
+    'private_credential_meta_description' => 'Protected IGNA Studio professional document available only through an authorized access link.',
     'brand_tagline' => 'Digital systems and water infrastructure support',
     'nav_services' => 'Services',
     'nav_process' => 'Process',

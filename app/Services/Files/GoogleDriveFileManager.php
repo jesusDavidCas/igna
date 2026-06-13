@@ -17,6 +17,8 @@ class GoogleDriveFileManager
 {
     private ?Drive $drive = null;
 
+    // Stores a ticket file. If Google Drive is fully configured and enabled, uploads directly to Drive.
+    // Otherwise, falls back safely to local private storage (storage/app/private) to keep files secure.
     public function storeTicketFile(Ticket $ticket, UploadedFile $file): array
     {
         if ($this->isConfigured()) {
@@ -26,6 +28,7 @@ class GoogleDriveFileManager
         $storedName = Str::uuid()->toString().'.'.$file->getClientOriginalExtension();
 
         // Local private storage is the safe development fallback when Drive credentials are not configured.
+        // Files are saved outside the public web root (root: storage/app/private) to prevent direct URL access.
         // TODO: Add a watermark pipeline for partial deliverables before external sharing.
         $storagePath = $file->storeAs(
             "stubs/tickets/{$ticket->ticket_code}",
@@ -143,6 +146,8 @@ class GoogleDriveFileManager
         return Str::uuid()->toString().'-'.$slug.($extension ? ".{$extension}" : '');
     }
 
+    // Checks if the Google Drive integration requirements are met.
+    // The service account JSON file must be located in private app storage and NOT committed to Git.
     private function isConfigured(): bool
     {
         $serviceAccountPath = $this->serviceAccountPath();

@@ -41,6 +41,10 @@ class ProposalRequest extends FormRequest
             return null;
         }
 
+        if ($integer && $this->looksLikeDecimalQuantity($normalized)) {
+            return $normalized;
+        }
+
         $normalized = str_replace(',', '', $normalized);
 
         if (! is_numeric($normalized)) {
@@ -48,6 +52,16 @@ class ProposalRequest extends FormRequest
         }
 
         return $integer ? (int) $normalized : (float) $normalized;
+    }
+
+    private function looksLikeDecimalQuantity(string $value): bool
+    {
+        if (str_contains($value, '.')) {
+            return true;
+        }
+
+        return str_contains($value, ',')
+            && ! preg_match('/^-?\d{1,3}(,\d{3})+$/', $value);
     }
 
     public function authorize(): bool

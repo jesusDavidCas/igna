@@ -23,6 +23,8 @@ class TicketFileDownloadController extends Controller
         return $this->download($file);
     }
 
+    // Client portal download: ensures the logged-in client owns the ticket,
+    // and that the requested file belongs to this ticket and is marked visible to clients.
     public function client(Request $request, Ticket $ticket, TicketFile $file): RedirectResponse|StreamedResponse
     {
         abort_unless($ticket->client_user_id === $request->user()->id, 404);
@@ -31,6 +33,8 @@ class TicketFileDownloadController extends Controller
         return $this->download($file);
     }
 
+    // Public tracking link download: verifies the URL signature, checks the hashed email
+    // against the ticket's email to prevent leakages, and validates that the file is client-visible.
     public function tracking(Request $request, Ticket $ticket, TicketFile $file): RedirectResponse|StreamedResponse
     {
         abort_unless($request->hasValidSignature(), 403);

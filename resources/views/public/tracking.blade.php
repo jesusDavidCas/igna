@@ -1,4 +1,4 @@
-@extends('layouts.public', ['title' => __('site.nav_tracking')])
+@extends('layouts.public')
 
 @section('content')
     <section class="mx-auto max-w-7xl px-6 py-16 lg:px-8">

@@ -1,4 +1,4 @@
-@extends('layouts.public', ['title' => $proposal->proposal_number])
+@extends('layouts.public')
 
 @section('content')
     <article class="mx-auto max-w-6xl px-6 py-12 lg:px-8">

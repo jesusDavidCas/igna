@@ -2,6 +2,15 @@
 
 return [
     'meta_description' => 'Sistemas digitales prácticos y apoyo en ingeniería de infraestructura hídrica para equipos que necesitan ejecución clara y confiable.',
+    'seo_home_description' => 'Sistemas digitales ligeros, seguimiento de proyectos y apoyo en ingeniería hídrica para convertir necesidades complejas en entregas claras.',
+    'seo_blog_title' => 'Blog de IGNA Studio | Sistemas digitales e infraestructura hídrica',
+    'seo_blog_description' => 'Guías prácticas sobre plataformas digitales, seguimiento de proyectos, cotizaciones técnicas e infraestructura hídrica.',
+    'seo_tracking_title' => 'Seguimiento de proyectos | IGNA Studio',
+    'seo_tracking_description' => 'Consulta el avance de tu solicitud o proyecto con código de ticket y correo electrónico.',
+    'seo_forgot_password_title' => 'Recuperar acceso | IGNA Studio',
+    'seo_reset_password_title' => 'Restablecer contraseña | IGNA Studio',
+    'private_proposal_meta_description' => 'Propuesta privada de IGNA Studio disponible solo mediante enlace autorizado.',
+    'private_credential_meta_description' => 'Documento profesional protegido de IGNA Studio disponible solo mediante enlace autorizado.',
     'brand_tagline' => 'Sistemas digitales e infraestructura hídrica',
     'nav_services' => 'Servicios',
     'nav_process' => 'Proceso',

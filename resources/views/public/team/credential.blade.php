@@ -1,4 +1,4 @@
-@extends('layouts.public', ['title' => $credential->title])
+@extends('layouts.public')
 
 @section('content')
     <section class="mx-auto max-w-6xl px-6 py-12 lg:px-8">

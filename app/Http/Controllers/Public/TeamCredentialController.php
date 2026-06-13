@@ -7,6 +7,7 @@ use App\Models\TeamCredential;
 use App\Models\TeamCredentialView;
 use App\Models\TeamMember;
 use App\Services\Credentials\CredentialPreviewRenderer;
+use App\Support\Seo\SeoManager;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -14,7 +15,7 @@ use Illuminate\Support\Facades\Storage;
 
 class TeamCredentialController extends Controller
 {
-    public function show(Request $request, TeamMember $teamMember, TeamCredential $credential): View
+    public function show(Request $request, TeamMember $teamMember, TeamCredential $credential, SeoManager $seo): View
     {
         $this->authorizeCredential($teamMember, $credential);
 
@@ -30,6 +31,11 @@ class TeamCredentialController extends Controller
             'teamMember' => $teamMember,
             'credential' => $credential,
             'fileExists' => Storage::disk('local')->exists($credential->document_path),
+            'seo' => $seo->meta([
+                'title' => $credential->title.' | IGNA Studio',
+                'description' => __('site.private_credential_meta_description'),
+                'robots' => 'noindex, nofollow',
+            ]),
         ]);
     }
 

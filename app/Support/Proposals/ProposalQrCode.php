@@ -13,7 +13,7 @@ class ProposalQrCode
     public function dataUri(string $url): string
     {
         return (new Builder(
-            writer: new SvgWriter(),
+            writer: new SvgWriter,
             data: $url,
             errorCorrectionLevel: ErrorCorrectionLevel::Medium,
             size: 180,

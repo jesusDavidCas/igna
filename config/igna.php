@@ -29,4 +29,12 @@ return [
         'prefix' => env('IGNA_PROPOSAL_PREFIX', 'IGNA'),
         'starting_base' => (int) env('IGNA_PROPOSAL_STARTING_BASE', 1041),
     ],
+    'seo' => [
+        'canonical_url' => rtrim(env('IGNA_CANONICAL_URL', 'https://ignastudio.com'), '/'),
+        'default_title' => 'IGNA Studio | Digital Systems and Water Infrastructure Engineering',
+        'social_image' => '/social-card.svg',
+        'excluded_blog_slugs' => [
+            'dfsdf',
+        ],
+    ],
 ];
