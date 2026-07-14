@@ -44,40 +44,33 @@
         @endforeach
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="bg-stone-50 text-stone-900">
-        <header class="sticky top-0 z-40 border-b border-stone-200/80 bg-stone-50/95 backdrop-blur">
-            <div class="mx-auto flex max-w-7xl items-start justify-between gap-3 px-4 py-3 sm:items-center sm:px-6 lg:px-8">
-                <a href="{{ route('home') }}" class="flex min-w-0 items-center gap-2 sm:gap-3">
-                    <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-olive-700 text-sm font-semibold text-white sm:h-11 sm:w-11">
-                        @if (! empty($brandSettings['logo_url']))
-                            <img src="{{ $brandSettings['logo_url'] }}" alt="{{ $brandSettings['company_name'] }}" class="h-full w-full object-cover">
-                        @else
-                            {{ $brandSettings['logo_text'] }}
-                        @endif
-                    </div>
-                    <div class="min-w-0">
-                        <p class="truncate text-xs font-semibold tracking-[0.18em] text-stone-500 sm:text-sm">{{ $brandSettings['company_name'] }}</p>
-                        <p class="hidden text-sm text-stone-600 md:block">{{ __('site.brand_tagline') }}</p>
-                    </div>
+    <body class="public-site-body text-stone-900">
+        <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-olive-800 focus:shadow-lg">
+            {{ __('site.skip_to_content') }}
+        </a>
+        <header @class(['public-site-header sticky top-0 z-40', 'public-site-header--hero' => request()->routeIs('home')]) @if (request()->routeIs('home')) data-hero-header @endif>
+            <div class="site-shell public-header-shell flex items-center justify-between gap-3">
+                <a href="{{ route('home') }}" class="public-wordmark group min-w-0" aria-label="{{ $brandSettings['company_name'] }}">
+                    <span class="public-wordmark-igna">IGNA</span><span class="public-wordmark-studio">Studio</span>
                 </a>
-                <nav class="hidden items-center gap-6 text-sm font-medium text-stone-700 lg:flex">
-                    <a href="{{ route('home') }}#services" class="transition hover:text-olive-700">{{ __('site.nav_services') }}</a>
-                    <a href="{{ route('home') }}#process" class="transition hover:text-olive-700">{{ __('site.nav_process') }}</a>
-                    <a href="{{ route('home') }}#projects" class="transition hover:text-olive-700">{{ __('site.nav_projects') }}</a>
-                    <a href="{{ route('home') }}#team" class="transition hover:text-olive-700">{{ __('site.nav_team') }}</a>
-                    <a href="{{ route('blog.index') }}" class="transition hover:text-olive-700">{{ __('site.nav_blog') }}</a>
-                    <a href="{{ route('tracking.index') }}" class="transition hover:text-olive-700">{{ __('site.nav_tracking') }}</a>
+                <nav class="public-nav hidden items-center text-stone-700 xl:flex" aria-label="{{ __('site.footer_navigation') }}">
+                    <a href="{{ route('home') }}#services" class="nav-link px-3 py-2.5 transition hover:text-olive-800">{{ __('site.nav_services') }}</a>
+                    <a href="{{ route('home') }}#process" class="nav-link px-3 py-2.5 transition hover:text-olive-800">{{ __('site.nav_process') }}</a>
+                    <a href="{{ route('home') }}#projects" class="nav-link px-3 py-2.5 transition hover:text-olive-800">{{ __('site.nav_projects') }}</a>
+                    <a href="{{ route('home') }}#team" class="nav-link px-3 py-2.5 transition hover:text-olive-800">{{ __('site.nav_team') }}</a>
+                    <a href="{{ route('blog.index') }}" class="nav-link px-3 py-2.5 transition hover:text-olive-800">{{ __('site.nav_blog') }}</a>
+                    <a href="{{ route('tracking.index') }}" class="nav-link px-3 py-2.5 transition hover:text-olive-800">{{ __('site.nav_tracking') }}</a>
                 </nav>
-                <div class="flex flex-1 flex-wrap items-center justify-end gap-2 sm:flex-none sm:gap-3">
-                    <details class="group relative lg:hidden">
-                        <summary aria-label="{{ __('site.mobile_menu') }}" class="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full border border-stone-300 bg-stone-50 text-stone-700 transition hover:border-olive-600 hover:text-olive-700 [&::-webkit-details-marker]:hidden">
+                <div class="public-header-actions flex flex-1 flex-wrap items-center justify-end gap-2 sm:flex-none">
+                    <details class="mobile-nav-details group relative xl:hidden">
+                        <summary aria-label="{{ __('site.mobile_menu') }}" class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-full border border-stone-300 bg-igna-paper text-stone-700 transition hover:border-olive-600 hover:text-olive-700 [&::-webkit-details-marker]:hidden">
                             <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2">
                                 <path d="M5 7h14"></path>
                                 <path d="M5 12h14"></path>
                                 <path d="M5 17h14"></path>
                             </svg>
                         </summary>
-                        <div class="fixed left-4 right-4 top-28 z-50 rounded-[1.5rem] border border-stone-200 bg-white p-3 text-sm font-semibold text-stone-700 shadow-2xl shadow-stone-900/10 sm:left-auto sm:right-6 sm:w-80">
+                        <div class="public-mobile-menu fixed left-4 right-4 top-24 z-50 rounded-[1.5rem] border border-stone-200 p-3 text-sm font-semibold text-stone-700 shadow-2xl shadow-stone-900/10 sm:left-auto sm:right-6 sm:w-80">
                             <a href="{{ route('home') }}#services" class="block rounded-2xl px-4 py-3 transition hover:bg-olive-50 hover:text-olive-800">{{ __('site.nav_services') }}</a>
                             <a href="{{ route('home') }}#process" class="block rounded-2xl px-4 py-3 transition hover:bg-olive-50 hover:text-olive-800">{{ __('site.nav_process') }}</a>
                             <a href="{{ route('home') }}#projects" class="block rounded-2xl px-4 py-3 transition hover:bg-olive-50 hover:text-olive-800">{{ __('site.nav_projects') }}</a>
@@ -88,14 +81,14 @@
                     </details>
                     <form method="POST" action="{{ route('locale.switch', app()->getLocale() === 'es' ? 'en' : 'es') }}">
                         @csrf
-                        <button type="submit" class="rounded-full border border-stone-300 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-stone-700 transition hover:border-olive-600 hover:text-olive-700 sm:tracking-[0.18em]">
+                        <button type="submit" class="public-utility-link public-locale-control" aria-label="{{ __('site.language_switch') }}">
                             {{ app()->getLocale() === 'es' ? 'EN' : 'ES' }}
                         </button>
                     </form>
-                    <a href="{{ $accessUrl }}" class="rounded-full border border-stone-300 px-3 py-2 text-sm font-semibold leading-none text-stone-700 transition hover:border-olive-600 hover:text-olive-700 sm:px-4">
+                    <a href="{{ $accessUrl }}" class="public-utility-link public-login-link">
                         {{ $accessLabel }}
                     </a>
-                    <a href="{{ route('home') }}#request" class="basis-full rounded-full bg-olive-700 px-4 py-2.5 text-center text-sm font-semibold leading-tight text-white transition hover:bg-olive-800 sm:basis-auto sm:py-2">
+                    <a href="{{ route('home') }}#request" class="public-request-link basis-full text-center sm:basis-auto">
                         {{ __('site.cta_request') }}
                     </a>
                 </div>
@@ -104,13 +97,13 @@
 
         @include('partials.flash')
 
-        <main>
+        <main id="main-content">
             {{ $slot ?? '' }}
             @yield('content')
         </main>
 
-        <footer class="border-t border-stone-200 bg-stone-100/80">
-            <div class="mx-auto grid max-w-7xl gap-10 px-6 py-12 lg:grid-cols-[1.2fr_0.8fr_0.8fr] lg:px-8">
+        <footer class="footer-route bg-igna-paper/90">
+            <div class="site-shell grid gap-10 py-12 lg:grid-cols-[1.2fr_0.8fr_0.8fr]">
                 <div class="space-y-4">
                     <p class="text-sm font-semibold uppercase tracking-[0.18em] text-olive-700">{{ $brandSettings['company_name'] }}</p>
                     <p class="max-w-xl text-sm leading-7 text-stone-600">{{ __('site.footer_description') }}</p>
