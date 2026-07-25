@@ -25,7 +25,13 @@ class StoreServiceRequestRequest extends FormRequest
             'service_id' => ['required', Rule::exists('services', 'id')->where('is_active', true)],
             'project_description' => ['required', 'string', 'max:5000'],
             'target_date' => ['nullable', 'date'],
-            'initial_file' => ['nullable', 'file', 'max:10240', 'mimes:pdf,doc,docx,xls,xlsx,csv,txt,jpg,jpeg,png,zip,dwg,dxf'],
+            'initial_file' => [
+                'nullable',
+                'file',
+                'max:2048',
+                'mimes:pdf,jpg,jpeg,png',
+                'mimetypes:application/pdf,image/jpeg,image/png',
+            ],
         ];
     }
 }

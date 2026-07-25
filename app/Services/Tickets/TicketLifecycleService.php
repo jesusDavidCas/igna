@@ -7,6 +7,7 @@ use App\Enums\TicketStatus;
 use App\Models\Service;
 use App\Models\ServiceStage;
 use App\Models\Ticket;
+use App\Models\TicketStageAudit;
 use App\Models\TicketStageEvent;
 use App\Models\User;
 use App\Services\Notifications\ProjectNotificationService;
@@ -20,9 +21,9 @@ class TicketLifecycleService
         private readonly ProjectNotificationService $projectNotificationService,
     ) {}
 
-    public function createFromPublicRequest(array $payload): Ticket
+    public function createFromPublicRequest(array $payload, bool $notify = true): Ticket
     {
-        return DB::transaction(function () use ($payload): Ticket {
+        return DB::transaction(function () use ($payload, $notify): Ticket {
             // Keep ticket creation and workflow initialization atomic so tracking never sees a half-built request.
             $service = Service::query()
                 ->with([
@@ -50,14 +51,17 @@ class TicketLifecycleService
             $this->syncStages($ticket, $service);
             $this->syncDeliverables($ticket, $service);
 
-            $this->projectNotificationService->notifyTicket(
-                $ticket,
-                'request_received',
-                __('site.email_request_received_headline'),
-                __('site.email_request_received_message', ['ticket' => $ticket->ticket_code]),
-            );
+            if ($notify) {
+                $this->projectNotificationService->notifyTicket(
+                    $ticket,
+                    'request_received',
+                    'site.email_request_received_headline',
+                    messageKey: 'site.email_request_received_message',
+                    messageReplacements: ['ticket' => $ticket->ticket_code],
+                );
 
-            $this->projectNotificationService->notifyAdminsNewTicket($ticket);
+                $this->projectNotificationService->notifyAdminsNewTicket($ticket);
+            }
 
             return $ticket->fresh(['service', 'currentStage', 'stageEvents.serviceStage']);
         });
@@ -76,14 +80,18 @@ class TicketLifecycleService
         $this->syncDeliverables($ticket, $ticket->service);
     }
 
-    public function moveToStage(Ticket $ticket, ServiceStage $targetStage, ?User $actor = null, ?string $notes = null): Ticket
+    public function moveToStage(Ticket $ticket, ServiceStage $targetStage, ?User $actor = null, ?string $notes = null, bool $notify = true): Ticket
     {
-        return DB::transaction(function () use ($ticket, $targetStage, $actor, $notes): Ticket {
+        return DB::transaction(function () use ($ticket, $targetStage, $actor, $notes, $notify): Ticket {
             $orderedStages = $ticket->service
                 ->stages()
                 ->where('is_active', true)
                 ->orderBy('sort_order')
                 ->get();
+            $currentIndex = $orderedStages->search(fn (ServiceStage $stage): bool => $stage->id === $ticket->current_service_stage_id);
+            $targetIndex = $orderedStages->search(fn (ServiceStage $stage): bool => $stage->id === $targetStage->id);
+
+            abort_unless($currentIndex !== false && $targetIndex !== false && $targetIndex === $currentIndex, 422);
 
             foreach ($orderedStages as $stage) {
                 $event = TicketStageEvent::query()->firstOrCreate(
@@ -129,21 +137,44 @@ class TicketLifecycleService
                 'status' => TicketStatus::IN_PROGRESS,
             ])->save();
 
-            $this->projectNotificationService->notifyTicket(
-                $ticket,
-                'stage_changed',
-                __('site.email_stage_changed_headline', ['stage' => $targetStage->localizedName()]),
-                $notes,
-            );
+            if ($notify) {
+                $this->projectNotificationService->notifyTicket(
+                    $ticket,
+                    'stage_changed',
+                    'site.email_stage_changed_headline',
+                    ['stage' => $targetStage],
+                    message: $notes,
+                );
+            }
 
             return $ticket->fresh(['service', 'currentStage', 'stageEvents.serviceStage', 'files']);
         });
     }
 
-    public function completeStage(Ticket $ticket, TicketStageEvent $event, ?User $actor = null, ?string $notes = null): Ticket
+    public function completeStage(Ticket $ticket, TicketStageEvent $event, ?User $actor = null, ?string $notes = null, bool $notify = true): Ticket
     {
-        return DB::transaction(function () use ($ticket, $event, $actor, $notes): Ticket {
+        return DB::transaction(function () use ($ticket, $event, $actor, $notes, $notify): Ticket {
+            $ticket = Ticket::query()
+                ->whereKey($ticket->id)
+                ->lockForUpdate()
+                ->with('service')
+                ->firstOrFail();
+            $event = TicketStageEvent::query()
+                ->whereKey($event->id)
+                ->lockForUpdate()
+                ->with('serviceStage')
+                ->firstOrFail();
+
             abort_unless($event->ticket_id === $ticket->id, 404);
+
+            if ($event->status === StageEventStatus::COMPLETED) {
+                return $ticket->fresh(['service', 'currentStage', 'stageEvents.serviceStage', 'files']);
+            }
+
+            abort_unless($event->service_stage_id === $ticket->current_service_stage_id, 422);
+            abort_unless($event->status === StageEventStatus::CURRENT, 422);
+
+            $statusBefore = $event->status->value;
 
             $event->fill([
                 'status' => StageEventStatus::COMPLETED,
@@ -153,28 +184,174 @@ class TicketLifecycleService
                 'completed_at' => $event->completed_at ?? now(),
             ])->save();
 
-            $activeStageIds = $ticket->service
+            $this->recordStageAudit($ticket, $event, 'completed', $statusBefore, $event->status->value, $actor, $notes);
+
+            $orderedStages = $ticket->service
                 ->stages()
                 ->where('is_active', true)
-                ->pluck('id');
+                ->orderBy('sort_order')
+                ->get()
+                ->values();
+            $currentIndex = $orderedStages->search(fn (ServiceStage $stage): bool => $stage->id === $event->service_stage_id);
+            $nextStage = $currentIndex === false ? null : $orderedStages->get($currentIndex + 1);
 
-            $completedCount = $ticket->stageEvents()
-                ->whereIn('service_stage_id', $activeStageIds)
-                ->where('status', StageEventStatus::COMPLETED)
-                ->count();
+            if ($nextStage) {
+                TicketStageEvent::query()->firstOrCreate(
+                    [
+                        'ticket_id' => $ticket->id,
+                        'service_stage_id' => $nextStage->id,
+                    ],
+                    [
+                        'is_client_visible' => $nextStage->is_client_visible,
+                    ],
+                )->fill([
+                    'status' => StageEventStatus::CURRENT,
+                    'changed_by_user_id' => $actor?->id,
+                    'entered_at' => now(),
+                    'completed_at' => null,
+                    'is_client_visible' => $nextStage->is_client_visible,
+                ])->save();
+            }
 
             $ticket->forceFill([
-                'status' => $activeStageIds->isNotEmpty() && $completedCount === $activeStageIds->count()
-                    ? TicketStatus::COMPLETED
-                    : TicketStatus::IN_PROGRESS,
+                'current_service_stage_id' => $nextStage?->id ?? $event->service_stage_id,
+                'status' => $nextStage ? TicketStatus::IN_PROGRESS : TicketStatus::COMPLETED,
             ])->save();
 
-            $this->projectNotificationService->notifyTicket(
+            if ($notify) {
+                $this->projectNotificationService->notifyTicket(
+                    $ticket,
+                    'stage_completed',
+                    'site.email_stage_completed_headline',
+                    ['stage' => $event->serviceStage],
+                    message: $notes,
+                );
+            }
+
+            return $ticket->fresh(['service', 'currentStage', 'stageEvents.serviceStage', 'files']);
+        });
+    }
+
+    public function reopenStage(Ticket $ticket, TicketStageEvent $event, ?User $actor = null, ?string $notes = null, bool $notify = true): Ticket
+    {
+        return DB::transaction(function () use ($ticket, $event, $actor, $notes, $notify): Ticket {
+            $ticket = Ticket::query()
+                ->whereKey($ticket->id)
+                ->lockForUpdate()
+                ->with('service')
+                ->firstOrFail();
+            $event = TicketStageEvent::query()->whereKey($event->id)->lockForUpdate()->with('serviceStage')->firstOrFail();
+
+            abort_unless($event->ticket_id === $ticket->id, 404);
+
+            if (
+                $event->status === StageEventStatus::CURRENT
+                && $ticket->current_service_stage_id === $event->service_stage_id
+            ) {
+                return $ticket->fresh(['service', 'currentStage', 'stageEvents.serviceStage', 'files']);
+            }
+
+            abort_unless($event->status === StageEventStatus::COMPLETED, 422);
+
+            $orderedStages = $ticket->service
+                ->stages()
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->get()
+                ->values();
+            $currentIndex = $orderedStages->search(fn (ServiceStage $stage): bool => $stage->id === $ticket->current_service_stage_id);
+            $targetIndex = $orderedStages->search(fn (ServiceStage $stage): bool => $stage->id === $event->service_stage_id);
+
+            abort_unless($currentIndex !== false && $targetIndex !== false && $targetIndex === $currentIndex - 1, 422);
+
+            $currentEvent = TicketStageEvent::query()
+                ->where('ticket_id', $ticket->id)
+                ->where('service_stage_id', $ticket->current_service_stage_id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            abort_unless($currentEvent->status === StageEventStatus::CURRENT, 422);
+
+            $reopenNote = __('site.admin_correction_note');
+
+            if (filled($notes)) {
+                $reopenNote .= "\n".$notes;
+            }
+
+            $this->recordStageAudit(
                 $ticket,
-                'stage_completed',
-                __('site.email_stage_completed_headline', ['stage' => $event->serviceStage->localizedName()]),
+                $currentEvent,
+                'rolled_back_from',
+                $currentEvent->status->value,
+                StageEventStatus::PENDING->value,
+                $actor,
                 $notes,
+                $currentEvent->service_stage_id,
+                $event->service_stage_id,
             );
+
+            $currentEvent->forceFill([
+                'status' => StageEventStatus::PENDING,
+                'changed_by_user_id' => $actor?->id,
+                'entered_at' => null,
+                'completed_at' => null,
+                'superseded_at' => now(),
+                'superseded_by_user_id' => $actor?->id,
+                'superseded_reason' => $notes,
+            ])->save();
+
+            TicketStageEvent::query()
+                ->where('ticket_id', $ticket->id)
+                ->whereNotIn('service_stage_id', $orderedStages->take($targetIndex + 1)->pluck('id'))
+                ->update([
+                    'status' => StageEventStatus::PENDING,
+                    'entered_at' => null,
+                    'completed_at' => null,
+                    'superseded_at' => now(),
+                    'superseded_by_user_id' => $actor?->id,
+                    'superseded_reason' => $notes,
+                ]);
+
+            $statusBefore = $event->status->value;
+
+            $event->fill([
+                'status' => StageEventStatus::CURRENT,
+                'changed_by_user_id' => $actor?->id,
+                'notes' => $this->notesWithUpdate($event->notes, $reopenNote, $actor),
+                'attempt_number' => $event->attempt_number + 1,
+                'entered_at' => now(),
+                'completed_at' => null,
+                'superseded_at' => null,
+                'superseded_by_user_id' => null,
+                'superseded_reason' => null,
+            ])->save();
+
+            $this->recordStageAudit(
+                $ticket,
+                $event,
+                'reopened_previous',
+                $statusBefore,
+                $event->status->value,
+                $actor,
+                $notes,
+                $currentEvent->service_stage_id,
+                $event->service_stage_id,
+            );
+
+            $ticket->forceFill([
+                'current_service_stage_id' => $event->service_stage_id,
+                'status' => TicketStatus::IN_PROGRESS,
+            ])->save();
+
+            if ($notify) {
+                $this->projectNotificationService->notifyTicket(
+                    $ticket,
+                    'stage_reopened',
+                    'site.email_stage_reopened_headline',
+                    ['stage' => $event->serviceStage],
+                    'site.email_stage_reopened_message',
+                );
+            }
 
             return $ticket->fresh(['service', 'currentStage', 'stageEvents.serviceStage', 'files']);
         });
@@ -252,5 +429,34 @@ class TicketLifecycleService
         $entry .= "\n".$newNotes;
 
         return filled($existingNotes) ? $existingNotes."\n\n".$entry : $entry;
+    }
+
+    private function recordStageAudit(
+        Ticket $ticket,
+        TicketStageEvent $event,
+        string $action,
+        ?string $statusBefore,
+        ?string $statusAfter,
+        ?User $actor,
+        ?string $reason = null,
+        ?int $rollbackFromStageId = null,
+        ?int $rollbackToStageId = null,
+    ): void {
+        TicketStageAudit::query()->create([
+            'ticket_id' => $ticket->id,
+            'ticket_stage_event_id' => $event->id,
+            'service_stage_id' => $event->service_stage_id,
+            'actor_user_id' => $actor?->id,
+            'action' => $action,
+            'status_before' => $statusBefore,
+            'status_after' => $statusAfter,
+            'attempt_number' => $event->attempt_number,
+            'entered_at_snapshot' => $event->entered_at,
+            'completed_at_snapshot' => $event->completed_at,
+            'notes_snapshot' => $event->notes,
+            'rollback_from_stage_id' => $rollbackFromStageId,
+            'rollback_to_stage_id' => $rollbackToStageId,
+            'reason' => $reason,
+        ]);
     }
 }

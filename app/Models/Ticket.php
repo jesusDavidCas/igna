@@ -62,6 +62,11 @@ class Ticket extends Model
         return $this->hasMany(TicketStageEvent::class)->orderBy('service_stage_id');
     }
 
+    public function stageAudits(): HasMany
+    {
+        return $this->hasMany(TicketStageAudit::class)->latest();
+    }
+
     public function files(): HasMany
     {
         return $this->hasMany(TicketFile::class)->latest('uploaded_at');

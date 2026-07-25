@@ -35,14 +35,19 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (PostTooLargeException $exception, Request $request) {
+            $routeName = $request->route()?->getName();
+            $max = in_array($routeName, ['requests.store', 'client.tickets.documents.store', 'tracking.documents.store'], true)
+                ? '2 MB'
+                : '20 MB';
+
             if ($request->expectsJson()) {
                 return response()->json([
-                    'message' => __('site.upload_too_large', ['max' => '20 MB']),
+                    'message' => __('site.upload_too_large', ['max' => $max]),
                 ], 413);
             }
 
             return response()->view('errors.post-too-large', [
-                'message' => __('site.upload_too_large', ['max' => '20 MB']),
+                'message' => __('site.upload_too_large', ['max' => $max]),
             ], 413);
         });
     })->create();

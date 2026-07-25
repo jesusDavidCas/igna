@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Ticket;
 use App\Models\TicketFile;
+use App\Models\User;
 use App\Services\Files\GoogleDriveFileManager;
+use App\Services\Tickets\TicketFileAccessService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -14,21 +16,23 @@ use Throwable;
 
 class TicketFileDownloadController extends Controller
 {
-    public function __construct(private readonly GoogleDriveFileManager $googleDriveFileManager) {}
+    public function __construct(
+        private readonly GoogleDriveFileManager $googleDriveFileManager,
+        private readonly TicketFileAccessService $ticketFileAccessService,
+    ) {}
 
-    public function admin(Ticket $ticket, TicketFile $file): RedirectResponse|StreamedResponse
+    public function admin(Request $request, Ticket $ticket, TicketFile $file): RedirectResponse|StreamedResponse
     {
-        abort_unless($file->ticket_id === $ticket->id, 404);
+        $this->ticketFileAccessService->assertAdminCanAccess($ticket, $file);
 
-        return $this->download($file);
+        return $this->download($file, $request->user());
     }
 
     // Client portal download: ensures the logged-in client owns the ticket,
     // and that the requested file belongs to this ticket and is marked visible to clients.
     public function client(Request $request, Ticket $ticket, TicketFile $file): RedirectResponse|StreamedResponse
     {
-        abort_unless($ticket->client_user_id === $request->user()->id, 404);
-        abort_unless($file->ticket_id === $ticket->id && $file->is_client_visible, 404);
+        $this->ticketFileAccessService->assertClientCanAccess($request->user(), $ticket, $file);
 
         return $this->download($file);
     }
@@ -37,18 +41,19 @@ class TicketFileDownloadController extends Controller
     // against the ticket's email to prevent leakages, and validates that the file is client-visible.
     public function tracking(Request $request, Ticket $ticket, TicketFile $file): RedirectResponse|StreamedResponse
     {
-        abort_unless($request->hasValidSignature(), 403);
-        abort_unless(hash_equals($request->query('email_hash', ''), hash('sha256', strtolower($ticket->email))), 404);
-        abort_unless($file->ticket_id === $ticket->id && $file->is_client_visible, 404);
+        $this->ticketFileAccessService->assertSignedTrackingCanAccess($request, $ticket, $file);
 
         return $this->download($file);
     }
 
-    private function download(TicketFile $file): RedirectResponse|StreamedResponse
+    private function download(TicketFile $file, ?User $admin = null): RedirectResponse|StreamedResponse
     {
         if ($file->storage_provider === 'google_drive' && $file->google_drive_file_id) {
             try {
-                return $this->googleDriveFileManager->downloadDriveFile($file);
+                $response = $this->googleDriveFileManager->downloadDriveFile($file);
+                $this->recordFirstAdminDownload($file, $admin);
+
+                return $response;
             } catch (Throwable $exception) {
                 report($exception);
 
@@ -58,6 +63,7 @@ class TicketFileDownloadController extends Controller
 
         if ($file->google_drive_url) {
             abort_unless($this->isTrustedExternalFileUrl($file->google_drive_url), 404);
+            $this->recordFirstAdminDownload($file, $admin);
 
             return redirect()->away($file->google_drive_url);
         }
@@ -66,7 +72,25 @@ class TicketFileDownloadController extends Controller
             abort(404, __('site.file_not_available'));
         }
 
-        return Storage::disk($file->storage_disk)->download($file->storage_path, $file->original_name);
+        $this->recordFirstAdminDownload($file, $admin);
+
+        return Storage::disk($file->storage_disk)->download($file->storage_path, $file->original_name, array_filter([
+            'Content-Type' => $file->mime_type,
+            'X-Content-Type-Options' => 'nosniff',
+        ]));
+    }
+
+    private function recordFirstAdminDownload(TicketFile $file, ?User $admin): void
+    {
+        if (! $admin || ! $file->isClientSubmitted() || $file->review_status !== 'pending_review') {
+            return;
+        }
+
+        $file->forceFill([
+            'review_status' => 'downloaded',
+            'first_admin_downloaded_by_user_id' => $file->first_admin_downloaded_by_user_id ?? $admin->id,
+            'first_admin_downloaded_at' => $file->first_admin_downloaded_at ?? now(),
+        ])->save();
     }
 
     private function isTrustedExternalFileUrl(string $url): bool

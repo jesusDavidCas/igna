@@ -23,6 +23,7 @@ use App\Http\Controllers\Public\SeoResourceController;
 use App\Http\Controllers\Public\ServiceRequestController;
 use App\Http\Controllers\Public\TeamCredentialController;
 use App\Http\Controllers\Public\TicketTrackingController;
+use App\Http\Controllers\TicketClientDocumentController;
 use App\Http\Controllers\TicketFileDownloadController;
 use Illuminate\Support\Facades\Route;
 
@@ -61,6 +62,9 @@ Route::post('/tracking', [TicketTrackingController::class, 'show'])
 Route::get('/tracking/tickets/{ticket}/files/{file}', [TicketFileDownloadController::class, 'tracking'])
     ->middleware('signed')
     ->name('tracking.files.download');
+Route::post('/tracking/tickets/{ticket}/documents', [TicketClientDocumentController::class, 'tracking'])
+    ->middleware(['signed', 'throttle:ticket-document-upload'])
+    ->name('tracking.documents.store');
 
 Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
 Route::get('/blog/{post:slug}', [BlogController::class, 'show'])->name('blog.show');
@@ -115,6 +119,8 @@ Route::prefix('admin')
         Route::put('/tickets/{ticket}/stages/{event}/reopen', [AdminTicketController::class, 'reopenStage'])->name('tickets.stages.reopen');
         Route::post('/tickets/{ticket}/files', [AdminTicketController::class, 'storeFile'])->name('tickets.files.store');
         Route::put('/tickets/{ticket}/files/{file}/visibility', [AdminTicketController::class, 'updateFileVisibility'])->name('tickets.files.visibility.update');
+        Route::patch('/tickets/{ticket}/files/{file}/review', [AdminTicketController::class, 'markFileReviewed'])->name('tickets.files.review.update');
+        Route::patch('/tickets/{ticket}/files/{file}/reject', [AdminTicketController::class, 'rejectFile'])->name('tickets.files.reject.update');
         Route::delete('/tickets/{ticket}/files/{file}', [AdminTicketController::class, 'destroyFile'])->name('tickets.files.destroy');
         Route::get('/tickets/{ticket}/files/{file}/download', [TicketFileDownloadController::class, 'admin'])->name('tickets.files.download');
 
@@ -139,5 +145,6 @@ Route::prefix('portal')
     ->group(function (): void {
         Route::get('/', PortalController::class)->name('dashboard');
         Route::get('/tickets/{ticket}', [ClientTicketController::class, 'show'])->name('tickets.show');
+        Route::post('/tickets/{ticket}/documents', [TicketClientDocumentController::class, 'client'])->name('tickets.documents.store');
         Route::get('/tickets/{ticket}/files/{file}/download', [TicketFileDownloadController::class, 'client'])->name('tickets.files.download');
     });

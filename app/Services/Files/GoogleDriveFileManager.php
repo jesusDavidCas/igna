@@ -65,6 +65,7 @@ class GoogleDriveFileManager
         }, $file->original_name, array_filter([
             'Content-Type' => $file->mime_type,
             'Content-Length' => $file->size_bytes,
+            'X-Content-Type-Options' => 'nosniff',
         ]));
     }
 

@@ -144,38 +144,40 @@ class AdminOperationsTest extends TestCase
         Mail::assertSent(ProjectUpdateMail::class, fn (ProjectUpdateMail $mail): bool => $mail->type === 'file_available');
     }
 
-    public function test_admin_selects_current_stage_without_auto_completing_and_can_complete_explicitly(): void
+    public function test_admin_cannot_advance_by_selecting_stage_and_can_complete_current_stage_explicitly(): void
     {
         $this->actingAs($this->superAdmin);
 
         $ticket = $this->createTicket()->load(['service.stages', 'stageEvents.serviceStage']);
+        $firstStage = $ticket->service->stages()->orderBy('sort_order')->firstOrFail();
         $secondStage = $ticket->service->stages()->orderBy('sort_order')->skip(1)->firstOrFail();
+        $firstEvent = $ticket->stageEvents->firstWhere('service_stage_id', $firstStage->id);
 
         Mail::fake();
 
         $this->put(route('admin.tickets.stage.update', $ticket), [
             'service_stage_id' => $secondStage->id,
             'notes' => 'Started technical review.',
-        ])->assertRedirect(route('admin.tickets.show', $ticket));
+        ])->assertUnprocessable();
 
         $ticket->refresh()->load('stageEvents.serviceStage');
 
-        $firstEvent = $ticket->stageEvents->sortBy(fn ($event) => $event->serviceStage->sort_order)->first();
         $secondEvent = $ticket->stageEvents->firstWhere('service_stage_id', $secondStage->id);
 
-        $this->assertSame('pending', $firstEvent->status->value);
-        $this->assertSame('current', $secondEvent->status->value);
-        $this->assertNotNull($secondEvent->entered_at);
+        $this->assertSame('current', $firstEvent->fresh()->status->value);
+        $this->assertSame('pending', $secondEvent->fresh()->status->value);
         $this->assertNull($secondEvent->completed_at);
-        Mail::assertSent(ProjectUpdateMail::class, fn (ProjectUpdateMail $mail): bool => $mail->type === 'stage_changed');
+        Mail::assertNotSent(ProjectUpdateMail::class, fn (ProjectUpdateMail $mail): bool => $mail->type === 'stage_changed');
 
-        $this->put(route('admin.tickets.stages.complete', [$ticket, $secondEvent]), [
-            'stage_event_id' => $secondEvent->id,
+        $this->put(route('admin.tickets.stages.complete', [$ticket, $firstEvent]), [
+            'stage_event_id' => $firstEvent->id,
             'notes' => 'Review finished.',
         ])->assertRedirect(route('admin.tickets.show', $ticket));
 
-        $this->assertSame('completed', $secondEvent->fresh()->status->value);
-        $this->assertNotNull($secondEvent->fresh()->completed_at);
+        $this->assertSame('completed', $firstEvent->fresh()->status->value);
+        $this->assertNotNull($firstEvent->fresh()->completed_at);
+        $this->assertSame($secondStage->id, $ticket->fresh()->current_service_stage_id);
+        $this->assertSame('current', $secondEvent->fresh()->status->value);
         Mail::assertSent(ProjectUpdateMail::class, fn (ProjectUpdateMail $mail): bool => $mail->type === 'stage_completed');
     }
 
