@@ -1,115 +1,198 @@
-<form method="POST" action="{{ $action }}" enctype="multipart/form-data" class="space-y-6">
+@php
+    $fieldId = fn (string $name): string => 'field-'.str_replace(['.', '[', ']'], '-', $name);
+    $errorId = fn (string $name): string => 'error-'.str_replace(['.', '[', ']'], '-', $name);
+    $fieldClass = fn (string $name): string => 'form-input'.($errors->has($name) ? ' border-rose-400 ring-1 ring-rose-200 focus:border-rose-500 focus:ring-rose-200' : '');
+    $errorAttributes = fn (string $name): string => $errors->has($name) ? 'aria-invalid="true" aria-describedby="'.$errorId($name).'"' : '';
+    $firstErrorField = array_key_first($errors->messages() ?: []);
+    $sectionClass = 'rounded-[1.5rem] border border-stone-200 bg-white p-6 shadow-sm md:p-8';
+    $sectionHeadingClass = 'text-lg font-semibold text-stone-950';
+    $sectionCopyClass = 'mt-2 max-w-3xl text-[15px] leading-6 text-stone-500';
+@endphp
+
+@if ($errors->any())
+    <section
+        id="proposal-validation-summary"
+        data-validation-summary
+        data-first-error-target="{{ $firstErrorField ? $fieldId($firstErrorField) : '' }}"
+        tabindex="-1"
+        class="mb-6 rounded-[1.5rem] border border-rose-200 bg-rose-50 p-5 text-rose-950 shadow-sm"
+    >
+        <h2 class="text-base font-semibold">{{ __('site.validation_summary') }}</h2>
+        <p class="mt-2 text-sm">{{ trans_choice('site.validation_summary_count', $errors->count(), ['count' => $errors->count()]) }}</p>
+        <ul class="mt-3 list-disc space-y-1 pl-5 text-sm">
+            @foreach ($errors->messages() as $field => $messages)
+                <li>
+                    <a href="#{{ $fieldId($field) }}" class="font-semibold underline decoration-rose-300 underline-offset-4">
+                        {{ $messages[0] }}
+                    </a>
+                </li>
+            @endforeach
+        </ul>
+    </section>
+@endif
+
+<form id="proposal-form" method="POST" action="{{ $action }}" class="space-y-6">
     @csrf
     @if ($method !== 'POST')
         @method($method)
     @endif
 
-    <div class="rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
-        <div class="grid gap-5 md:grid-cols-2">
+    <section class="{{ $sectionClass }}" data-proposal-section="identity">
+        <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-olive-700">01</p>
+            <h2 class="{{ $sectionHeadingClass }}">{{ __('site.proposal_information') }}</h2>
+            <p class="{{ $sectionCopyClass }}">{{ __('site.proposal_information_help') }}</p>
+        </div>
+
+        <div class="mt-6 grid gap-5 md:grid-cols-2">
+            @if ($proposal->exists)
+                <div>
+                    <label for="proposal-number-display" class="form-label">{{ __('site.proposal_number') }}</label>
+                    <input id="proposal-number-display" value="{{ $proposal->proposal_number }}" class="form-input bg-stone-50" readonly>
+                </div>
+            @endif
             <div>
-                <label class="form-label">{{ __('site.client_account') }}</label>
-                <select name="client_user_id" class="form-input">
-                    <option value="">{{ __('site.unassigned') }}</option>
+                <label for="{{ $fieldId('status') }}" class="form-label">{{ __('site.form_status') }}</label>
+                <select id="{{ $fieldId('status') }}" name="status" class="{{ $fieldClass('status') }}" required {!! $errorAttributes('status') !!}>
+                    @foreach (['draft', 'sent', 'approved', 'rejected'] as $statusOption)
+                        <option value="{{ $statusOption }}" @selected(old('status', $proposal->status) === $statusOption)>{{ __("site.proposal_status_{$statusOption}") }}</option>
+                    @endforeach
+                </select>
+                @error('status') <p id="{{ $errorId('status') }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <label for="{{ $fieldId('title') }}" class="form-label">{{ __('site.form_title') }}</label>
+                <input id="{{ $fieldId('title') }}" name="title" value="{{ old('title', $proposal->title) }}" class="{{ $fieldClass('title') }}" required {!! $errorAttributes('title') !!}>
+                @error('title') <p id="{{ $errorId('title') }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <label for="{{ $fieldId('subject') }}" class="form-label">{{ __('site.subject') }}</label>
+                <input id="{{ $fieldId('subject') }}" name="subject" value="{{ old('subject', $proposal->subject) }}" class="{{ $fieldClass('subject') }}" required {!! $errorAttributes('subject') !!}>
+                @error('subject') <p id="{{ $errorId('subject') }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <label for="{{ $fieldId('issued_at') }}" class="form-label">{{ __('site.issued_at') }}</label>
+                <input id="{{ $fieldId('issued_at') }}" type="date" name="issued_at" value="{{ old('issued_at', optional($proposal->issued_at)->format('Y-m-d')) }}" class="{{ $fieldClass('issued_at') }}" {!! $errorAttributes('issued_at') !!}>
+                @error('issued_at') <p id="{{ $errorId('issued_at') }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <label for="{{ $fieldId('valid_until') }}" class="form-label">{{ __('site.valid_until') }}</label>
+                <input id="{{ $fieldId('valid_until') }}" type="date" name="valid_until" value="{{ old('valid_until', optional($proposal->valid_until)->format('Y-m-d')) }}" class="{{ $fieldClass('valid_until') }}" {!! $errorAttributes('valid_until') !!}>
+                @error('valid_until') <p id="{{ $errorId('valid_until') }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
+            </div>
+        </div>
+    </section>
+
+    <section class="{{ $sectionClass }}" data-proposal-section="client">
+        <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-olive-700">02</p>
+            <h2 class="{{ $sectionHeadingClass }}">{{ __('site.client_information') }}</h2>
+            <p class="{{ $sectionCopyClass }}">{{ __('site.client_information_help') }}</p>
+        </div>
+
+        <div class="mt-6 grid gap-5 md:grid-cols-2">
+            <div>
+                <label for="{{ $fieldId('client_user_id') }}" class="form-label">{{ __('site.select_existing_client') }}</label>
+                <select id="{{ $fieldId('client_user_id') }}" name="client_user_id" class="{{ $fieldClass('client_user_id') }}" {!! $errorAttributes('client_user_id') !!}>
+                    <option value="">{{ __('site.enter_client_information_manually') }}</option>
                     @foreach ($clients as $client)
                         <option value="{{ $client->id }}" @selected((string) old('client_user_id', $selectedClientId) === (string) $client->id)>{{ $client->name }} · {{ $client->email }}</option>
                     @endforeach
                 </select>
+                @error('client_user_id') <p id="{{ $errorId('client_user_id') }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
             </div>
             <div class="rounded-2xl border border-olive-100 bg-olive-50 px-4 py-3 text-[15px] leading-6 text-olive-950">
-                {{ __('site.prospect_fields_help') }}
+                {{ __('site.manual_client_fields_help') }}
             </div>
             <div>
-                <label class="form-label">{{ __('site.prospect_name') }}</label>
-                <input name="prospect_name" value="{{ old('prospect_name', $proposal->prospect_name) }}" class="form-input">
+                <label for="{{ $fieldId('prospect_name') }}" class="form-label">{{ __('site.manual_client_name') }}</label>
+                <input id="{{ $fieldId('prospect_name') }}" name="prospect_name" value="{{ old('prospect_name', $proposal->prospect_name) }}" class="{{ $fieldClass('prospect_name') }}" {!! $errorAttributes('prospect_name') !!}>
+                @error('prospect_name') <p id="{{ $errorId('prospect_name') }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="form-label">{{ __('site.prospect_email') }}</label>
-                <input type="email" name="prospect_email" value="{{ old('prospect_email', $proposal->prospect_email) }}" class="form-input">
+                <label for="{{ $fieldId('prospect_email') }}" class="form-label">{{ __('site.manual_client_email') }}</label>
+                <input id="{{ $fieldId('prospect_email') }}" type="email" name="prospect_email" value="{{ old('prospect_email', $proposal->prospect_email) }}" class="{{ $fieldClass('prospect_email') }}" {!! $errorAttributes('prospect_email') !!}>
+                @error('prospect_email') <p id="{{ $errorId('prospect_email') }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="form-label">{{ __('site.prospect_phone') }}</label>
-                <input name="prospect_phone" value="{{ old('prospect_phone', $proposal->prospect_phone) }}" class="form-input">
+                <label for="{{ $fieldId('prospect_phone') }}" class="form-label">{{ __('site.manual_client_phone') }}</label>
+                <input id="{{ $fieldId('prospect_phone') }}" name="prospect_phone" value="{{ old('prospect_phone', $proposal->prospect_phone) }}" class="{{ $fieldClass('prospect_phone') }}" {!! $errorAttributes('prospect_phone') !!}>
+                @error('prospect_phone') <p id="{{ $errorId('prospect_phone') }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
             </div>
-            <div>
-                <label class="form-label">{{ __('site.proposal_signer') }}</label>
-                <select name="signer_user_id" class="form-input">
-                    <option value="">{{ __('site.unassigned') }}</option>
-                    @foreach ($signers as $signer)
-                        <option value="{{ $signer->id }}" @selected((string) old('signer_user_id', $selectedSignerId) === (string) $signer->id)>{{ $signer->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="form-label">{{ __('site.form_status') }}</label>
-                <select name="status" class="form-input" required>
-                    @foreach (['draft', 'sent', 'approved', 'rejected'] as $status)
-                        <option value="{{ $status }}" @selected(old('status', $proposal->status) === $status)>{{ __("site.proposal_status_{$status}") }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="form-label">{{ __('site.form_title') }}</label>
-                <input name="title" value="{{ old('title', $proposal->title) }}" class="form-input" required>
-            </div>
-            <div>
-                <label class="form-label">{{ __('site.subject') }}</label>
-                <input name="subject" value="{{ old('subject', $proposal->subject) }}" class="form-input" required>
-            </div>
-            <div>
-                <label class="form-label">{{ __('site.issued_at') }}</label>
-                <input type="date" name="issued_at" value="{{ old('issued_at', optional($proposal->issued_at)->format('Y-m-d')) }}" class="form-input">
-            </div>
-            <div>
-                <label class="form-label">{{ __('site.valid_until') }}</label>
-                <input type="date" name="valid_until" value="{{ old('valid_until', optional($proposal->valid_until)->format('Y-m-d')) }}" class="form-input">
-            </div>
+        </div>
+    </section>
+
+    <section class="{{ $sectionClass }}" data-proposal-section="scope">
+        <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-olive-700">03</p>
+            <h2 class="{{ $sectionHeadingClass }}">{{ __('site.scope_and_deliverables') }}</h2>
+            <p class="{{ $sectionCopyClass }}">{{ __('site.scope_and_deliverables_help') }}</p>
+        </div>
+
+        <div class="mt-6 grid gap-5 md:grid-cols-2">
             <div class="md:col-span-2">
-                <label class="form-label">{{ __('site.proposal_description') }}</label>
                 @php
                     $descriptionValue = old('description', $proposal->description ?: ($method === 'POST' ? __('site.proposal_description_template') : ''));
                 @endphp
-                <textarea name="description" rows="5" class="form-input" data-default-template="{{ e(__('site.proposal_description_template')) }}">{{ $descriptionValue }}</textarea>
-                <p class="mt-2 text-[15px] leading-6 text-stone-500">{{ __('site.proposal_description_template_help') }}</p>
+                @include('admin.proposals.partials.rich-text-field', [
+                    'id' => $fieldId('description'),
+                    'name' => 'description',
+                    'label' => __('site.proposal_description'),
+                    'value' => $descriptionValue,
+                    'help' => __('site.proposal_description_template_help'),
+                    'warningThreshold' => 1400,
+                ])
             </div>
             <div class="md:col-span-2">
-                <label class="form-label">{{ __('site.proposal_scope') }}</label>
-                <textarea name="scope" rows="4" class="form-input">{{ old('scope', $proposal->scope) }}</textarea>
+                @include('admin.proposals.partials.rich-text-field', [
+                    'id' => $fieldId('scope'),
+                    'name' => 'scope',
+                    'label' => __('site.proposal_scope'),
+                    'value' => old('scope', $proposal->scope),
+                    'help' => null,
+                    'warningThreshold' => 1000,
+                ])
             </div>
             <div>
-                <label class="form-label">{{ __('site.timeline_months') }}</label>
-                <input type="number" step="1" min="0" max="60" name="timeline_months" value="{{ old('timeline_months', $proposal->timeline_months ?? 1) }}" class="form-input" required>
+                <label for="{{ $fieldId('timeline_months') }}" class="form-label">{{ __('site.timeline_months') }}</label>
+                <input id="{{ $fieldId('timeline_months') }}" type="number" step="1" min="0" max="60" name="timeline_months" value="{{ old('timeline_months', $proposal->timeline_months ?? 1) }}" class="{{ $fieldClass('timeline_months') }}" required {!! $errorAttributes('timeline_months') !!}>
+                @error('timeline_months') <p id="{{ $errorId('timeline_months') }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="form-label">{{ __('site.timeline_weeks') }}</label>
-                <input type="number" step="1" min="0" max="12" name="timeline_weeks" value="{{ old('timeline_weeks', $proposal->timeline_weeks ?? 0) }}" class="form-input" required>
+                <label for="{{ $fieldId('timeline_weeks') }}" class="form-label">{{ __('site.timeline_weeks') }}</label>
+                <input id="{{ $fieldId('timeline_weeks') }}" type="number" step="1" min="0" max="12" name="timeline_weeks" value="{{ old('timeline_weeks', $proposal->timeline_weeks ?? 0) }}" class="{{ $fieldClass('timeline_weeks') }}" required {!! $errorAttributes('timeline_weeks') !!}>
+                @error('timeline_weeks') <p id="{{ $errorId('timeline_weeks') }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
             </div>
             <div class="md:col-span-2 rounded-2xl border border-olive-100 bg-olive-50 px-4 py-3 text-[15px] leading-6 text-olive-950">
                 {{ __('site.proposal_timeline_help') }}
             </div>
-            <div>
-                <label class="form-label">{{ __('site.tax_rate') }}</label>
-                <input type="number" step="0.1" min="0" max="100" name="tax_rate" value="{{ old('tax_rate', $proposal->tax_rate ?? 0) }}" class="form-input" required>
-            </div>
         </div>
-    </div>
+    </section>
 
-    <div class="rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
-        <h2 class="text-lg font-semibold text-stone-950">{{ __('site.proposal_payment_plan') }}</h2>
-        <p class="mt-2 text-[15px] leading-6 text-stone-500">{{ __('site.payment_schedule_help') }}</p>
+    <section class="{{ $sectionClass }}" data-proposal-section="payments">
+        <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-olive-700">04</p>
+            <h2 class="{{ $sectionHeadingClass }}">{{ __('site.payment_schedule_and_totals') }}</h2>
+            <p class="{{ $sectionCopyClass }}">{{ __('site.payment_schedule_help') }}</p>
+        </div>
+
         <div id="proposal-payments" class="mt-5 space-y-4">
             @foreach (old('payment_schedule', $paymentSchedule) as $index => $payment)
                 <div data-existing-row="payment" class="proposal-payment-row grid gap-4 rounded-2xl bg-stone-50 p-4 md:grid-cols-[1fr_0.25fr_auto]">
                     <div>
-                        <label class="form-label">{{ __('site.payment_label') }}</label>
-                        <input name="payment_schedule[{{ $index }}][label]" value="{{ $payment['label'] ?? '' }}" class="form-input">
+                        <label for="{{ $fieldId("payment_schedule.$index.label") }}" class="form-label">{{ __('site.payment_label') }}</label>
+                        <input id="{{ $fieldId("payment_schedule.$index.label") }}" name="payment_schedule[{{ $index }}][label]" value="{{ $payment['label'] ?? '' }}" class="{{ $fieldClass("payment_schedule.$index.label") }}" {!! $errorAttributes("payment_schedule.$index.label") !!}>
+                        @error("payment_schedule.$index.label") <p id="{{ $errorId("payment_schedule.$index.label") }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
                     </div>
                     <div>
-                        <label class="form-label">{{ __('site.percentage') }}</label>
-                        <input type="number" step="0.1" min="0.1" max="100" name="payment_schedule[{{ $index }}][percentage]" value="{{ $payment['percentage'] ?? '' }}" class="form-input" required>
+                        <label for="{{ $fieldId("payment_schedule.$index.percentage") }}" class="form-label">{{ __('site.percentage') }}</label>
+                        <input id="{{ $fieldId("payment_schedule.$index.percentage") }}" type="number" step="0.1" min="0.1" max="100" name="payment_schedule[{{ $index }}][percentage]" value="{{ $payment['percentage'] ?? '' }}" class="{{ $fieldClass("payment_schedule.$index.percentage") }}" required {!! $errorAttributes("payment_schedule.$index.percentage") !!}>
+                        @error("payment_schedule.$index.percentage") <p id="{{ $errorId("payment_schedule.$index.percentage") }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
                     </div>
                     <div class="md:col-span-2">
-                        <label class="form-label">{{ __('site.payment_notes') }}</label>
-                        <input name="payment_schedule[{{ $index }}][notes]" value="{{ $payment['notes'] ?? '' }}" class="form-input">
+                        <label for="{{ $fieldId("payment_schedule.$index.notes") }}" class="form-label">{{ __('site.payment_notes') }}</label>
+                        <input id="{{ $fieldId("payment_schedule.$index.notes") }}" name="payment_schedule[{{ $index }}][notes]" value="{{ $payment['notes'] ?? '' }}" class="{{ $fieldClass("payment_schedule.$index.notes") }}" {!! $errorAttributes("payment_schedule.$index.notes") !!}>
+                        @error("payment_schedule.$index.notes") <p id="{{ $errorId("payment_schedule.$index.notes") }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
                     </div>
                     <div class="flex items-end">
                         <button type="button" data-remove-row="payment" data-confirm-message="{{ __('site.confirm_delete_payment_row_message') }}" class="rounded-full border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700">{{ __('site.remove') }}</button>
@@ -117,109 +200,157 @@
                 </div>
             @endforeach
         </div>
+        @error('payment_schedule') <p id="{{ $errorId('payment_schedule') }}" class="mt-3 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
         <button type="button" id="add-proposal-payment" class="mt-4 rounded-full border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700">{{ __('site.add_payment') }}</button>
-    </div>
 
-    <div class="rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
-        <h2 class="text-lg font-semibold text-stone-950">{{ __('site.itemized_costs') }}</h2>
-        <p class="mt-2 text-[15px] leading-6 text-stone-500">{{ __('site.itemized_costs_help') }}</p>
+        <div class="mt-6 grid gap-5 md:grid-cols-[0.4fr_0.6fr]">
+            <div>
+                <label for="{{ $fieldId('tax_rate') }}" class="form-label">{{ __('site.tax_rate') }}</label>
+                <input id="{{ $fieldId('tax_rate') }}" type="number" step="0.1" min="0" max="100" name="tax_rate" value="{{ old('tax_rate', $proposal->tax_rate ?? 0) }}" class="{{ $fieldClass('tax_rate') }}" required {!! $errorAttributes('tax_rate') !!}>
+                @error('tax_rate') <p id="{{ $errorId('tax_rate') }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
+            </div>
+            <div class="rounded-2xl bg-stone-950 p-5 text-white">
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-300">{{ __('site.grand_total_value') }}</p>
+                <p class="mt-2 text-2xl font-semibold" data-items-grand-total>—</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="{{ $sectionClass }}" data-proposal-section="costs">
+        <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-olive-700">05</p>
+            <h2 class="{{ $sectionHeadingClass }}">{{ __('site.cost_items') }}</h2>
+            <p class="{{ $sectionCopyClass }}">{{ __('site.itemized_costs_help') }}</p>
+        </div>
 
         <div class="mt-5 rounded-2xl border border-dashed border-olive-200 bg-olive-50 p-4">
-            <label class="form-label">{{ __('site.select_service_template') }}</label>
-            <select
-                class="form-input bg-white"
-                data-proposal-template-select
-                data-template-replace-message="{{ __('site.confirm_replace_cost_items_with_template') }}"
-            >
-                <option value="">{{ __('site.keep_current_cost_items') }}</option>
-                @foreach ($proposalTemplates as $template)
-                    <option value="{{ $template->id }}">
-                        {{ str_pad((string) $template->service_number, 2, '0', STR_PAD_LEFT) }} · {{ $template->localizedName() }}
-                    </option>
-                @endforeach
-            </select>
-            <p class="mt-2 text-[15px] leading-6 text-olive-900">{{ __('site.service_template_help') }}</p>
+            <div class="grid gap-4 lg:grid-cols-[1fr_0.28fr_auto] lg:items-end">
+                <div>
+                    <label for="proposal-template-select" class="form-label">{{ __('site.select_service_template') }}</label>
+                    <select
+                        id="proposal-template-select"
+                        class="form-input bg-white"
+                        data-proposal-template-select
+                        data-template-duplicate-message="{{ __('site.template_already_present_confirm') }}"
+                    >
+                        <option value="">{{ __('site.select_service_template') }}</option>
+                        @foreach ($proposalTemplates as $template)
+                            <option value="{{ $template->id }}">
+                                {{ str_pad((string) $template->service_number, 2, '0', STR_PAD_LEFT) }} · {{ $template->localizedName() }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label for="proposal-template-copies" class="form-label">{{ __('site.template_copies') }}</label>
+                    <input id="proposal-template-copies" data-proposal-template-copies type="number" min="1" max="20" step="1" value="1" class="form-input bg-white">
+                </div>
+                <button type="button" data-add-template-items class="rounded-full bg-olive-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-olive-800">{{ __('site.add_template_items') }}</button>
+            </div>
+            <div class="mt-3 flex flex-col gap-2 text-[15px] leading-6 text-olive-900 sm:flex-row sm:items-center sm:justify-between">
+                <p>{{ __('site.service_template_append_help') }}</p>
+                <a href="{{ route('admin.services.index') }}" class="font-semibold text-olive-800 underline decoration-olive-300 underline-offset-4">{{ __('site.manage_service_templates') }}</a>
+            </div>
+            <p data-template-added-message class="mt-2 hidden text-sm font-semibold text-olive-950">{{ __('site.template_items_added') }}</p>
         </div>
 
-        <div class="mt-5 overflow-x-auto rounded-2xl border border-stone-200">
-            <table class="min-w-[1120px] table-fixed text-left text-sm">
-                <thead class="bg-stone-100 text-stone-600">
-                    <tr>
-                        <th class="w-24 px-4 py-3">{{ __('site.item_code') }}</th>
-                        <th class="w-[28rem] px-4 py-3">{{ __('site.item_description') }}</th>
-                        <th class="w-28 px-4 py-3">{{ __('site.unit_abbr') }}</th>
-                        <th class="w-28 px-4 py-3">{{ __('site.qty_abbr') }}</th>
-                        <th class="w-40 px-4 py-3">{{ __('site.unit_value_label') }}</th>
-                        <th class="w-40 px-4 py-3 text-right">{{ __('site.total_value_label') }}</th>
-                        <th class="w-28 px-4 py-3"></th>
-                    </tr>
-                </thead>
-                <tbody id="proposal-items" class="divide-y divide-stone-100 bg-white">
-                    @foreach (old('items', $items) as $index => $item)
-                        @php
-                            $quantity = $item['quantity'] ?? '';
-                            $unitValue = $item['unit_value'] ?? '';
-                            $lineTotal = is_numeric($quantity) && is_numeric($unitValue) ? ((float) $quantity * (float) $unitValue) : 0;
-                        @endphp
-                        <tr data-existing-row="item" class="proposal-item-row">
-                            <td class="px-4 py-3 align-top">
-                                <input type="hidden" name="items[{{ $index }}][category]" value="{{ $item['category'] ?? '' }}">
-                                <input name="items[{{ $index }}][item_code]" value="{{ $item['item_code'] ?? '' }}" class="form-input">
-                            </td>
-                            <td class="px-4 py-3 align-top">
-                                <textarea name="items[{{ $index }}][description]" rows="3" class="form-input" @required($index === 0)>{{ $item['description'] ?? '' }}</textarea>
-                            </td>
-                            <td class="px-4 py-3 align-top">
-                                <input name="items[{{ $index }}][unit]" value="{{ $item['unit'] ?? '' }}" class="form-input">
-                            </td>
-                            <td class="px-4 py-3 align-top">
-                                <input data-cost-field="quantity" inputmode="numeric" name="items[{{ $index }}][quantity]" value="{{ $quantity }}" class="form-input">
-                            </td>
-                            <td class="px-4 py-3 align-top">
-                                <input data-cost-field="unit_value" inputmode="decimal" name="items[{{ $index }}][unit_value]" value="{{ $unitValue }}" class="form-input">
-                            </td>
-                            <td class="px-4 py-3 align-top text-right">
-                                <output data-line-total class="inline-flex min-h-11 w-full items-center justify-end rounded-xl bg-stone-50 px-3 font-semibold text-stone-900">{{ $lineTotal > 0 ? number_format($lineTotal, 2) : '—' }}</output>
-                            </td>
-                            <td class="px-4 py-3 align-top">
-                                <button type="button" data-remove-row="item" data-confirm-message="{{ __('site.confirm_delete_item_row_message') }}" class="rounded-full border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700">{{ __('site.remove') }}</button>
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-                <tfoot class="bg-stone-950 text-white">
-                    <tr>
-                        <td colspan="5" class="px-4 py-4 text-right text-sm font-semibold uppercase tracking-[0.14em]">{{ __('site.grand_total_value') }}</td>
-                        <td class="px-4 py-4 text-right text-base font-semibold" data-items-grand-total>—</td>
-                        <td></td>
-                    </tr>
-                </tfoot>
-            </table>
+        <div id="proposal-items" class="mt-5 space-y-4">
+            @foreach (old('items', $items) as $index => $item)
+                @php
+                    $quantity = $item['quantity'] ?? '';
+                    $unitValue = $item['unit_value'] ?? '';
+                    $lineTotal = is_numeric($quantity) && is_numeric($unitValue) ? ((float) $quantity * (float) $unitValue) : 0;
+                @endphp
+                <div data-existing-row="item" class="proposal-item-row rounded-2xl border border-stone-200 bg-stone-50 p-4">
+                    <div class="grid gap-4 lg:grid-cols-[0.6fr_1.4fr_0.5fr_0.45fr_0.7fr_0.7fr_auto]">
+                        <div>
+                            <label for="{{ $fieldId("items.$index.item_code") }}" class="form-label">{{ __('site.item_code') }}</label>
+                            <input type="hidden" name="items[{{ $index }}][category]" value="{{ $item['category'] ?? '' }}">
+                            <input id="{{ $fieldId("items.$index.item_code") }}" name="items[{{ $index }}][item_code]" value="{{ $item['item_code'] ?? '' }}" class="{{ $fieldClass("items.$index.item_code") }}" {!! $errorAttributes("items.$index.item_code") !!}>
+                            @error("items.$index.item_code") <p id="{{ $errorId("items.$index.item_code") }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label for="{{ $fieldId("items.$index.description") }}" class="form-label">{{ __('site.item_description') }}</label>
+                            <textarea id="{{ $fieldId("items.$index.description") }}" name="items[{{ $index }}][description]" rows="3" class="{{ $fieldClass("items.$index.description") }}" @required($index === 0) {!! $errorAttributes("items.$index.description") !!}>{{ $item['description'] ?? '' }}</textarea>
+                            @error("items.$index.description") <p id="{{ $errorId("items.$index.description") }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label for="{{ $fieldId("items.$index.unit") }}" class="form-label">{{ __('site.unit_abbr') }}</label>
+                            <input id="{{ $fieldId("items.$index.unit") }}" name="items[{{ $index }}][unit]" value="{{ $item['unit'] ?? '' }}" class="{{ $fieldClass("items.$index.unit") }}" {!! $errorAttributes("items.$index.unit") !!}>
+                            @error("items.$index.unit") <p id="{{ $errorId("items.$index.unit") }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label for="{{ $fieldId("items.$index.quantity") }}" class="form-label">{{ __('site.qty_abbr') }}</label>
+                            <input id="{{ $fieldId("items.$index.quantity") }}" data-cost-field="quantity" inputmode="numeric" name="items[{{ $index }}][quantity]" value="{{ $quantity }}" class="{{ $fieldClass("items.$index.quantity") }}" {!! $errorAttributes("items.$index.quantity") !!}>
+                            @error("items.$index.quantity") <p id="{{ $errorId("items.$index.quantity") }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label for="{{ $fieldId("items.$index.unit_value") }}" class="form-label">{{ __('site.unit_value_label') }}</label>
+                            <input id="{{ $fieldId("items.$index.unit_value") }}" data-cost-field="unit_value" inputmode="decimal" name="items[{{ $index }}][unit_value]" value="{{ $unitValue }}" class="{{ $fieldClass("items.$index.unit_value") }}" {!! $errorAttributes("items.$index.unit_value") !!}>
+                            @error("items.$index.unit_value") <p id="{{ $errorId("items.$index.unit_value") }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="form-label">{{ __('site.total_value_label') }}</label>
+                            <output data-line-total class="inline-flex min-h-11 w-full items-center justify-end rounded-xl bg-white px-3 font-semibold text-stone-900">{{ $lineTotal > 0 ? number_format($lineTotal, 2) : '—' }}</output>
+                        </div>
+                        <div class="flex items-end">
+                            <button type="button" data-remove-row="item" data-confirm-message="{{ __('site.confirm_delete_item_row_message') }}" class="w-full rounded-full border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700">{{ __('site.remove') }}</button>
+                        </div>
+                    </div>
+                </div>
+            @endforeach
         </div>
+        @error('items') <p id="{{ $errorId('items') }}" class="mt-3 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
         <button type="button" id="add-proposal-item" class="mt-4 rounded-full border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700">{{ __('site.add_item') }}</button>
-    </div>
+    </section>
 
-    <button type="submit" class="rounded-full bg-olive-700 px-6 py-3 text-sm font-semibold text-white">{{ __('site.save_changes') }}</button>
+    <section class="{{ $sectionClass }}" data-proposal-section="publication">
+        <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-olive-700">06</p>
+            <h2 class="{{ $sectionHeadingClass }}">{{ __('site.signer_and_publication') }}</h2>
+            <p class="{{ $sectionCopyClass }}">{{ __('site.signer_and_publication_help') }}</p>
+        </div>
+
+        <div class="mt-6 grid gap-5 md:grid-cols-[1fr_auto] md:items-end">
+            <div>
+                <label for="{{ $fieldId('signer_user_id') }}" class="form-label">{{ __('site.proposal_signer') }}</label>
+                <select id="{{ $fieldId('signer_user_id') }}" name="signer_user_id" class="{{ $fieldClass('signer_user_id') }}" {!! $errorAttributes('signer_user_id') !!}>
+                    <option value="">{{ __('site.unassigned') }}</option>
+                    @foreach ($signers as $signer)
+                        <option value="{{ $signer->id }}" @selected((string) old('signer_user_id', $selectedSignerId) === (string) $signer->id)>{{ $signer->name }}</option>
+                    @endforeach
+                </select>
+                @error('signer_user_id') <p id="{{ $errorId('signer_user_id') }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
+            </div>
+            <button type="submit" class="rounded-full bg-olive-700 px-6 py-3 text-sm font-semibold text-white transition hover:bg-olive-800">{{ __('site.save_changes') }}</button>
+        </div>
+    </section>
 </form>
 
 @once
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            const summary = document.querySelector('[data-validation-summary]');
+            const firstErrorTarget = summary?.dataset.firstErrorTarget ? document.getElementById(summary.dataset.firstErrorTarget) : null;
+            const visibleFirstErrorTarget = firstErrorTarget?.matches('[data-rich-text-input]')
+                ? document.querySelector(`[data-rich-text-editor][data-rich-text-target="${firstErrorTarget.id}"]`)
+                : firstErrorTarget;
+            if (summary && visibleFirstErrorTarget) {
+                summary.focus({ preventScroll: true });
+                visibleFirstErrorTarget.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                if (typeof visibleFirstErrorTarget.focus === 'function') visibleFirstErrorTarget.focus({ preventScroll: true });
+            }
+
             const itemsContainer = document.getElementById('proposal-items');
             const addItemButton = document.getElementById('add-proposal-item');
             const paymentsContainer = document.getElementById('proposal-payments');
             const addPaymentButton = document.getElementById('add-proposal-payment');
             const grandTotal = document.querySelector('[data-items-grand-total]');
-            const description = document.querySelector('[name="description"][data-default-template]');
             const templateSelect = document.querySelector('[data-proposal-template-select]');
+            const templateCopies = document.querySelector('[data-proposal-template-copies]');
+            const addTemplateButton = document.querySelector('[data-add-template-items]');
+            const templateAddedMessage = document.querySelector('[data-template-added-message]');
             const proposalTemplates = @json($proposalTemplatePayload ?? []);
-
-            description?.addEventListener('focus', () => {
-                if (description.value.trim() === '') {
-                    description.value = description.dataset.defaultTemplate || '';
-                    description.dispatchEvent(new Event('input', { bubbles: true }));
-                }
-            }, { once: true });
 
             const parseMoney = (value) => {
                 const normalized = String(value || '').replace(/[^0-9.,-]/g, '').replace(/,/g, '');
@@ -244,6 +375,199 @@
                 });
 
                 if (grandTotal) grandTotal.textContent = formatMoney(total);
+            };
+
+            const cleanRichText = (html) => {
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = html || '';
+                wrapper.querySelectorAll('script,style,iframe,object,embed,form,input,img,video,audio,table,thead,tbody,tr,td,th,h1,h2,h3,h4,h5,h6,a').forEach((node) => node.remove());
+                wrapper.querySelectorAll('*').forEach((node) => {
+                    const tag = node.tagName.toLowerCase();
+                    if (tag === 'b') {
+                        const strong = document.createElement('strong');
+                        strong.innerHTML = node.innerHTML;
+                        node.replaceWith(strong);
+                        return;
+                    }
+                    if (tag === 'i') {
+                        const em = document.createElement('em');
+                        em.innerHTML = node.innerHTML;
+                        node.replaceWith(em);
+                        return;
+                    }
+                    if (!['p', 'br', 'strong', 'em', 'ul', 'ol', 'li'].includes(tag)) {
+                        node.replaceWith(...node.childNodes);
+                        return;
+                    }
+                    [...node.attributes].forEach((attribute) => node.removeAttribute(attribute.name));
+                });
+
+                return wrapper.innerHTML.trim();
+            };
+
+            const updateRichTextField = (field) => {
+                const editor = field.querySelector('[data-rich-text-editor]');
+                const input = field.querySelector('[data-rich-text-input]');
+                const count = field.querySelector('[data-rich-character-count] span');
+                const warning = field.querySelector('[data-rich-long-warning]');
+                if (!editor || !input) return;
+
+                const cleaned = cleanRichText(editor.innerHTML);
+                input.value = cleaned;
+                const length = editor.innerText.trim().length;
+                if (count) count.textContent = length.toLocaleString();
+                if (warning) warning.classList.toggle('hidden', length <= Number(field.dataset.warningThreshold || 1200));
+            };
+
+            const bindRichTextFields = () => {
+                document.querySelectorAll('[data-rich-text-field]').forEach((field) => {
+                    const editor = field.querySelector('[data-rich-text-editor]');
+                    let savedRange = null;
+                    if (!editor) return;
+
+                    const rangeBelongsToEditor = (range) => range
+                        && editor.contains(range.commonAncestorContainer.nodeType === Node.TEXT_NODE
+                            ? range.commonAncestorContainer.parentElement
+                            : range.commonAncestorContainer);
+
+                    const saveSelection = () => {
+                        const selection = window.getSelection();
+                        if (!selection || selection.rangeCount === 0) return;
+
+                        const range = selection.getRangeAt(0);
+                        savedRange = rangeBelongsToEditor(range) ? range.cloneRange() : null;
+                    };
+
+                    const restoreSelection = () => {
+                        if (!savedRange || !rangeBelongsToEditor(savedRange)) {
+                            editor.focus();
+                            return false;
+                        }
+
+                        const selection = window.getSelection();
+                        if (!selection) return false;
+
+                        editor.focus();
+                        selection.removeAllRanges();
+                        selection.addRange(savedRange);
+
+                        return true;
+                    };
+
+                    const syncAndSave = () => {
+                        updateRichTextField(field);
+                        saveSelection();
+                    };
+
+                    const selectedPlainTextHtml = (text) => {
+                        const lines = String(text || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+
+                        if (lines.length <= 1) {
+                            return escapeHtml(text);
+                        }
+
+                        return lines.map((line) => `<p>${escapeHtml(line)}</p>`).join('');
+                    };
+
+                    const updateToolbarState = () => {
+                        field.querySelectorAll('[data-rich-command]').forEach((button) => {
+                            const command = button.dataset.richCommand;
+                            let active = false;
+
+                            if (['bold', 'italic', 'insertUnorderedList', 'insertOrderedList'].includes(command)) {
+                                try {
+                                    active = document.queryCommandState(command);
+                                } catch (error) {
+                                    active = false;
+                                }
+                            }
+
+                            button.classList.toggle('border-olive-700', active);
+                            button.classList.toggle('bg-olive-50', active);
+                            button.classList.toggle('text-olive-900', active);
+                            button.setAttribute('aria-pressed', active ? 'true' : 'false');
+                        });
+                    };
+
+                    field.querySelectorAll('[data-rich-command]').forEach((button) => {
+                        button.addEventListener('pointerdown', (event) => {
+                            saveSelection();
+                            event.preventDefault();
+                        });
+
+                        button.addEventListener('mousedown', (event) => {
+                            saveSelection();
+                            event.preventDefault();
+                        });
+
+                        button.addEventListener('click', () => {
+                            restoreSelection();
+
+                            if (button.dataset.richCommand === 'removeFormat') {
+                                const selection = window.getSelection();
+                                const selectedText = selection && selection.rangeCount > 0 && !selection.isCollapsed
+                                    ? selection.toString()
+                                    : '';
+
+                                if (selectedText !== '') {
+                                    document.execCommand('insertHTML', false, selectedPlainTextHtml(selectedText));
+                                } else {
+                                    document.execCommand('removeFormat', false, null);
+                                }
+                            } else {
+                                document.execCommand(button.dataset.richCommand, false, null);
+                            }
+
+                            editor.innerHTML = cleanRichText(editor.innerHTML);
+                            syncAndSave();
+                            updateToolbarState();
+                        });
+                    });
+
+                    editor.addEventListener('focus', saveSelection);
+                    editor.addEventListener('keyup', () => {
+                        saveSelection();
+                        updateToolbarState();
+                    });
+                    editor.addEventListener('mouseup', () => {
+                        saveSelection();
+                        updateToolbarState();
+                    });
+                    editor.addEventListener('input', syncAndSave);
+                    editor.addEventListener('paste', (event) => {
+                        event.preventDefault();
+                        const html = event.clipboardData?.getData('text/html');
+                        const text = event.clipboardData?.getData('text/plain') || '';
+                        document.execCommand('insertHTML', false, html ? cleanRichText(html) : escapeHtml(text).replace(/\n/g, '<br>'));
+                        syncAndSave();
+                        updateToolbarState();
+                    });
+                    updateRichTextField(field);
+                });
+
+                document.getElementById('proposal-form')?.addEventListener('submit', () => {
+                    document.querySelectorAll('[data-rich-text-field]').forEach(updateRichTextField);
+                });
+            };
+
+            const updateItemDescriptionWarning = (textarea) => {
+                let warning = textarea.parentElement.querySelector('[data-item-description-warning]');
+                const length = textarea.value.trim().length;
+                if (!warning) {
+                    warning = document.createElement('p');
+                    warning.dataset.itemDescriptionWarning = 'true';
+                    warning.className = 'mt-2 hidden text-sm font-semibold text-amber-700';
+                    warning.textContent = '{{ __('site.long_description_pdf_warning') }} {{ __('site.complete_text_included') }}';
+                    textarea.insertAdjacentElement('afterend', warning);
+                }
+                warning.classList.toggle('hidden', length <= 420);
+            };
+
+            const bindItemDescriptionWarnings = (scope = document) => {
+                scope.querySelectorAll('textarea[name*="[description]"]').forEach((textarea) => {
+                    textarea.addEventListener('input', () => updateItemDescriptionWarning(textarea));
+                    updateItemDescriptionWarning(textarea);
+                });
             };
 
             const reindexRows = (container, rowSelector, prefix) => {
@@ -274,13 +598,15 @@
             };
 
             const itemRowHtml = (index, item = {}) => `
-                <td class="px-4 py-3 align-top"><input type="hidden" name="items[${index}][category]" value="${escapeAttribute(item.category || '')}"><input name="items[${index}][item_code]" value="${escapeAttribute(item.item_code || '')}" class="form-input"></td>
-                <td class="px-4 py-3 align-top"><textarea name="items[${index}][description]" rows="3" class="form-input" ${index === 0 ? 'required' : ''}>${escapeHtml(item.description || '')}</textarea></td>
-                <td class="px-4 py-3 align-top"><input name="items[${index}][unit]" value="${escapeAttribute(item.unit || '')}" class="form-input"></td>
-                <td class="px-4 py-3 align-top"><input data-cost-field="quantity" inputmode="numeric" name="items[${index}][quantity]" value="${escapeAttribute(item.quantity ?? '')}" class="form-input"></td>
-                <td class="px-4 py-3 align-top"><input data-cost-field="unit_value" inputmode="decimal" name="items[${index}][unit_value]" value="${escapeAttribute(item.unit_value ?? '')}" class="form-input"></td>
-                <td class="px-4 py-3 align-top text-right"><output data-line-total class="inline-flex min-h-11 w-full items-center justify-end rounded-xl bg-stone-50 px-3 font-semibold text-stone-900">—</output></td>
-                <td class="px-4 py-3 align-top"><button type="button" data-remove-row="item" data-confirm-message="{{ __('site.confirm_delete_item_row_message') }}" class="rounded-full border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700">{{ __('site.remove') }}</button></td>
+                <div class="grid gap-4 lg:grid-cols-[0.6fr_1.4fr_0.5fr_0.45fr_0.7fr_0.7fr_auto]">
+                    <div><label class="form-label">{{ __('site.item_code') }}</label><input type="hidden" name="items[${index}][category]" value="${escapeAttribute(item.category || '')}"><input name="items[${index}][item_code]" value="${escapeAttribute(item.item_code || '')}" class="form-input"></div>
+                    <div><label class="form-label">{{ __('site.item_description') }}</label><textarea name="items[${index}][description]" rows="3" class="form-input" ${index === 0 ? 'required' : ''}>${escapeHtml(item.description || '')}</textarea></div>
+                    <div><label class="form-label">{{ __('site.unit_abbr') }}</label><input name="items[${index}][unit]" value="${escapeAttribute(item.unit || '')}" class="form-input"></div>
+                    <div><label class="form-label">{{ __('site.qty_abbr') }}</label><input data-cost-field="quantity" inputmode="numeric" name="items[${index}][quantity]" value="${escapeAttribute(item.quantity ?? '')}" class="form-input"></div>
+                    <div><label class="form-label">{{ __('site.unit_value_label') }}</label><input data-cost-field="unit_value" inputmode="decimal" name="items[${index}][unit_value]" value="${escapeAttribute(item.unit_value ?? '')}" class="form-input"></div>
+                    <div><label class="form-label">{{ __('site.total_value_label') }}</label><output data-line-total class="inline-flex min-h-11 w-full items-center justify-end rounded-xl bg-white px-3 font-semibold text-stone-900">—</output></div>
+                    <div class="flex items-end"><button type="button" data-remove-row="item" data-confirm-message="{{ __('site.confirm_delete_item_row_message') }}" class="w-full rounded-full border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700">{{ __('site.remove') }}</button></div>
+                </div>
             `;
 
             function escapeHtml(value) {
@@ -312,40 +638,56 @@
 
             addItemButton?.addEventListener('click', () => {
                 const index = itemsContainer.querySelectorAll('.proposal-item-row').length;
-                const row = document.createElement('tr');
-                row.className = 'proposal-item-row';
+                const row = document.createElement('div');
+                row.className = 'proposal-item-row rounded-2xl border border-stone-200 bg-stone-50 p-4';
                 row.innerHTML = itemRowHtml(index);
                 itemsContainer.appendChild(row);
                 bindRemove(row.querySelector('[data-remove-row="item"]'), itemsContainer, '.proposal-item-row', 'items');
                 row.querySelectorAll('[data-cost-field]').forEach((field) => field.addEventListener('input', recalculateItems));
+                bindItemDescriptionWarnings(row);
             });
 
-            templateSelect?.addEventListener('change', () => {
-                const template = proposalTemplates[templateSelect.value];
+            addTemplateButton?.addEventListener('click', () => {
+                const template = proposalTemplates[templateSelect?.value];
+                const copies = Math.min(20, Math.max(1, Number.parseInt(templateCopies?.value || '1', 10) || 1));
 
                 if (!template) return;
 
-                if (!window.confirm(templateSelect.dataset.templateReplaceMessage)) {
-                    templateSelect.value = '';
+                const alreadyPresent = [...itemsContainer.querySelectorAll('[data-template-id]')]
+                    .some((row) => row.dataset.templateId === String(templateSelect.value));
+
+                if (alreadyPresent && !window.confirm(templateSelect.dataset.templateDuplicateMessage)) {
                     return;
                 }
 
-                itemsContainer.innerHTML = '';
                 const rows = template.items?.length ? template.items : [{}, {}];
+                let index = itemsContainer.querySelectorAll('.proposal-item-row').length;
 
-                rows.forEach((item, index) => {
-                    const row = document.createElement('tr');
-                    row.className = 'proposal-item-row';
-                    row.innerHTML = itemRowHtml(index, item);
-                    itemsContainer.appendChild(row);
-                    bindRemove(row.querySelector('[data-remove-row="item"]'), itemsContainer, '.proposal-item-row', 'items');
-                    row.querySelectorAll('[data-cost-field]').forEach((field) => field.addEventListener('input', recalculateItems));
-                });
+                for (let copy = 0; copy < copies; copy += 1) {
+                    rows.forEach((item) => {
+                        const row = document.createElement('div');
+                        row.className = 'proposal-item-row rounded-2xl border border-stone-200 bg-stone-50 p-4';
+                        row.dataset.templateId = String(templateSelect.value);
+                        row.innerHTML = itemRowHtml(index, item);
+                        itemsContainer.appendChild(row);
+                        bindRemove(row.querySelector('[data-remove-row="item"]'), itemsContainer, '.proposal-item-row', 'items');
+                        row.querySelectorAll('[data-cost-field]').forEach((field) => field.addEventListener('input', recalculateItems));
+                        bindItemDescriptionWarnings(row);
+                        index += 1;
+                    });
+                }
 
+                if (templateCopies) templateCopies.value = String(copies);
+                if (templateAddedMessage) {
+                    templateAddedMessage.classList.remove('hidden');
+                    window.setTimeout(() => templateAddedMessage.classList.add('hidden'), 3200);
+                }
                 recalculateItems();
             });
 
             bindRemoveButtons();
+            bindRichTextFields();
+            bindItemDescriptionWarnings();
             itemsContainer?.querySelectorAll('[data-cost-field]').forEach((field) => field.addEventListener('input', recalculateItems));
             recalculateItems();
         });

@@ -45,23 +45,23 @@
                 </nav>
             </aside>
 
-            <div>
+            <div class="min-w-0">
                 <header class="border-b border-stone-200 bg-white">
-                    <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
-                        <div>
+                    <div class="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 sm:px-6 md:flex-row md:items-center md:justify-between">
+                        <div class="min-w-0">
                             <p class="text-sm text-stone-500">{{ __('site.panel_welcome') }}</p>
-                            <h1 class="text-xl font-semibold text-stone-900">{{ $heading ?? 'IGNA Studio' }}</h1>
+                            <h1 class="break-words text-xl font-semibold text-stone-900">{{ $heading ?? 'IGNA Studio' }}</h1>
                         </div>
-                        <div class="flex items-center gap-3">
+                        <div class="flex min-w-0 flex-wrap items-center gap-3 md:justify-end">
                             <form method="POST" action="{{ route('locale.switch', app()->getLocale() === 'es' ? 'en' : 'es') }}">
                                 @csrf
                                 <button type="submit" class="rounded-full border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700 transition hover:border-olive-700 hover:text-olive-800" aria-label="{{ __('site.language_switch') }}">
                                     {{ app()->getLocale() === 'es' ? 'EN' : 'ES' }}
                                 </button>
                             </form>
-                            <div class="text-right">
+                            <div class="min-w-0 text-left sm:text-right">
                                 <p class="text-sm font-semibold text-stone-900">{{ auth()->user()->name }}</p>
-                                <p class="text-xs text-stone-500">{{ auth()->user()->email }}</p>
+                                <p class="break-all text-xs text-stone-500">{{ auth()->user()->email }}</p>
                             </div>
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
