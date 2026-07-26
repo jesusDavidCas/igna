@@ -16,12 +16,23 @@ class TicketController extends Controller
             'service',
             'currentStage',
             'stageEvents.serviceStage',
-            'files' => fn ($query) => $query->where('is_client_visible', true),
-            'deliverables.files' => fn ($query) => $query->where('is_client_visible', true),
+            'files' => fn ($query) => $query->clientVisible(),
+            'deliverables.files' => fn ($query) => $query->clientVisible(),
         ]);
+
+        $submittedFiles = $ticket->files()
+            ->clientSubmitted()
+            ->where(function ($query) use ($ticket): void {
+                $query
+                    ->where('uploaded_by_user_id', request()->user()->id)
+                    ->orWhere('submitted_context_hash', hash('sha256', strtolower($ticket->email)));
+            })
+            ->latest('uploaded_at')
+            ->get();
 
         return view('client.tickets.show', [
             'ticket' => $ticket,
+            'submittedFiles' => $submittedFiles,
         ]);
     }
 }

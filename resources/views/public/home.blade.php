@@ -320,7 +320,7 @@
                         </div>
                         <div>
                             <label class="form-label">{{ __('site.form_initial_file') }}</label>
-                            <input type="file" name="initial_file" class="form-input">
+                            <input type="file" name="initial_file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" class="form-input">
                             <p class="mt-2 text-[15px] leading-6 text-stone-500">{{ __('site.form_initial_file_help') }}</p>
                         </div>
                         <div class="sm:col-span-2 pt-2">

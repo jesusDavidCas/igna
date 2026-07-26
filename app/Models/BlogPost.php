@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\BlogPostStatus;
+use App\Support\Html\HtmlSanitizer;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -63,7 +64,9 @@ class BlogPost extends Model
 
     public function localizedBodyHtml(): string
     {
-        return $this->localizedDemoValue('body_html', $this->body_html);
+        return app(HtmlSanitizer::class)->clean(
+            $this->localizedDemoValue('body_html', $this->body_html),
+        );
     }
 
     private function localizedDemoValue(string $field, string $fallback): string

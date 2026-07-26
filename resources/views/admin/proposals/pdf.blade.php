@@ -159,6 +159,20 @@
             line-height: 1.42;
             margin: 0;
         }
+        .rich-copy p {
+            color: #57534e;
+            line-height: 1.42;
+            margin: 0 0 5px;
+        }
+        .rich-copy ul,
+        .rich-copy ol {
+            color: #57534e;
+            margin: 0 0 5px;
+            padding-left: 14px;
+        }
+        .rich-copy li {
+            margin: 0 0 3px;
+        }
         .description-card,
         .scope-card,
         .timeline-card,
@@ -197,6 +211,8 @@
             line-height: 1.34;
             padding: 5px 5px;
             vertical-align: top;
+            word-break: normal;
+            overflow-wrap: break-word;
         }
         body.density-spacious .budget td { font-size: 9.1px; padding: 6px 5px; }
         body.density-compact .budget th { font-size: 6.9px; padding: 4px 5px; }
@@ -241,16 +257,12 @@
         body.fill-bottom .bottom {
             margin-top: 12px;
         }
-        .signature-cell {
-            width: 58%;
-        }
-        .totals-cell {
-            width: 42%;
-        }
+        .signature-cell { width: 32%; }
+        .totals-cell { width: 68%; }
         .signature-img {
             display: block;
             max-height: 34px;
-            max-width: 160px;
+            max-width: 118px;
             object-fit: contain;
         }
         .signature-line {
@@ -295,15 +307,17 @@
     // Dynamic layout density control:
     // Fits normal proposals with up to 3 cost items comfortably onto a single page.
     // If the items count or text volume exceeds thresholds, shifts layout to a compact style.
+    $proposalContent = app(\App\Support\Proposals\ProposalContentSanitizer::class);
+    $descriptionHtml = $proposalContent->clean($proposal->description);
+    $scopeHtml = $proposalContent->clean($proposal->scope);
+    $descriptionText = $proposalContent->toPlainText($proposal->description);
+    $scopeText = $proposalContent->toPlainText($proposal->scope);
     $itemsByCategory = $proposal->items->groupBy(fn ($item) => $item->category ?: '');
     $itemCount = $proposal->items->count();
-    $textVolume = mb_strlen((string) $proposal->description) + mb_strlen((string) $proposal->scope);
+    $textVolume = mb_strlen($descriptionText) + mb_strlen($scopeText) + $proposal->items->sum(fn ($item) => mb_strlen((string) $item->description));
     $density = $itemCount <= 2 && $textVolume < 1200
         ? 'spacious'
         : ($itemCount > 4 || $textVolume > 1400 ? 'compact' : 'normal');
-    $descriptionLimit = $density === 'compact' ? 430 : 620;
-    $scopeLimit = $density === 'compact' ? 260 : 460;
-    $itemDescriptionLimit = $density === 'compact' ? 112 : ($density === 'normal' ? 140 : 170);
     $terms = collect(__('site.proposal_terms_compact'));
     $usesLongFlow = $itemCount > 8 || $textVolume > 1800;
     $fillsBottom = $density === 'compact' && $itemCount >= 5 && $itemCount <= 6 && $textVolume < 1400;
@@ -330,8 +344,8 @@
                             </td>
                             <td class="meta-cell">
                                 <div class="label">{{ __('site.quote_proposal') }}</div>
-                                <h1 class="title">{{ \Illuminate\Support\Str::limit($proposal->title, 78) }}</h1>
-                                <p class="subtitle">{{ \Illuminate\Support\Str::limit($proposal->subject, 108) }}</p>
+                                <h1 class="title">{{ $proposal->title }}</h1>
+                                <p class="subtitle">{{ $proposal->subject }}</p>
                                 <div class="tiny muted" style="margin-top: 5px;">
                                     <strong>{{ $proposal->proposal_number }}</strong>
                                     @if ($proposal->issued_at)
@@ -344,14 +358,14 @@
                 </td>
                 <td class="card soft" style="width: 35%;">
                     <div class="label">{{ __('site.client_or_account') }}</div>
-                    <div style="font-size: 10px; font-weight: 700; margin-top: 7px;">{{ \Illuminate\Support\Str::limit($proposal->clientDisplayName(), 70) }}</div>
+                    <div style="font-size: 10px; font-weight: 700; margin-top: 7px;">{{ $proposal->clientDisplayName() }}</div>
                     @if ($proposal->clientDisplayEmail())
                         <div class="muted" style="margin-top: 3px;">{{ $proposal->clientDisplayEmail() }}</div>
                     @endif
                     @if ($proposal->clientDisplayPhone())
                         <div class="muted" style="margin-top: 2px;">{{ $proposal->clientDisplayPhone() }}</div>
                     @endif
-                    <div class="tiny muted" style="margin-top: 7px;">{{ \Illuminate\Support\Str::limit($proposal->subject, 118) }}</div>
+                    <div class="tiny muted" style="margin-top: 7px;">{{ $proposal->subject }}</div>
                 </td>
             </tr>
         </table>
@@ -361,11 +375,11 @@
                 <tr>
                     <td class="card" style="width: 42%;">
                         <h2 class="block-title">{{ __('site.description_detail') }}</h2>
-                        <p class="copy">{{ \Illuminate\Support\Str::limit(trim((string) $proposal->description) ?: '—', $descriptionLimit) }}</p>
+                        <div class="rich-copy">{!! $descriptionHtml ?: '—' !!}</div>
                     </td>
                     <td class="card" style="width: 30%;">
                         <h2 class="block-title">{{ __('site.scope_deliverables') }}</h2>
-                        <p class="copy">{{ \Illuminate\Support\Str::limit(trim((string) $proposal->scope) ?: '—', $scopeLimit) }}</p>
+                        <div class="rich-copy">{!! $scopeHtml ?: '—' !!}</div>
                     </td>
                     <td class="card accent" style="width: 28%;">
                         <h2 class="block-title">{{ __('site.timeline_payment_plan') }}</h2>
@@ -405,7 +419,7 @@
                             @foreach ($items as $item)
                                 <tr>
                                     <td>{{ $item->item_code ?: '—' }}</td>
-                                    <td>{{ \Illuminate\Support\Str::limit($item->description, $itemDescriptionLimit) }}</td>
+                                    <td>{{ $item->description }}</td>
                                     <td>{{ $item->unit ?: '—' }}</td>
                                     <td class="num">{{ (int) $item->quantity > 0 ? number_format((int) $item->quantity) : '—' }}</td>
                                     <td class="num">{{ (float) $item->unit_value > 0 ? number_format((float) $item->unit_value, 2) : '—' }}</td>
@@ -433,13 +447,13 @@
                             <tr>
                                 <td class="card description-card">
                                     <h2 class="block-title">{{ __('site.description_detail') }}</h2>
-                                    <p class="copy">{{ \Illuminate\Support\Str::limit(trim((string) $proposal->description) ?: '—', $descriptionLimit) }}</p>
+                                    <div class="rich-copy">{!! $descriptionHtml ?: '—' !!}</div>
                                 </td>
                             </tr>
                             <tr>
                                 <td class="card scope-card">
                                     <h2 class="block-title">{{ __('site.scope_deliverables') }}</h2>
-                                    <p class="copy">{{ \Illuminate\Support\Str::limit(trim((string) $proposal->scope) ?: '—', $scopeLimit) }}</p>
+                                    <div class="rich-copy">{!! $scopeHtml ?: '—' !!}</div>
                                 </td>
                             </tr>
                             <tr>
@@ -487,7 +501,7 @@
                                                 @foreach ($items as $item)
                                                     <tr>
                                                         <td>{{ $item->item_code ?: '—' }}</td>
-                                                        <td>{{ \Illuminate\Support\Str::limit($item->description, $itemDescriptionLimit) }}</td>
+                                                        <td>{{ $item->description }}</td>
                                                         <td>{{ $item->unit ?: '—' }}</td>
                                                         <td class="num">{{ (int) $item->quantity > 0 ? number_format((int) $item->quantity) : '—' }}</td>
                                                         <td class="num">{{ (float) $item->unit_value > 0 ? number_format((float) $item->unit_value, 2) : '—' }}</td>

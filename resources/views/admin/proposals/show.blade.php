@@ -98,7 +98,7 @@
         <div class="p-8">
         <div class="grid gap-6 md:grid-cols-2 print:grid-cols-3">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">{{ __('site.client_account') }}</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">{{ __('site.client') }}</p>
                 <p class="mt-2 text-stone-950">{{ $proposal->clientDisplayName() }}</p>
                 <p class="text-[15px] text-stone-500">{{ $proposal->clientDisplayEmail() }}</p>
             </div>
@@ -116,7 +116,7 @@
             @foreach (['description', 'scope'] as $field)
                 <section class="rounded-2xl bg-stone-50 p-5">
                     <h3 class="font-semibold text-stone-950">{{ __("site.proposal_{$field}") }}</h3>
-                    <p class="mt-3 whitespace-pre-line text-base leading-7 text-stone-600">{{ $proposal->{$field} ?: '—' }}</p>
+                    <div class="mt-3 rich-proposal-content text-base leading-7 text-stone-600 [&_li]:mb-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-3 [&_ul]:list-disc [&_ul]:pl-5">{!! app(\App\Support\Proposals\ProposalContentSanitizer::class)->clean($proposal->{$field}) ?: '—' !!}</div>
                 </section>
             @endforeach
             <section class="rounded-2xl bg-stone-50 p-5">

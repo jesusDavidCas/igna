@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="x-apple-disable-message-reformatting">
-    <title>{{ __('site.email_admin_new_ticket_subject', ['ticket' => $ticket->ticket_code]) }}</title>
+    <title>{{ __($subjectKey, ['ticket' => $ticket->ticket_code, ...$subjectReplacements]) }}</title>
 </head>
 @php
     $clientName = trim($ticket->first_name.' '.$ticket->last_name) ?: $ticket->email;
@@ -12,7 +12,7 @@
 @endphp
 <body style="margin:0;padding:0;background:#f5f3ee;color:#1c1917;font-family:Georgia,'Times New Roman',serif;-webkit-text-size-adjust:100%;text-size-adjust:100%;">
     <span style="display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;mso-hide:all;">
-        {{ __('site.email_admin_new_ticket_preheader') }}
+        {{ __($preheaderKey) }}
     </span>
 
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;background:#f5f3ee;padding:32px 14px;">
@@ -32,7 +32,7 @@
                                     </td>
                                     <td style="vertical-align:middle;padding-left:16px;">
                                         <div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;letter-spacing:4px;text-transform:uppercase;color:#c7d2b8;font-weight:700;">{{ $brand['company_name'] ?? 'IGNA Studio' }}</div>
-                                        <div style="margin-top:6px;color:#f8f7f2;font-size:24px;line-height:1.25;font-weight:700;">{{ __('site.email_admin_new_ticket_title') }}</div>
+                                        <div style="margin-top:6px;color:#f8f7f2;font-size:24px;line-height:1.25;font-weight:700;">{{ __($titleKey) }}</div>
                                     </td>
                                 </tr>
                             </table>
@@ -45,8 +45,8 @@
                                 {{ $ticket->ticket_code }}
                             </div>
 
-                            <h1 style="margin:24px 0 0;color:#11100f;font-size:32px;line-height:1.18;font-weight:700;letter-spacing:-0.02em;">{{ __('site.email_admin_new_ticket_headline') }}</h1>
-                            <p style="margin:18px 0 0;color:#57534e;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.75;">{{ __('site.email_admin_new_ticket_message') }}</p>
+                            <h1 style="margin:24px 0 0;color:#11100f;font-size:32px;line-height:1.18;font-weight:700;letter-spacing:-0.02em;">{{ __($headlineKey) }}</h1>
+                            <p style="margin:18px 0 0;color:#57534e;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.75;">{{ __($messageKey, $messageReplacements) }}</p>
                         </td>
                     </tr>
 

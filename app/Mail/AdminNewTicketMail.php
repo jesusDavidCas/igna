@@ -17,12 +17,19 @@ class AdminNewTicketMail extends Mailable
 
     public function __construct(
         public Ticket $ticket,
+        public string $subjectKey = 'site.email_admin_new_ticket_subject',
+        public array $subjectReplacements = [],
+        public string $preheaderKey = 'site.email_admin_new_ticket_preheader',
+        public string $titleKey = 'site.email_admin_new_ticket_title',
+        public string $headlineKey = 'site.email_admin_new_ticket_headline',
+        public string $messageKey = 'site.email_admin_new_ticket_message',
+        public array $messageReplacements = [],
     ) {}
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: __('site.email_admin_new_ticket_subject', ['ticket' => $this->ticket->ticket_code]),
+            subject: __($this->subjectKey, ['ticket' => $this->ticket->ticket_code, ...$this->subjectReplacements]),
         );
     }
 

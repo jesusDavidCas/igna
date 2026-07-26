@@ -28,7 +28,7 @@
                 @foreach (['description', 'scope'] as $field)
                     <section class="rounded-2xl bg-stone-50 p-5">
                         <h2 class="font-semibold text-stone-950">{{ __("site.proposal_{$field}") }}</h2>
-                        <p class="mt-3 whitespace-pre-line text-base leading-7 text-stone-600">{{ $proposal->{$field} ?: '—' }}</p>
+                        <div class="mt-3 rich-proposal-content text-base leading-7 text-stone-600 [&_li]:mb-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-3 [&_ul]:list-disc [&_ul]:pl-5">{!! app(\App\Support\Proposals\ProposalContentSanitizer::class)->clean($proposal->{$field}) ?: '—' !!}</div>
                     </section>
                 @endforeach
             </div>

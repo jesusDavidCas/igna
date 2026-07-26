@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Models\User;
 use App\Support\Seo\SeoManager;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -41,11 +42,15 @@ class AuthenticatedSessionController extends Controller
 
         if (! $user->is_active) {
             Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
 
             return back()->withErrors([
                 'email' => __('site.user_inactive'),
             ]);
         }
+
+        $request->session()->put(User::AUTH_SESSION_VERSION_KEY, $user->auth_session_version);
 
         if ($user->canAccessAdmin()) {
             return redirect()->route('admin.dashboard');

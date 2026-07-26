@@ -20,6 +20,7 @@
                 $isCompleted = $event->status === \App\Enums\StageEventStatus::COMPLETED;
                 $isCurrent = $event->status === \App\Enums\StageEventStatus::CURRENT;
                 $isStrong = $isCompleted || $isCurrent;
+                $showNotes = $event->notes && (empty($clientView) || ! $event->superseded_at);
             @endphp
             <div class="relative grid gap-4 pb-8 last:pb-0 md:grid-cols-[2rem_1fr_auto]">
                 @if (! $loop->last)
@@ -42,8 +43,33 @@
                                 <p><span class="font-medium text-stone-700">{{ __('site.timeline_finished') }}:</span> {{ optional($event->completed_at)->format('Y-m-d H:i') ?: ($isCurrent ? __('site.in_progress') : __('site.pending_date')) }}</p>
                             </div>
                         </div>
-                        @if ($event->notes)
+                        @if ($showNotes)
                             <p class="mt-3 text-[15px] leading-6 text-stone-600">{{ $event->notes }}</p>
+                        @endif
+                        @if (empty($clientView) && $event->superseded_at)
+                            <div class="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-900">
+                                <p class="font-semibold">{{ __('site.previous_execution_archived') }}</p>
+                                <p>{{ __('site.audit_history_retained') }} · {{ $event->superseded_at->format('Y-m-d H:i') }}</p>
+                                @if ($event->superseded_reason)
+                                    <p class="mt-1 break-words">{{ __('site.rollback_reason') }}: {{ $event->superseded_reason }}</p>
+                                @endif
+                            </div>
+                        @endif
+                        @if (empty($clientView) && $event->relationLoaded('audits') && $event->audits->isNotEmpty())
+                            <details class="mt-3 text-sm text-stone-600">
+                                <summary class="cursor-pointer font-semibold text-stone-700">{{ __('site.stage_audit_history') }}</summary>
+                                <div class="mt-2 space-y-2">
+                                    @foreach ($event->audits->sortByDesc('created_at') as $audit)
+                                        <div class="rounded-xl bg-white px-3 py-2 ring-1 ring-stone-200">
+                                            <p class="font-semibold">{{ __("site.stage_audit_action_{$audit->action}") }}</p>
+                                            <p>{{ optional($audit->created_at)->format('Y-m-d H:i') }} @if ($audit->actor) · {{ $audit->actor->name }} @endif</p>
+                                            @if ($audit->reason)
+                                                <p class="mt-1 break-words">{{ $audit->reason }}</p>
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </details>
                         @endif
                     </div>
                 </div>

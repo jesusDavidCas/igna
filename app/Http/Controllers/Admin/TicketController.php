@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Enums\StageEventStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\TicketClientAssignmentRequest;
+use App\Http\Requests\Admin\TicketDocumentReviewRequest;
 use App\Http\Requests\Admin\TicketFileUploadRequest;
 use App\Http\Requests\Admin\TicketStageUpdateRequest;
 use App\Models\Ticket;
@@ -41,8 +41,15 @@ class TicketController extends Controller
             'service.stages' => fn ($query) => $query->orderBy('sort_order'),
             'currentStage',
             'stageEvents.serviceStage',
+            'stageEvents.audits.actor',
             'files.uploadedBy',
-            'deliverables.files',
+            'files.firstAdminDownloadedBy',
+            'files.reviewedBy',
+            'files.rejectedBy',
+            'deliverables.files.uploadedBy',
+            'deliverables.files.firstAdminDownloadedBy',
+            'deliverables.files.reviewedBy',
+            'deliverables.files.rejectedBy',
         ]);
 
         $orderedStages = $ticket->service->stages->values();
@@ -67,12 +74,15 @@ class TicketController extends Controller
             ->where('service_stages.id', $request->validated('service_stage_id'))
             ->firstOrFail();
         abort_unless($this->adjacentStage($ticket, -1)?->id === $previousStage->id, 422);
+        $previousEvent = $ticket->stageEvents()
+            ->where('service_stage_id', $previousStage->id)
+            ->firstOrFail();
 
-        $ticketLifecycleService->moveToStage(
+        $ticketLifecycleService->reopenStage(
             $ticket,
-            $previousStage,
+            $previousEvent,
             $request->user(),
-            __('site.admin_correction_note').($request->filled('notes') ? "\n".$request->validated('notes') : ''),
+            $request->validated('notes'),
         );
 
         return redirect()->route('admin.tickets.show', $ticket)->with('success', __('site.ticket_stage_moved_back'));
@@ -104,14 +114,7 @@ class TicketController extends Controller
         $stage = $ticket->service->stages()
             ->where('service_stages.id', $request->validated('service_stage_id'))
             ->firstOrFail();
-        abort_unless($this->adjacentStage($ticket, 1)?->id === $stage->id, 422);
-
-        $ticketLifecycleService->moveToStage(
-            $ticket,
-            $stage,
-            $request->user(),
-            $request->validated('notes'),
-        );
+        abort_unless($stage->id === $ticket->current_service_stage_id, 422);
 
         return redirect()->route('admin.tickets.show', $ticket)->with('success', __('site.ticket_stage_updated'));
     }
@@ -144,24 +147,13 @@ class TicketController extends Controller
         TicketStageUpdateRequest $request,
         Ticket $ticket,
         TicketStageEvent $event,
-        ProjectNotificationService $projectNotificationService,
+        TicketLifecycleService $ticketLifecycleService,
     ): RedirectResponse {
-        abort_unless($event->ticket_id === $ticket->id, 404);
-
-        $event->update([
-            'status' => $event->service_stage_id === $ticket->current_service_stage_id
-                ? StageEventStatus::CURRENT
-                : StageEventStatus::PENDING,
-            'completed_at' => null,
-            'changed_by_user_id' => $request->user()->id,
-            'notes' => trim(($event->notes ? $event->notes."\n\n" : '').'['.now()->format('Y-m-d H:i').'] '.__('site.admin_correction_note')),
-        ]);
-
-        $projectNotificationService->notifyTicket(
+        $ticketLifecycleService->reopenStage(
             $ticket,
-            'stage_reopened',
-            __('site.email_stage_reopened_headline', ['stage' => $event->serviceStage->localizedName()]),
-            $request->validated('notes') ?: __('site.email_stage_reopened_message'),
+            $event,
+            $request->user(),
+            $request->validated('notes'),
         );
 
         return redirect()->route('admin.tickets.show', $ticket)->with('success', __('site.ticket_stage_reopened'));
@@ -196,6 +188,8 @@ class TicketController extends Controller
             'deliverable_type' => $request->validated('deliverable_type'),
             'visibility' => $request->boolean('is_client_visible') ? 'client' : 'internal',
             'delivery_type' => $request->validated('delivery_type'),
+            'upload_source' => 'admin',
+            'review_status' => 'reviewed',
             'is_client_visible' => $request->boolean('is_client_visible'),
             'uploaded_at' => now(),
             ...$storedFile,
@@ -211,8 +205,9 @@ class TicketController extends Controller
             $projectNotificationService->notifyTicket(
                 $ticket,
                 'file_available',
-                __('site.email_file_available_headline'),
-                __('site.email_file_available_message', ['file' => $file->title]),
+                'site.email_file_available_headline',
+                messageKey: 'site.email_file_available_message',
+                messageReplacements: ['file' => $file->title],
             );
         }
 
@@ -232,8 +227,9 @@ class TicketController extends Controller
             $projectNotificationService->notifyTicket(
                 $ticket,
                 'file_available',
-                __('site.email_file_available_headline'),
-                __('site.email_file_available_message', ['file' => $file->title]),
+                'site.email_file_available_headline',
+                messageKey: 'site.email_file_available_message',
+                messageReplacements: ['file' => $file->title],
             );
         }
 
@@ -251,5 +247,43 @@ class TicketController extends Controller
         $file->delete();
 
         return redirect()->route('admin.tickets.show', $ticket)->with('success', __('site.file_deleted'));
+    }
+
+    public function markFileReviewed(TicketDocumentReviewRequest $request, Ticket $ticket, TicketFile $file): RedirectResponse
+    {
+        $this->assertReviewableClientDocument($ticket, $file);
+
+        $file->forceFill([
+            'review_status' => 'reviewed',
+            'reviewed_by_user_id' => $request->user()->id,
+            'reviewed_at' => now(),
+            'rejected_by_user_id' => null,
+            'rejected_at' => null,
+            'rejection_reason' => null,
+        ])->save();
+
+        return redirect()->route('admin.tickets.show', $ticket)->with('success', __('site.document_marked_reviewed'));
+    }
+
+    public function rejectFile(TicketDocumentReviewRequest $request, Ticket $ticket, TicketFile $file): RedirectResponse
+    {
+        $this->assertReviewableClientDocument($ticket, $file);
+
+        $file->forceFill([
+            'review_status' => 'rejected',
+            'rejected_by_user_id' => $request->user()->id,
+            'rejected_at' => now(),
+            'rejection_reason' => $request->validated('rejection_reason'),
+            'reviewed_by_user_id' => null,
+            'reviewed_at' => null,
+        ])->save();
+
+        return redirect()->route('admin.tickets.show', $ticket)->with('success', __('site.document_rejected'));
+    }
+
+    private function assertReviewableClientDocument(Ticket $ticket, TicketFile $file): void
+    {
+        abort_unless($file->ticket_id === $ticket->id, 404);
+        abort_unless($file->isClientSubmitted(), 422);
     }
 }

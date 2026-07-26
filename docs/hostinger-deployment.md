@@ -313,35 +313,16 @@ Then test:
 
 ## Future Updates
 
-After the first deployment, you do not need to clone again.
+The Q3 release uses the reviewed release and rollback runbooks:
 
-On your local computer:
+- `docs/deployment/HOSTINGER_RELEASE_RUNBOOK_2026Q3.md`
+- `docs/deployment/HOSTINGER_ROLLBACK_RUNBOOK_2026Q3.md`
 
-```bash
-git add .
-git commit -m "Describe your change"
-git push origin main
-```
-
-Then connect to the server by SSH:
-
-```bash
-ssh your_server_user@your_server_ip
-```
-
-Go to the project folder:
-
-```bash
-cd /var/www/igna-studio
-```
-
-Run the deployment script:
-
-```bash
-bash scripts/deploy-hostinger.sh
-```
-
-That script pulls the latest code, installs dependencies, builds assets, runs migrations, and refreshes Laravel caches.
+`scripts/deploy-hostinger.sh` is a non-mutating, fail-closed preflight only. It
+does not fetch, update code, install dependencies, build assets, migrate,
+synchronize public files, or refresh caches. Never treat it as a deployment
+command. Execute production changes only through the reviewed release runbook
+after its human approval and backup gates pass.
 
 ## Common Problems
 

@@ -6,6 +6,7 @@ use App\Enums\BlogPostStatus;
 use App\Enums\UserRole;
 use App\Models\BlogPost;
 use App\Models\Service;
+use App\Models\ServiceStage;
 use App\Models\Ticket;
 use App\Models\TicketFile;
 use App\Models\User;
@@ -242,7 +243,7 @@ class DemoDataSeeder extends Seeder
                 $ticket = $lifecycle->createFromPublicRequest([
                     ...collect($ticketPayload)->except(['service_code', 'client', 'stage_code', 'files'])->all(),
                     'service_id' => $service->id,
-                ]);
+                ], notify: false);
             }
 
             $ticket->forceFill([
@@ -254,7 +255,7 @@ class DemoDataSeeder extends Seeder
             $targetStage = $service->stages()->where('code', $ticketPayload['stage_code'])->first();
 
             if ($targetStage) {
-                $lifecycle->moveToStage($ticket->fresh(['service']), $targetStage, $admin, 'Demo data for platform validation.');
+                $this->advanceDemoTicketToStage($lifecycle, $ticket, $targetStage, $admin);
             }
 
             foreach ($ticketPayload['files'] as $filePayload) {
@@ -288,6 +289,30 @@ class DemoDataSeeder extends Seeder
                     ],
                 );
             }
+        }
+    }
+
+    private function advanceDemoTicketToStage(TicketLifecycleService $lifecycle, Ticket $ticket, ServiceStage $targetStage, User $admin): void
+    {
+        $ticket = $ticket->fresh(['service.stages', 'stageEvents.serviceStage']);
+        $orderedStages = $ticket->service->stages()->where('is_active', true)->orderBy('sort_order')->get()->values();
+        $targetIndex = $orderedStages->search(fn (ServiceStage $stage): bool => $stage->id === $targetStage->id);
+
+        while ($targetIndex !== false) {
+            $ticket = $ticket->fresh(['service.stages', 'stageEvents.serviceStage']);
+            $currentIndex = $orderedStages->search(fn (ServiceStage $stage): bool => $stage->id === $ticket->current_service_stage_id);
+
+            if ($currentIndex === false || $currentIndex >= $targetIndex) {
+                break;
+            }
+
+            $event = $ticket->stageEvents->firstWhere('service_stage_id', $ticket->current_service_stage_id);
+
+            if (! $event) {
+                break;
+            }
+
+            $lifecycle->completeStage($ticket, $event, $admin, 'Demo data for platform validation.', notify: false);
         }
     }
 }

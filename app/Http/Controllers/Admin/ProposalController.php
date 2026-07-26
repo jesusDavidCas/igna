@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\ProposalRequest;
 use App\Models\Proposal;
 use App\Models\ProposalServiceTemplate;
 use App\Models\User;
+use App\Support\Proposals\ProposalContentSanitizer;
 use App\Support\Proposals\ProposalNumberGenerator;
 use App\Support\Proposals\ProposalQrCode;
 use App\Support\Settings\BrandSettings;
@@ -15,6 +16,7 @@ use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -22,10 +24,39 @@ use Illuminate\Support\Facades\DB;
 
 class ProposalController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $direction = $request->query('direction') === 'asc' ? 'asc' : 'desc';
+        $status = in_array($request->query('status'), ['draft', 'sent', 'approved', 'rejected'], true)
+            ? $request->query('status')
+            : null;
+        $search = trim((string) $request->query('search', ''));
+
+        $proposals = Proposal::query()
+            ->with('client')
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($query) use ($search): void {
+                    $query
+                        ->where('proposal_number', 'like', "%{$search}%")
+                        ->orWhere('title', 'like', "%{$search}%")
+                        ->orWhere('prospect_name', 'like', "%{$search}%")
+                        ->orWhereHas('client', fn ($clientQuery) => $clientQuery->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%"));
+                });
+            })
+            ->when($status, fn ($query) => $query->where('status', $status))
+            ->orderBy('created_at', $direction)
+            ->orderBy('id', $direction)
+            ->paginate(15)
+            ->withQueryString();
+
         return view('admin.proposals.index', [
-            'proposals' => Proposal::query()->with('client')->latest()->paginate(15),
+            'proposals' => $proposals,
+            'sort' => 'created_at',
+            'direction' => $direction,
+            'search' => $search,
+            'status' => $status,
         ]);
     }
 
@@ -117,7 +148,7 @@ class ProposalController extends Controller
         $proposalTemplates = $this->proposalTemplates();
 
         return view('admin.proposals.edit', [
-            'proposal' => $proposal->load('items'),
+            'proposal' => $proposal->load(['items']),
             'clients' => $this->clients(),
             'signers' => $this->signers(),
             'selectedClientId' => $proposal->client_user_id,
@@ -200,8 +231,8 @@ class ProposalController extends Controller
             'signer_user_id' => $request->validated('signer_user_id'),
             'title' => $request->validated('title'),
             'subject' => $request->validated('subject'),
-            'description' => $request->validated('description'),
-            'scope' => $request->validated('scope'),
+            'description' => app(ProposalContentSanitizer::class)->clean($request->validated('description')),
+            'scope' => app(ProposalContentSanitizer::class)->clean($request->validated('scope')),
             'timeline_months' => $timelineMonths,
             'timeline_weeks' => $timelineWeeks,
             'timeline' => $this->timelineText($timelineMonths, $timelineWeeks),

@@ -101,6 +101,37 @@ class ProposalRequest extends FormRequest
         ];
     }
 
+    public function attributes(): array
+    {
+        return [
+            'client_user_id' => __('site.client'),
+            'prospect_name' => __('site.manual_client_name'),
+            'prospect_email' => __('site.manual_client_email'),
+            'prospect_phone' => __('site.manual_client_phone'),
+            'signer_user_id' => __('site.proposal_signer'),
+            'title' => __('site.form_title'),
+            'subject' => __('site.subject'),
+            'description' => __('site.proposal_description'),
+            'scope' => __('site.proposal_scope'),
+            'timeline_months' => __('site.timeline_months'),
+            'timeline_weeks' => __('site.timeline_weeks'),
+            'payment_schedule' => __('site.payment_schedule_and_totals'),
+            'payment_schedule.*.label' => __('site.payment_label'),
+            'payment_schedule.*.percentage' => __('site.percentage'),
+            'payment_schedule.*.notes' => __('site.payment_notes'),
+            'status' => __('site.form_status'),
+            'tax_rate' => __('site.tax_rate'),
+            'issued_at' => __('site.issued_at'),
+            'valid_until' => __('site.valid_until'),
+            'items' => __('site.cost_items'),
+            'items.*.item_code' => __('site.item_code'),
+            'items.*.description' => __('site.item_description'),
+            'items.*.unit' => __('site.unit_abbr'),
+            'items.*.quantity' => __('site.qty_abbr'),
+            'items.*.unit_value' => __('site.unit_value_label'),
+        ];
+    }
+
     public function after(): array
     {
         return [

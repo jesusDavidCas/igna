@@ -7,6 +7,7 @@ use App\Http\Requests\Public\TrackTicketRequest;
 use App\Models\Ticket;
 use App\Support\Seo\SeoManager;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\URL;
 
 class TicketTrackingController extends Controller
 {
@@ -21,6 +22,8 @@ class TicketTrackingController extends Controller
 
         return view('public.tracking', [
             'ticket' => $ticket,
+            'submittedFiles' => $this->submittedFiles($ticket),
+            'trackingUploadUrl' => $this->trackingUploadUrl($ticket),
             'seo' => $seo->meta([
                 'title' => __('site.seo_tracking_title'),
                 'description' => __('site.seo_tracking_description'),
@@ -39,6 +42,8 @@ class TicketTrackingController extends Controller
 
         return view('public.tracking', [
             'ticket' => $ticket,
+            'submittedFiles' => $this->submittedFiles($ticket),
+            'trackingUploadUrl' => $this->trackingUploadUrl($ticket),
             'seo' => app(SeoManager::class)->meta([
                 'title' => __('site.seo_tracking_title'),
                 'description' => __('site.seo_tracking_description'),
@@ -55,11 +60,36 @@ class TicketTrackingController extends Controller
                 'service',
                 'currentStage',
                 'stageEvents.serviceStage',
-                'files' => fn ($query) => $query->where('is_client_visible', true),
-                'deliverables.files' => fn ($query) => $query->where('is_client_visible', true),
+                'files' => fn ($query) => $query->clientVisible(),
+                'deliverables.files' => fn ($query) => $query->clientVisible(),
             ])
             ->where('ticket_code', strtoupper($ticketCode))
             ->where('email', $email)
             ->first();
+    }
+
+    private function submittedFiles(?Ticket $ticket)
+    {
+        if (! $ticket) {
+            return collect();
+        }
+
+        return $ticket->files()
+            ->clientSubmitted()
+            ->where('submitted_context_hash', hash('sha256', strtolower($ticket->email)))
+            ->latest('uploaded_at')
+            ->get();
+    }
+
+    private function trackingUploadUrl(?Ticket $ticket): ?string
+    {
+        if (! $ticket) {
+            return null;
+        }
+
+        return URL::temporarySignedRoute('tracking.documents.store', now()->addMinutes(30), [
+            'ticket' => $ticket,
+            'email_hash' => hash('sha256', strtolower($ticket->email)),
+        ]);
     }
 }
