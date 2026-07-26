@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -88,6 +89,16 @@ class Proposal extends Model
     public function statusLabel(): string
     {
         return __("site.proposal_status_{$this->status}");
+    }
+
+    public function scopePubliclyAccessible(Builder $query): Builder
+    {
+        return $query->whereIn('status', ['sent', 'approved']);
+    }
+
+    public function isPubliclyAccessible(): bool
+    {
+        return in_array($this->status, ['sent', 'approved'], true);
     }
 
     public function formattedTimeline(): string

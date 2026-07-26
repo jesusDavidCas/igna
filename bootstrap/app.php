@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Middleware\AddSecurityHeaders;
+use App\Http\Middleware\EnsureActiveAuthenticatedSession;
 use App\Http\Middleware\EnsureUserRole;
 use App\Http\Middleware\RedirectCanonicalHost;
 use App\Http\Middleware\SetLocale;
@@ -19,6 +21,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             RedirectCanonicalHost::class,
             SetLocale::class,
+            AddSecurityHeaders::class,
+            EnsureActiveAuthenticatedSession::class,
         ]);
 
         $middleware->redirectUsersTo(function (Request $request): string {

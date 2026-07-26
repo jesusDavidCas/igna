@@ -356,6 +356,7 @@ return [
     'proposal_status_sent' => 'Sent',
     'proposal_status_approved' => 'Approved',
     'proposal_status_rejected' => 'Rejected',
+    'auth_session_expired' => 'Your session has expired after an account security change. Please sign in again.',
     'proposal_information' => 'Proposal information',
     'proposal_information_help' => 'Set the working identity, dates, and current status before editing the rest of the proposal.',
     'client_information' => 'Client information',

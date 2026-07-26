@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Support\Seo\SeoManager;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Contracts\View\View;
@@ -10,7 +11,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 
 class NewPasswordController extends Controller
@@ -39,11 +39,11 @@ class NewPasswordController extends Controller
 
         $status = Password::reset(
             $validated,
-            function ($user, string $password): void {
+            function (User $user, string $password): void {
                 $user->forceFill([
                     'password' => Hash::make($password),
-                    'remember_token' => Str::random(60),
                 ])->save();
+                $user->revokeAuthenticationSessions();
 
                 event(new PasswordReset($user));
             }

@@ -2,11 +2,26 @@
 
 namespace Tests;
 
+use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
 {
     private const TEST_CSRF_TOKEN = 'testing-csrf-token';
+
+    public function actingAs(Authenticatable $user, $guard = null)
+    {
+        parent::actingAs($user, $guard);
+
+        if ($user instanceof User) {
+            $this->withSession([
+                User::AUTH_SESSION_VERSION_KEY => $user->auth_session_version,
+            ]);
+        }
+
+        return $this;
+    }
 
     public function post($uri, array $data = [], array $headers = [])
     {

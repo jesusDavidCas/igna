@@ -12,6 +12,8 @@ class ProposalController extends Controller
 {
     public function show(Proposal $proposal, BrandSettings $brandSettings, SeoManager $seo): View
     {
+        abort_unless($proposal->isPubliclyAccessible(), 404);
+
         return view('public.proposals.show', [
             'proposal' => $proposal->load(['client', 'signer', 'items']),
             'brand' => $brandSettings->publicPayload(),
@@ -24,6 +26,7 @@ class ProposalController extends Controller
     public function showByToken(string $publicToken, BrandSettings $brandSettings, SeoManager $seo): View
     {
         $proposal = Proposal::query()
+            ->publiclyAccessible()
             ->where('public_token', $publicToken)
             ->firstOrFail();
 

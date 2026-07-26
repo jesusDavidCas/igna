@@ -132,6 +132,7 @@ class ProposalAdministrationUsabilityTest extends TestCase
         $this->post(route('admin.proposals.store'), $this->validPayload([
             'description' => '<p onclick="alert(1)"><b>Bold</b> <i>Italic</i><script>alert(1)</script><span style="color:red">safe text</span><a href="javascript:alert(1)">bad link</a></p>',
             'scope' => '<ul class="MsoList"><li data-x="1">Bullet</li></ul><ol><li style="color:red">Number</li></ol><iframe src="bad"></iframe>',
+            'status' => 'sent',
         ]))->assertRedirect();
 
         $proposal = Proposal::query()->where('title', 'Phase 2B valid proposal')->firstOrFail();

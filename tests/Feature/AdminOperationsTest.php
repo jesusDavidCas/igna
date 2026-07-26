@@ -456,6 +456,14 @@ class AdminOperationsTest extends TestCase
             ->assertHeader('content-type', 'application/pdf');
 
         $this->get(URL::signedRoute('proposals.public.show', $proposal))
+            ->assertNotFound();
+
+        $this->get(route('proposals.public.token.show', $proposal->public_token))
+            ->assertNotFound();
+
+        $proposal->update(['status' => 'sent']);
+
+        $this->get(URL::signedRoute('proposals.public.show', $proposal))
             ->assertOk()
             ->assertSee('Water system assessment')
             ->assertSee('Technical diagnosis');
@@ -505,6 +513,11 @@ class AdminOperationsTest extends TestCase
             ->assertSee('Constructora Río Claro')
             ->assertSee('310 000 1111')
             ->assertSee('proposals/public/'.$proposal->public_token, false);
+
+        $this->get(route('proposals.public.token.show', $proposal->public_token))
+            ->assertNotFound();
+
+        $proposal->update(['status' => 'sent']);
 
         $this->get(route('proposals.public.token.show', $proposal->public_token))
             ->assertOk()

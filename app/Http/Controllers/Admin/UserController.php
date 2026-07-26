@@ -9,6 +9,8 @@ use App\Http\Requests\Admin\UserRequest;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
 class UserController extends Controller
@@ -51,6 +53,9 @@ class UserController extends Controller
     public function update(UserRequest $request, User $user): RedirectResponse
     {
         $payload = $this->payload($request);
+        $previousEmail = $user->email;
+        $previousRole = $user->role;
+        $wasActive = $user->is_active;
 
         if ($this->wouldRemoveLastSuperAdmin($user, $payload)) {
             return back()
@@ -67,7 +72,18 @@ class UserController extends Controller
             unset($payload['password']);
         }
 
+        $credentialsChanged = array_key_exists('password', $payload)
+            || $previousEmail !== $payload['email']
+            || $previousRole !== $payload['role']
+            || ($wasActive && ! $payload['is_active']);
+
         $user->update($payload);
+
+        if ($credentialsChanged) {
+            $user->revokeAuthenticationSessions();
+            $this->preserveActingUserSession($request, $user);
+        }
+
         $this->storeSignature($request, $user);
 
         return redirect()->route('admin.users.edit', $user)->with('success', __('site.user_updated'));
@@ -78,6 +94,8 @@ class UserController extends Controller
         $user->update([
             'password' => $request->validated('password'),
         ]);
+        $user->revokeAuthenticationSessions();
+        $this->preserveActingUserSession($request, $user);
 
         return redirect()
             ->route('admin.users.edit', $user)
@@ -126,5 +144,15 @@ class UserController extends Controller
 
         return $activeSuperAdmins <= 1
             && ($payload['role'] !== UserRole::SUPER_ADMIN || ! $payload['is_active']);
+    }
+
+    private function preserveActingUserSession(Request $request, User $user): void
+    {
+        if (! $user->is($request->user())) {
+            return;
+        }
+
+        $request->session()->put(User::AUTH_SESSION_VERSION_KEY, $user->auth_session_version);
+        Auth::guard('web')->setUser($user);
     }
 }

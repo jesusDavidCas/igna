@@ -356,6 +356,7 @@ return [
     'proposal_status_sent' => 'Enviada',
     'proposal_status_approved' => 'Aprobada',
     'proposal_status_rejected' => 'Rechazada',
+    'auth_session_expired' => 'Tu sesión venció después de un cambio de seguridad en la cuenta. Inicia sesión nuevamente.',
     'proposal_information' => 'Información de la propuesta',
     'proposal_information_help' => 'Define la identidad, fechas y estado actual antes de editar el resto de la propuesta.',
     'client_information' => 'Información del cliente',

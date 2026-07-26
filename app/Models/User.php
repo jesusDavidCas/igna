@@ -10,12 +10,16 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
+
+    public const AUTH_SESSION_VERSION_KEY = 'auth_session_version';
 
     protected $fillable = [
         'first_name',
@@ -40,6 +44,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'role' => UserRole::class,
             'is_active' => 'boolean',
+            'auth_session_version' => 'integer',
             'password' => 'hashed',
         ];
     }
@@ -89,5 +94,20 @@ class User extends Authenticatable
     public function isSuperAdmin(): bool
     {
         return $this->role === UserRole::SUPER_ADMIN;
+    }
+
+    public function revokeAuthenticationSessions(): void
+    {
+        DB::transaction(function (): void {
+            static::query()
+                ->whereKey($this->getKey())
+                ->increment('auth_session_version');
+
+            static::query()
+                ->whereKey($this->getKey())
+                ->update(['remember_token' => Str::random(60)]);
+        });
+
+        $this->refresh();
     }
 }
