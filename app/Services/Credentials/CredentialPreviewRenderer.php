@@ -2,11 +2,24 @@
 
 namespace App\Services\Credentials;
 
+use App\Models\TeamCredential;
+use FPDF;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use RuntimeException;
 use setasign\Fpdi\Fpdi;
+use Symfony\Component\Process\ExecutableFinder;
+use Symfony\Component\Process\Process;
+use Throwable;
 
 class CredentialPreviewRenderer
 {
+    public const PROTECTION_VERSION = 2;
+
+    private const RASTER_DPI = 170;
+    private const JPEG_QUALITY = 88;
+
     public function pageCount(string $absolutePath, ?string $mimeType): int
     {
         if (! $this->isPdf($absolutePath, $mimeType)) {
@@ -17,236 +30,362 @@ class CredentialPreviewRenderer
             $pdf = new Fpdi;
 
             return max(1, $pdf->setSourceFile($absolutePath));
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return 0;
+        }
+    }
+
+    public function generateProtectedDerivative(TeamCredential $credential): TeamCredential
+    {
+        $disk = Storage::disk('local');
+        $hasPreviousDerivative = $credential->protected_document_path
+            && $disk->exists($credential->protected_document_path);
+
+        if (! $credential->document_path || ! $disk->exists($credential->document_path)) {
+            return $this->markFailed(
+                $credential,
+                'Original credential file is unavailable.',
+                preserveReadyDerivative: $hasPreviousDerivative,
+            );
+        }
+
+        $credential->forceFill([
+            'protection_status' => 'generating',
+            'protection_error' => null,
+            'protection_version' => self::PROTECTION_VERSION,
+        ])->save();
+
+        $oldProtectedPath = $credential->protected_document_path;
+        $absolutePath = $disk->path($credential->document_path);
+
+        try {
+            $contents = $this->renderProtectedPdf($absolutePath, $credential->mime_type);
+            $protectedPath = $this->protectedPath($credential);
+
+            $disk->put($protectedPath, $contents);
+
+            if (! $disk->exists($protectedPath) || $disk->size($protectedPath) === 0) {
+                $disk->delete($protectedPath);
+
+                throw new RuntimeException('Generated protected credential copy was empty.');
+            }
+
+            $credential->forceFill([
+                'protected_document_path' => $protectedPath,
+                'original_checksum' => hash_file('sha256', $absolutePath),
+                'protected_checksum' => hash('sha256', $contents),
+                'protected_generated_at' => now(),
+                'protection_version' => self::PROTECTION_VERSION,
+                'protection_status' => 'ready',
+                'protection_error' => null,
+                'preview_page_count' => $this->pageCount($absolutePath, $credential->mime_type),
+            ])->save();
+
+            if ($oldProtectedPath && $oldProtectedPath !== $protectedPath) {
+                $disk->delete($oldProtectedPath);
+            }
+
+            return $credential->refresh();
+        } catch (Throwable $exception) {
+            Log::warning('Team credential protected derivative generation failed.', [
+                'credential_id' => $credential->id,
+                'mime_type' => $credential->mime_type,
+                'has_previous_derivative' => (bool) $oldProtectedPath,
+                'error' => $this->safeError($exception),
+            ]);
+
+            return $this->markFailed(
+                $credential,
+                $this->safeError($exception),
+                preserveReadyDerivative: $oldProtectedPath && $disk->exists($oldProtectedPath),
+            );
         }
     }
 
     public function renderJpeg(string $absolutePath, ?string $mimeType, int $page = 1): string
     {
-        $page = max(1, $page);
+        $pages = $this->rasterizeToWatermarkedJpegs($absolutePath, $mimeType, max(1, $page), max(1, $page));
 
-        if ($this->isPdf($absolutePath, $mimeType)) {
-            return $this->renderPdfPage($absolutePath, $page);
+        try {
+            return $pages[0] ? file_get_contents($pages[0]) : throw new RuntimeException('Credential preview could not be rendered.');
+        } finally {
+            $this->removeTemporaryDirectory(dirname($pages[0] ?? ''));
         }
-
-        return $this->renderImage($absolutePath);
     }
 
     public function renderProtectedFile(string $absolutePath, ?string $mimeType): array
     {
-        if ($this->isPdf($absolutePath, $mimeType)) {
-            return [
-                'contents' => $this->renderWatermarkedPdf($absolutePath),
-                'mime_type' => 'application/pdf',
-                'extension' => 'pdf',
-            ];
-        }
-
         return [
-            'contents' => $this->renderImage($absolutePath),
-            'mime_type' => 'image/jpeg',
-            'extension' => 'jpg',
+            'contents' => $this->renderProtectedPdf($absolutePath, $mimeType),
+            'mime_type' => 'application/pdf',
+            'extension' => 'pdf',
         ];
     }
 
-    private function renderWatermarkedPdf(string $absolutePath): string
+    private function renderProtectedPdf(string $absolutePath, ?string $mimeType): string
     {
+        $pages = $this->rasterizeToWatermarkedJpegs($absolutePath, $mimeType);
+
         try {
-            $pdf = new class extends Fpdi
-            {
-                private float $angle = 0.0;
-
-                public function rotate(float $angle, float $x = -1, float $y = -1): void
-                {
-                    if ($x === -1.0) {
-                        $x = $this->x;
-                    }
-
-                    if ($y === -1.0) {
-                        $y = $this->y;
-                    }
-
-                    if ($this->angle !== 0.0) {
-                        $this->_out('Q');
-                    }
-
-                    $this->angle = $angle;
-
-                    if ($angle === 0.0) {
-                        return;
-                    }
-
-                    $angle *= M_PI / 180;
-                    $cos = cos($angle);
-                    $sin = sin($angle);
-                    $cx = $x * $this->k;
-                    $cy = ($this->h - $y) * $this->k;
-
-                    $this->_out(sprintf(
-                        'q %.5F %.5F %.5F %.5F %.2F %.2F cm 1 0 0 1 %.2F %.2F cm',
-                        $cos,
-                        $sin,
-                        -$sin,
-                        $cos,
-                        $cx,
-                        $cy,
-                        -$cx,
-                        -$cy
-                    ));
-                }
-
-                protected function _endpage(): void
-                {
-                    if ($this->angle !== 0.0) {
-                        $this->angle = 0.0;
-                        $this->_out('Q');
-                    }
-
-                    parent::_endpage();
-                }
-            };
-
-            $pageCount = $pdf->setSourceFile($absolutePath);
-            $pdf->SetCompression(false);
+            $pdf = new FPDF('P', 'mm');
+            $pdf->SetCompression(true);
             $pdf->SetAutoPageBreak(false);
             $pdf->SetMargins(0, 0, 0);
 
-            for ($page = 1; $page <= $pageCount; $page++) {
-                $template = $pdf->importPage($page);
-                $size = $pdf->getTemplateSize($template);
+            foreach ($pages as $pagePath) {
+                $size = getimagesize($pagePath);
 
-                $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
-                $pdf->useTemplate($template, 0, 0, $size['width'], $size['height']);
-                $this->applyPdfWatermarks($pdf, (float) $size['width'], (float) $size['height']);
+                if ($size === false) {
+                    throw new RuntimeException('Rasterized credential page could not be measured.');
+                }
+
+                [$width, $height] = $size;
+                $pageWidth = max(1, $width * 25.4 / self::RASTER_DPI);
+                $pageHeight = max(1, $height * 25.4 / self::RASTER_DPI);
+                $orientation = $pageWidth > $pageHeight ? 'L' : 'P';
+
+                $pdf->AddPage($orientation, [$pageWidth, $pageHeight]);
+                $pdf->Image($pagePath, 0, 0, $pageWidth, $pageHeight, 'JPEG');
             }
 
             return $pdf->Output('S');
-        } catch (\Throwable $exception) {
-            throw new RuntimeException('Credential PDF could not be watermarked for protected viewing.', previous: $exception);
+        } finally {
+            $this->removeTemporaryDirectory(dirname($pages[0] ?? ''));
         }
     }
 
-    private function applyPdfWatermarks(Fpdi $pdf, float $width, float $height): void
+    /**
+     * @return list<string>
+     */
+    private function rasterizeToWatermarkedJpegs(string $absolutePath, ?string $mimeType, ?int $firstPage = null, ?int $lastPage = null): array
     {
-        $pdf->SetFont('Helvetica', 'B', max(24, min(44, (int) ($width / 6))));
-        $pdf->SetTextColor(124, 118, 103);
+        $temporaryDirectory = $this->temporaryDirectory();
 
-        for ($y = -20; $y < $height + 80; $y += 58) {
-            for ($x = -35; $x < $width + 80; $x += 118) {
-                $pdf->rotate(35, $x, $y);
-                $pdf->Text($x, $y, 'IGNA STUDIO');
-                $pdf->rotate(0);
+        try {
+            $pagePaths = $this->isPdf($absolutePath, $mimeType)
+                ? $this->rasterizePdf($absolutePath, $temporaryDirectory, $firstPage, $lastPage)
+                : [$this->normalizeImage($absolutePath, $temporaryDirectory)];
+
+            if ($pagePaths === []) {
+                throw new RuntimeException('No credential pages were rasterized.');
             }
-        }
 
-        $pdf->SetFont('Helvetica', 'B', max(8, min(13, (int) ($width / 28))));
-        $pdf->SetTextColor(150, 54, 54);
+            $watermarked = [];
 
-        for ($y = 16; $y < $height + 30; $y += 46) {
-            for ($x = 8; $x < $width + 40; $x += 94) {
-                $pdf->rotate(35, $x, $y);
-                $pdf->Text($x, $y, 'DOCUMENTO NO CONTROLADO');
-                $pdf->Text($x, $y + 6, 'SOLO PARA CONSULTA');
-                $pdf->Text($x, $y + 12, 'UNCONTROLLED DOCUMENT');
-                $pdf->Text($x, $y + 18, 'FOR REFERENCE ONLY');
-                $pdf->rotate(0);
+            foreach ($pagePaths as $index => $pagePath) {
+                $watermarked[] = $this->watermarkImageFile($pagePath, $temporaryDirectory.'/page-'.str_pad((string) ($index + 1), 3, '0', STR_PAD_LEFT).'-protected.jpg');
             }
-        }
 
-        $pdf->SetFont('Helvetica', 'B', 8);
-        $pdf->SetTextColor(80, 74, 66);
-        $pdf->SetXY(8, $height - 10);
-        $pdf->Cell(0, 5, 'IGNA Studio - Documento no controlado / For reference only', 0, 0, 'L');
+            return $watermarked;
+        } catch (Throwable $exception) {
+            $this->removeTemporaryDirectory($temporaryDirectory);
+
+            throw $exception;
+        }
     }
 
-    private function renderPdfPage(string $absolutePath, int $page): string
+    /**
+     * @return list<string>
+     */
+    private function rasterizePdf(string $absolutePath, string $temporaryDirectory, ?int $firstPage, ?int $lastPage): array
     {
-        if (! extension_loaded('imagick')) {
-            throw new RuntimeException('PDF preview rendering requires the Imagick PHP extension.');
+        $pdftoppm = (new ExecutableFinder)->find('pdftoppm');
+
+        if (! $pdftoppm) {
+            throw new RuntimeException('PDF rasterization requires the pdftoppm executable from Poppler.');
         }
 
-        $document = new \Imagick;
-        $document->setResolution(140, 140);
-        $document->readImage($absolutePath.'['.($page - 1).']');
-        $document->setImageBackgroundColor('white');
-        $document = $document->mergeImageLayers(\Imagick::LAYERMETHOD_FLATTEN);
-        $document->setImageFormat('jpeg');
-        $document->setImageCompressionQuality(88);
+        $prefix = $temporaryDirectory.'/source-page';
+        $arguments = [$pdftoppm, '-jpeg', '-r', (string) self::RASTER_DPI];
 
-        return $this->watermarkJpegBlob($document->getImageBlob());
+        if ($firstPage !== null) {
+            $arguments[] = '-f';
+            $arguments[] = (string) $firstPage;
+        }
+
+        if ($lastPage !== null) {
+            $arguments[] = '-l';
+            $arguments[] = (string) $lastPage;
+        }
+
+        $arguments[] = $absolutePath;
+        $arguments[] = $prefix;
+
+        $process = new Process($arguments);
+        $process->setTimeout(60);
+        $process->mustRun();
+
+        $pages = glob($temporaryDirectory.'/source-page-*.jpg') ?: [];
+        natsort($pages);
+
+        return array_values($pages);
     }
 
-    private function renderImage(string $absolutePath): string
+    private function normalizeImage(string $absolutePath, string $temporaryDirectory): string
     {
-        $contents = file_get_contents($absolutePath);
-
-        if ($contents === false) {
-            throw new RuntimeException('Credential preview file could not be read.');
-        }
-
-        return $this->watermarkJpegBlob($contents);
-    }
-
-    private function watermarkJpegBlob(string $blob): string
-    {
-        $source = imagecreatefromstring($blob);
-
-        if (! $source) {
-            throw new RuntimeException('Credential preview could not be rendered.');
-        }
+        $source = $this->loadImage($absolutePath);
+        $source = $this->applyExifOrientation($source, $absolutePath);
 
         $width = imagesx($source);
         $height = imagesy($source);
-        $maxWidth = 1500;
+        $canvas = imagecreatetruecolor($width, $height);
+        $white = imagecolorallocate($canvas, 255, 255, 255);
+        imagefill($canvas, 0, 0, $white);
+        imagecopy($canvas, $source, 0, 0, 0, 0, $width, $height);
+
+        $path = $temporaryDirectory.'/source-page-001.jpg';
+        imagejpeg($canvas, $path, self::JPEG_QUALITY);
+
+        return $path;
+    }
+
+    private function watermarkImageFile(string $sourcePath, string $targetPath): string
+    {
+        $image = $this->loadImage($sourcePath);
+        $width = imagesx($image);
+        $height = imagesy($image);
+        $maxWidth = 2200;
 
         if ($width > $maxWidth) {
             $ratio = $maxWidth / $width;
-            $resized = imagescale($source, $maxWidth, (int) round($height * $ratio));
-            imagedestroy($source);
-            $source = $resized ?: throw new RuntimeException('Credential preview resize failed.');
-            $width = imagesx($source);
-            $height = imagesy($source);
+            $resized = imagescale($image, $maxWidth, (int) round($height * $ratio));
+            $image = $resized ?: throw new RuntimeException('Credential raster resize failed.');
+            $width = imagesx($image);
+            $height = imagesy($image);
         }
 
-        $this->applyWatermarks($source, $width, $height);
+        $this->applyWatermarks($image, $width, $height);
+        imagejpeg($image, $targetPath, self::JPEG_QUALITY);
 
-        ob_start();
-        imagejpeg($source, null, 86);
-        $jpeg = (string) ob_get_clean();
-        imagedestroy($source);
+        if (! is_file($targetPath) || filesize($targetPath) === 0) {
+            throw new RuntimeException('Credential protected raster page could not be written.');
+        }
 
-        return $jpeg;
+        return $targetPath;
+    }
+
+    private function loadImage(string $path): \GdImage
+    {
+        $contents = file_get_contents($path);
+
+        if ($contents === false) {
+            throw new RuntimeException('Credential raster source could not be read.');
+        }
+
+        $image = imagecreatefromstring($contents);
+
+        if (! $image) {
+            throw new RuntimeException('Credential raster source could not be decoded.');
+        }
+
+        return $image;
+    }
+
+    private function applyExifOrientation(\GdImage $source, string $absolutePath): \GdImage
+    {
+        if (! extension_loaded('exif') || ! function_exists('exif_read_data')) {
+            return $source;
+        }
+
+        $type = @exif_imagetype($absolutePath);
+
+        if (! in_array($type, [IMAGETYPE_JPEG, IMAGETYPE_TIFF_II, IMAGETYPE_TIFF_MM], true)) {
+            return $source;
+        }
+
+        $exif = @exif_read_data($absolutePath);
+        $orientation = (int) ($exif['Orientation'] ?? 1);
+
+        return match ($orientation) {
+            3 => imagerotate($source, 180, 0) ?: $source,
+            6 => imagerotate($source, -90, 0) ?: $source,
+            8 => imagerotate($source, 90, 0) ?: $source,
+            default => $source,
+        };
     }
 
     private function applyWatermarks(\GdImage $image, int $width, int $height): void
     {
         $font = $this->fontPath();
-        $primary = imagecolorallocatealpha($image, 42, 42, 36, 72);
+        $primary = imagecolorallocatealpha($image, 42, 42, 36, 70);
         $warning = imagecolorallocatealpha($image, 120, 48, 48, 58);
         $small = imagecolorallocatealpha($image, 80, 72, 64, 42);
 
         if ($font) {
-            for ($y = -120; $y < $height + 220; $y += 260) {
-                for ($x = -220; $x < $width + 260; $x += 520) {
-                    imagettftext($image, max(34, (int) ($width / 30)), -25, $x, $y, $primary, $font, 'IGNA STUDIO');
-                    imagettftext($image, max(16, (int) ($width / 78)), -25, $x + 28, $y + 54, $warning, $font, 'DOCUMENTO NO CONTROLADO / UNCONTROLLED DOCUMENT');
-                    imagettftext($image, max(15, (int) ($width / 85)), -25, $x + 58, $y + 92, $warning, $font, 'SOLO PARA CONSULTA / FOR REFERENCE ONLY');
+            for ($y = -120; $y < $height + 220; $y += max(190, (int) ($height / 4.5))) {
+                for ($x = -220; $x < $width + 260; $x += max(420, (int) ($width / 2.8))) {
+                    imagettftext($image, max(28, (int) ($width / 34)), -25, $x, $y, $primary, $font, 'IGNA Studio');
+                    imagettftext($image, max(13, (int) ($width / 92)), -25, $x + 28, $y + 48, $warning, $font, 'Copia protegida de credencial');
+                    imagettftext($image, max(13, (int) ($width / 92)), -25, $x + 28, $y + 76, $warning, $font, 'Protected credential copy');
                 }
             }
 
-            imagettftext($image, max(14, (int) ($width / 95)), 0, 28, $height - 30, $small, $font, 'IGNA Studio · Solo para consulta / For reference only');
+            imagettftext($image, max(12, (int) ($width / 115)), 0, 28, $height - 30, $small, $font, 'IGNA Studio - Copia protegida de credencial / Protected credential copy');
 
             return;
         }
 
         for ($y = 30; $y < $height; $y += 120) {
             for ($x = 20; $x < $width; $x += 260) {
-                imagestring($image, 5, $x, $y, 'IGNA STUDIO', $primary);
-                imagestring($image, 3, $x, $y + 24, 'NO CONTROLADO / UNCONTROLLED', $warning);
-                imagestring($image, 3, $x, $y + 44, 'SOLO CONSULTA / REFERENCE ONLY', $warning);
+                imagestring($image, 5, $x, $y, 'IGNA Studio', $primary);
+                imagestring($image, 3, $x, $y + 24, 'Copia protegida', $warning);
+                imagestring($image, 3, $x, $y + 44, 'Protected copy', $warning);
             }
         }
+    }
+
+    private function protectedPath(TeamCredential $credential): string
+    {
+        $teamMember = $credential->teamMember;
+        $slug = $teamMember?->slug ?: 'team-member';
+
+        return 'team/credentials/'.$slug.'/protected/'.$credential->id.'-v'.self::PROTECTION_VERSION.'-'.Str::uuid().'.pdf';
+    }
+
+    private function markFailed(TeamCredential $credential, string $error, bool $preserveReadyDerivative = false): TeamCredential
+    {
+        $credential->forceFill([
+            'protection_status' => $preserveReadyDerivative && $credential->protected_document_path ? 'ready' : 'failed',
+            'protection_error' => $error,
+            'protection_version' => self::PROTECTION_VERSION,
+        ])->save();
+
+        return $credential->refresh();
+    }
+
+    private function safeError(Throwable|string $error): string
+    {
+        $message = $error instanceof Throwable ? $error->getMessage() : $error;
+
+        if (str_contains($message, 'pdftoppm')) {
+            return 'PDF rasterization requires Poppler pdftoppm on the server.';
+        }
+
+        return Str::limit(preg_replace('/\s+/', ' ', $message) ?: 'Protected credential generation failed.', 180, '');
+    }
+
+    private function temporaryDirectory(): string
+    {
+        $path = storage_path('app/tmp/credential-protection/'.Str::uuid());
+
+        if (! is_dir($path) && ! mkdir($path, 0700, true) && ! is_dir($path)) {
+            throw new RuntimeException('Credential raster temporary directory could not be created.');
+        }
+
+        return $path;
+    }
+
+    private function removeTemporaryDirectory(string $directory): void
+    {
+        if ($directory === '' || ! is_dir($directory) || ! str_contains($directory, 'credential-protection')) {
+            return;
+        }
+
+        foreach (glob($directory.'/*') ?: [] as $path) {
+            @unlink($path);
+        }
+
+        @rmdir($directory);
     }
 
     private function isPdf(string $absolutePath, ?string $mimeType): bool

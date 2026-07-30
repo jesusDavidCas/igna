@@ -56,15 +56,32 @@
                                     {{ $credential->is_public ? __('site.public_listing') : __('site.internal_only') }}
                                     · {{ trans_choice('site.view_count', $credential->views->count(), ['count' => $credential->views->count()]) }}
                                 </p>
+                                <p class="mt-2 text-xs font-semibold uppercase tracking-[0.18em] {{ $credential->hasProtectedDerivative() ? 'text-emerald-700' : 'text-amber-700' }}">
+                                    @if ($credential->hasProtectedDerivative() && $credential->protection_error)
+                                        {{ __('site.credential_protection_ready_with_warning') }}
+                                    @elseif ($credential->hasProtectedDerivative())
+                                        {{ __('site.credential_protection_ready') }}
+                                    @elseif ($credential->protection_status === 'generating')
+                                        {{ __('site.credential_protection_generating') }}
+                                    @else
+                                        {{ __('site.credential_protection_failed') }}
+                                    @endif
+                                </p>
                             </div>
-                            <form method="POST" action="{{ route('admin.team.credentials.destroy', [$teamMember, $credential]) }}"
-                                data-confirm-title="{{ __('site.confirm_delete_credential_title') }}"
-                                data-confirm-message="{{ __('site.confirm_delete_credential_message') }}"
-                                data-confirm-danger="true">
-                                @csrf
-                                @method('DELETE')
-                                <button class="rounded-full border border-rose-200 px-3 py-1 text-sm font-semibold text-rose-700">{{ __('site.delete') }}</button>
-                            </form>
+                            <div class="flex shrink-0 flex-wrap gap-2">
+                                <form method="POST" action="{{ route('admin.team.credentials.regenerate', [$teamMember, $credential]) }}">
+                                    @csrf
+                                    <button class="rounded-full border border-stone-300 px-3 py-1 text-sm font-semibold text-stone-700">{{ __('site.regenerate_protected_credential') }}</button>
+                                </form>
+                                <form method="POST" action="{{ route('admin.team.credentials.destroy', [$teamMember, $credential]) }}"
+                                    data-confirm-title="{{ __('site.confirm_delete_credential_title') }}"
+                                    data-confirm-message="{{ __('site.confirm_delete_credential_message') }}"
+                                    data-confirm-danger="true">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button class="rounded-full border border-rose-200 px-3 py-1 text-sm font-semibold text-rose-700">{{ __('site.delete') }}</button>
+                                </form>
+                            </div>
                         </div>
                     </div>
                 @empty

@@ -9,6 +9,7 @@ use App\Models\Proposal;
 use App\Models\Service;
 use App\Models\TeamMember;
 use App\Models\Ticket;
+use App\Services\Credentials\CredentialPreviewRenderer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Mail;
@@ -166,10 +167,15 @@ class PublicPlatformTest extends TestCase
             'original_name' => 'credential.pdf',
             'mime_type' => 'application/pdf',
             'size_bytes' => 32000,
+            'protected_document_path' => "team/credentials/{$member->slug}/protected/credential-protected.pdf",
+            'protection_status' => 'ready',
             'preview_page_count' => 0,
             'is_public' => true,
             'sort_order' => 1,
         ]);
+        Storage::disk('local')->put($credential->protected_document_path, '%PDF-protected');
+        $this->assertTrue($credential->refresh()->hasProtectedDerivative());
+        Storage::disk('local')->assertExists($credential->protected_document_path);
 
         $this->get(route('proposals.public.token.show', $proposal->public_token))
             ->assertOk()
@@ -268,9 +274,14 @@ class PublicPlatformTest extends TestCase
     {
         Storage::fake('local');
 
+        $source = new \FPDF;
+        $source->AddPage();
+        $source->SetFont('Helvetica', 'B', 18);
+        $source->Cell(0, 10, 'Professional diploma');
+
         $member = TeamMember::query()->firstOrFail();
-        $path = UploadedFile::fake()->create('credential.pdf', 32, 'application/pdf')
-            ->storeAs("team/credentials/{$member->slug}", 'credential.pdf', 'local');
+        $path = "team/credentials/{$member->slug}/credential.pdf";
+        Storage::disk('local')->put($path, $source->Output('S'));
 
         $credential = $member->credentials()->create([
             'title' => 'Professional diploma',
@@ -278,11 +289,14 @@ class PublicPlatformTest extends TestCase
             'document_path' => $path,
             'original_name' => 'credential.pdf',
             'mime_type' => 'application/pdf',
-            'size_bytes' => 32000,
+            'size_bytes' => Storage::disk('local')->size($path),
             'preview_page_count' => 0,
             'is_public' => true,
             'sort_order' => 1,
         ]);
+        $credential = app(CredentialPreviewRenderer::class)->generateProtectedDerivative($credential);
+        $this->assertTrue($credential->hasProtectedDerivative());
+        Storage::disk('local')->assertExists($credential->protected_document_path);
 
         $url = URL::temporarySignedRoute('team.credentials.show', now()->addMinutes(5), [
             'teamMember' => $member,
@@ -292,13 +306,13 @@ class PublicPlatformTest extends TestCase
         $this->get($url)
             ->assertOk()
             ->assertSee('Professional diploma')
-            ->assertSee(__('site.open_pdf_new_tab'))
-            ->assertSee(__('site.protected_pdf_download_note'))
-            ->assertSee('toolbar=1', false)
-            ->assertSee('<object', false);
+            ->assertSeeText(__('site.download_protected_credential'))
+            ->assertSeeText(__('site.protected_pdf_download_note'))
+            ->assertDontSee('toolbar=1', false)
+            ->assertDontSee('<object', false);
     }
 
-    public function test_public_pdf_credential_file_route_returns_watermarked_derivative(): void
+    public function test_public_pdf_credential_file_route_returns_rasterized_derivative_only(): void
     {
         Storage::fake('local');
 
@@ -322,6 +336,7 @@ class PublicPlatformTest extends TestCase
             'is_public' => true,
             'sort_order' => 1,
         ]);
+        $credential = app(CredentialPreviewRenderer::class)->generateProtectedDerivative($credential);
 
         $url = URL::temporarySignedRoute('team.credentials.file', now()->addMinutes(5), [
             'teamMember' => $member,
@@ -333,11 +348,44 @@ class PublicPlatformTest extends TestCase
         $response
             ->assertOk()
             ->assertHeader('content-type', 'application/pdf')
-            ->assertHeader('content-disposition', 'inline; filename="credential-protected.pdf"');
+            ->assertHeader('content-disposition', 'attachment; filename="credential-protected.pdf"')
+            ->assertHeader('x-content-type-options', 'nosniff');
 
         $this->assertStringStartsWith('%PDF', $response->getContent());
-        $this->assertStringContainsString('IGNA STUDIO', $response->getContent());
-        $this->assertStringContainsString('DOCUMENTO NO CONTROLADO', $response->getContent());
+        $this->assertStringNotContainsString('Original credential content', $response->getContent());
+        $this->assertStringNotContainsString($credential->document_path, $response->getContent());
+        Storage::disk('local')->assertExists($credential->document_path);
+        Storage::disk('local')->assertExists($credential->protected_document_path);
+        $this->assertNotSame($credential->original_checksum, $credential->protected_checksum);
+    }
+
+    public function test_public_credential_file_route_fails_closed_without_protected_derivative(): void
+    {
+        Storage::fake('local');
+
+        $member = TeamMember::query()->firstOrFail();
+        $path = UploadedFile::fake()->create('credential.pdf', 32, 'application/pdf')
+            ->storeAs("team/credentials/{$member->slug}", 'credential.pdf', 'local');
+
+        $credential = $member->credentials()->create([
+            'title' => 'Unprotected credential',
+            'institution' => 'Universidad de prueba',
+            'document_path' => $path,
+            'original_name' => 'credential.pdf',
+            'mime_type' => 'application/pdf',
+            'size_bytes' => 32000,
+            'protection_status' => 'failed',
+            'preview_page_count' => 0,
+            'is_public' => true,
+            'sort_order' => 1,
+        ]);
+
+        $url = URL::temporarySignedRoute('team.credentials.file', now()->addMinutes(5), [
+            'teamMember' => $member,
+            'credential' => $credential,
+        ]);
+
+        $this->get($url)->assertNotFound();
     }
 
     public function test_private_or_mismatched_credentials_are_not_publicly_accessible_even_with_signed_urls(): void

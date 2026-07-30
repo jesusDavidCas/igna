@@ -30,7 +30,8 @@ class TeamCredentialController extends Controller
         return view('public.team.credential', [
             'teamMember' => $teamMember,
             'credential' => $credential,
-            'fileExists' => Storage::disk('local')->exists($credential->document_path),
+            'fileExists' => $credential->hasProtectedDerivative()
+                && Storage::disk('local')->exists($credential->protected_document_path),
             'seo' => $seo->meta([
                 'title' => $credential->title.' | IGNA Studio',
                 'description' => __('site.private_credential_meta_description'),
@@ -42,12 +43,13 @@ class TeamCredentialController extends Controller
     public function previewPage(TeamMember $teamMember, TeamCredential $credential, int $page, CredentialPreviewRenderer $previewRenderer): Response
     {
         $this->authorizeCredential($teamMember, $credential);
-        abort_unless(Storage::disk('local')->exists($credential->document_path), 404);
+        abort_unless($credential->hasProtectedDerivative(), 404);
+        abort_unless(Storage::disk('local')->exists($credential->protected_document_path), 404);
         abort_unless($credential->hasRenderablePreview() && $page >= 1 && $page <= $credential->preview_page_count, 404);
 
         $jpeg = $previewRenderer->renderJpeg(
-            Storage::disk('local')->path($credential->document_path),
-            $credential->mime_type,
+            Storage::disk('local')->path($credential->protected_document_path),
+            'application/pdf',
             $page,
         );
 
@@ -56,24 +58,22 @@ class TeamCredentialController extends Controller
             'Content-Disposition' => 'inline; filename="credential-preview-'.$page.'.jpg"',
             'Cache-Control' => 'no-store, private',
             'X-Robots-Tag' => 'noindex, nofollow, noarchive',
+            'X-Content-Type-Options' => 'nosniff',
         ]);
     }
 
-    public function file(TeamMember $teamMember, TeamCredential $credential, CredentialPreviewRenderer $previewRenderer): Response
+    public function file(TeamMember $teamMember, TeamCredential $credential): Response
     {
         $this->authorizeCredential($teamMember, $credential);
-        abort_unless(Storage::disk('local')->exists($credential->document_path), 404);
-
-        $protectedFile = $previewRenderer->renderProtectedFile(
-            Storage::disk('local')->path($credential->document_path),
-            $credential->mime_type,
-        );
+        abort_unless($credential->hasProtectedDerivative(), 404);
+        abort_unless(Storage::disk('local')->exists($credential->protected_document_path), 404);
 
         $safeName = pathinfo(str_replace('"', '', $credential->original_name), PATHINFO_FILENAME) ?: 'credential';
+        $contents = Storage::disk('local')->get($credential->protected_document_path);
 
-        return response($protectedFile['contents'], 200, [
-            'Content-Type' => $protectedFile['mime_type'],
-            'Content-Disposition' => 'inline; filename="'.$safeName.'-protected.'.$protectedFile['extension'].'"',
+        return response($contents, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$safeName.'-protected.pdf"',
             'Cache-Control' => 'no-store, private',
             'X-Robots-Tag' => 'noindex, nofollow, noarchive',
             'X-Content-Type-Options' => 'nosniff',

@@ -368,6 +368,8 @@ class AdminOperationsTest extends TestCase
         $credential = $member->credentials()->firstOrFail();
 
         Storage::disk('local')->assertExists($credential->document_path);
+        Storage::disk('local')->assertExists($credential->protected_document_path);
+        $this->assertSame('ready', $credential->protection_status);
 
         $viewUrl = URL::temporarySignedRoute('team.credentials.show', now()->addMinutes(5), [
             'teamMember' => $member,
@@ -389,6 +391,16 @@ class AdminOperationsTest extends TestCase
         $this->get($previewUrl)
             ->assertOk()
             ->assertHeader('content-type', 'image/jpeg');
+
+        $fileUrl = URL::temporarySignedRoute('team.credentials.file', now()->addMinutes(5), [
+            'teamMember' => $member,
+            'credential' => $credential,
+        ]);
+
+        $this->get($fileUrl)
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf')
+            ->assertHeader('content-disposition', 'attachment; filename="diploma-protected.pdf"');
     }
 
     public function test_admin_can_create_proposal_with_calculated_totals(): void

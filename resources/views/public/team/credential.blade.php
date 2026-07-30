@@ -19,22 +19,10 @@
                     <div class="rounded-2xl bg-white p-3 shadow-sm">
                         <div class="mb-3 flex flex-col gap-3 rounded-xl border border-stone-200 bg-stone-50 p-4 md:flex-row md:items-center md:justify-between">
                             <p class="text-sm leading-6 text-stone-600">{{ __('site.protected_pdf_download_note') }}</p>
-                            <a href="{{ URL::temporarySignedRoute('team.credentials.file', now()->addMinutes(10), [$teamMember, $credential]) }}" target="_blank" rel="noopener" class="inline-flex justify-center rounded-full bg-olive-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-olive-800">
-                                {{ __('site.open_pdf_new_tab') }}
+                            <a href="{{ URL::temporarySignedRoute('team.credentials.file', now()->addMinutes(10), [$teamMember, $credential]) }}" class="inline-flex justify-center rounded-full bg-olive-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-olive-800">
+                                {{ __('site.download_protected_credential') }}
                             </a>
                         </div>
-                        <object
-                            data="{{ URL::temporarySignedRoute('team.credentials.file', now()->addMinutes(10), [$teamMember, $credential]) }}#toolbar=1&navpanes=1"
-                            type="application/pdf"
-                            class="h-[78vh] w-full rounded-xl border border-stone-200 bg-white"
-                        >
-                            <div class="p-8 text-base leading-7 text-stone-600">
-                                <p>{{ __('site.credential_not_previewable') }}</p>
-                                <a href="{{ URL::temporarySignedRoute('team.credentials.file', now()->addMinutes(10), [$teamMember, $credential]) }}" target="_blank" rel="noopener" class="mt-5 inline-flex rounded-full bg-olive-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-olive-800">
-                                    {{ __('site.open_pdf_new_tab') }}
-                                </a>
-                            </div>
-                        </object>
                     </div>
                 @elseif ($credential->hasRenderablePreview())
                     <div class="space-y-5">
@@ -51,7 +39,7 @@
                     <div class="p-10 text-base leading-7 text-stone-600">
                         <p>{{ __('site.credential_not_previewable') }}</p>
                         <a href="{{ URL::temporarySignedRoute('team.credentials.file', now()->addMinutes(10), [$teamMember, $credential]) }}" target="_blank" rel="noopener" class="mt-5 inline-flex rounded-full bg-olive-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-olive-800">
-                            {{ __('site.open_pdf_new_tab') }}
+                            {{ __('site.download_protected_credential') }}
                         </a>
                     </div>
                 @endif

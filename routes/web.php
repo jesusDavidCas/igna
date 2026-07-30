@@ -127,6 +127,7 @@ Route::prefix('admin')
         Route::resource('blog', AdminBlogPostController::class)->parameters(['blog' => 'post'])->except(['show']);
         Route::resource('team', AdminTeamMemberController::class)->parameters(['team' => 'teamMember'])->except(['show', 'destroy']);
         Route::post('/team/{teamMember}/credentials', [AdminTeamCredentialController::class, 'store'])->name('team.credentials.store');
+        Route::post('/team/{teamMember}/credentials/{credential}/regenerate', [AdminTeamCredentialController::class, 'regenerate'])->name('team.credentials.regenerate');
         Route::delete('/team/{teamMember}/credentials/{credential}', [AdminTeamCredentialController::class, 'destroy'])->name('team.credentials.destroy');
         Route::get('/proposals/{proposal}/pdf', [AdminProposalController::class, 'pdf'])->name('proposals.pdf');
         Route::resource('proposals', AdminProposalController::class)->except(['destroy']);

@@ -18,9 +18,16 @@ class TeamCredential extends Model
         'institution',
         'issued_at',
         'document_path',
+        'protected_document_path',
         'original_name',
         'mime_type',
         'size_bytes',
+        'original_checksum',
+        'protected_checksum',
+        'protected_generated_at',
+        'protection_version',
+        'protection_status',
+        'protection_error',
         'preview_page_count',
         'is_public',
         'sort_order',
@@ -30,6 +37,8 @@ class TeamCredential extends Model
     {
         return [
             'issued_at' => 'date',
+            'protected_generated_at' => 'datetime',
+            'protection_version' => 'integer',
             'preview_page_count' => 'integer',
             'is_public' => 'boolean',
         ];
@@ -62,6 +71,11 @@ class TeamCredential extends Model
 
     public function hasRenderablePreview(): bool
     {
-        return $this->isImage() && $this->preview_page_count > 0;
+        return $this->isImage() && $this->hasProtectedDerivative() && $this->preview_page_count > 0;
+    }
+
+    public function hasProtectedDerivative(): bool
+    {
+        return $this->protection_status === 'ready' && filled($this->protected_document_path);
     }
 }

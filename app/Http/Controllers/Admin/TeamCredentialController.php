@@ -20,7 +20,7 @@ class TeamCredentialController extends Controller
         $path = $file->storeAs("team/credentials/{$teamMember->slug}", $storedName, 'local');
         $mimeType = $file->getClientMimeType();
 
-        $teamMember->credentials()->create([
+        $credential = $teamMember->credentials()->create([
             'title' => $request->validated('title'),
             'credential_type' => null,
             'institution' => $request->validated('institution'),
@@ -34,14 +34,42 @@ class TeamCredentialController extends Controller
             'sort_order' => $request->validated('sort_order') ?? 0,
         ]);
 
+        $credential = $previewRenderer->generateProtectedDerivative($credential);
+
+        if ($credential->protection_status !== 'ready') {
+            return redirect()
+                ->route('admin.team.edit', $teamMember)
+                ->with('warning', __('site.team_credential_protection_failed'));
+        }
+
         return redirect()->route('admin.team.edit', $teamMember)->with('success', __('site.team_credential_uploaded'));
+    }
+
+    public function regenerate(TeamMember $teamMember, TeamCredential $credential, CredentialPreviewRenderer $previewRenderer): RedirectResponse
+    {
+        abort_unless($credential->team_member_id === $teamMember->id, 404);
+
+        $credential = $previewRenderer->generateProtectedDerivative($credential);
+
+        if ($credential->protection_error) {
+            return redirect()
+                ->route('admin.team.edit', $teamMember)
+                ->with('warning', __('site.team_credential_regeneration_failed'));
+        }
+
+        return redirect()
+            ->route('admin.team.edit', $teamMember)
+            ->with('success', __('site.team_credential_regenerated'));
     }
 
     public function destroy(TeamMember $teamMember, TeamCredential $credential): RedirectResponse
     {
         abort_unless($credential->team_member_id === $teamMember->id, 404);
 
-        Storage::disk('local')->delete($credential->document_path);
+        Storage::disk('local')->delete(array_filter([
+            $credential->document_path,
+            $credential->protected_document_path,
+        ]));
         $credential->delete();
 
         return redirect()->route('admin.team.edit', $teamMember)->with('success', __('site.team_credential_deleted'));
