@@ -125,9 +125,9 @@ Phase 5A.8 must complete and then the human release approver should repeat accep
 | Proposal templates | Catalogue labels are clean; Edit/Editar is correct; one visible title field is shown; permanent Delete/Eliminar removes only reusable templates and rows. |
 | Proposal rich text | Bold, italic, clear formatting, bulleted lists, numbered lists, character limit, save/reload, and PDF output remain accepted. |
 | Proposal PDF | Generated PDF reflects saved proposal items, renders rich-text lists correctly, and uses localized proposal title when populated. |
-| Production prerequisites | PHP GD, `pdftoppm`, `proc_open`, `proc_get_status`, and `proc_close` are available where needed. |
+| Production prerequisites | PHP GD, Ghostscript `/usr/bin/gs` 9.54.0, Imagick diagnostics, and `proc_open`/`proc_get_status`/`proc_close` are verified on Hostinger. Poppler `pdftoppm` remains preferred when available; direct Ghostscript is the supported fallback. |
 | Deployment control | Deployment remains human-operated through approved runbooks. |
 
 ## Final Recommendation
 
-Phase 5A is technically source-ready after Round 6 local verification. Complete final human approval and production preflight before deployment.
+Phase 5A is technically source-ready after Round 6 local verification and the Hostinger credential-rasterization capability check. Complete final human approval before deployment.

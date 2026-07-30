@@ -50,7 +50,12 @@ return [
     ],
 
     'poppler' => [
+        'enabled' => env('POPPLER_ENABLED', true),
         'pdftoppm' => env('POPPLER_PDFTOPPM_PATH'),
+    ],
+
+    'ghostscript' => [
+        'gs' => env('GHOSTSCRIPT_PATH'),
     ],
 
 ];

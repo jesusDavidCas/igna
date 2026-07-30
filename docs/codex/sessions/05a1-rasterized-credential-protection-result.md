@@ -19,7 +19,7 @@ The previous PDF protection could leave clean original PDF content available und
 
 - `document_path` remains the private original credential source.
 - A new `protected_document_path` stores a private rasterized PDF derivative.
-- PDF originals are rasterized page by page with Poppler `pdftoppm` at 170 DPI.
+- PDF originals are rasterized page by page at 170 DPI. Poppler `pdftoppm` is preferred when available; Phase 5A.8 later added direct Ghostscript execution as the supported production fallback.
 - Image originals are decoded with GD, EXIF orientation is normalized when available, transparency is flattened to white, and the page is written as JPEG.
 - Each raster page receives the IGNA Studio protected-copy watermark directly in the image pixels.
 - FPDF assembles the watermarked raster pages into a new protected PDF.
@@ -43,6 +43,7 @@ The migration is additive, reversible, and preserves existing credential records
 ## Rasterization Engine
 
 - Selected engine: Poppler `pdftoppm` CLI for PDF-to-JPEG rasterization.
+- Superseding production fallback: Phase 5A.8 added direct Ghostscript `gs` execution through Symfony Process for hosts without Poppler.
 - Required PHP extension: `gd`.
 - Useful PHP extension: `exif` for JPEG/TIFF orientation normalization.
 - Existing packages used: `setasign/fpdf`, `setasign/fpdi`, `symfony/process`.
@@ -54,7 +55,7 @@ Local capability check:
 - `exif`: available.
 - `imagick`: not available and no longer required.
 - `pdftoppm`: available locally.
-- `gs`: not available locally.
+- `gs`: not available locally during Phase 5A.1; later verified on Hostinger at `/usr/bin/gs` version 9.54.0.
 - `soffice`: available locally for manual DOCX conversion.
 
 ## Watermark Implementation
@@ -141,17 +142,17 @@ Hostinger must provide:
 
 - PHP 8.4 with `gd`.
 - Optional but recommended `exif`.
-- Poppler `pdftoppm` executable available to PHP's process user.
+- Poppler `pdftoppm` executable available to PHP's process user, or Ghostscript `gs` for the supported fallback.
 - Writable Laravel storage and temporary storage.
 - Enough memory and execution time for 150-200 DPI page rasterization.
 
-The feature should not be declared production-ready until `pdftoppm` availability is confirmed on Hostinger. Without `pdftoppm`, PDF credential generation fails closed.
+Superseding Phase 5A.8 note: Hostinger verified PHP GD, Imagick diagnostics, Ghostscript `/usr/bin/gs` 9.54.0, and required PHP process functions. Poppler remains preferred when available; direct Ghostscript execution is the supported fallback. Imagick PDF support is not required.
 
 Suggested post-deployment verification:
 
 ```bash
 php -m | grep -E '(^gd$|^exif$)'
-command -v pdftoppm
+command -v pdftoppm || command -v gs
 php artisan route:list --except-vendor | grep credentials
 ```
 

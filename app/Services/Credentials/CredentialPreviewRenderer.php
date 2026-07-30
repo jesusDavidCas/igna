@@ -190,11 +190,34 @@ class CredentialPreviewRenderer
     private function rasterizePdf(string $absolutePath, string $temporaryDirectory, ?int $firstPage, ?int $lastPage): array
     {
         $pdftoppm = $this->pdftoppmPath();
+        $popplerException = null;
 
-        if (! $pdftoppm) {
-            throw new RuntimeException('PDF rasterization requires the pdftoppm executable from Poppler.');
+        if ($pdftoppm) {
+            try {
+                return $this->rasterizePdfWithPoppler($pdftoppm, $absolutePath, $temporaryDirectory, $firstPage, $lastPage);
+            } catch (Throwable $exception) {
+                $popplerException = $exception;
+            }
         }
 
+        $ghostscript = $this->ghostscriptPath();
+
+        if ($ghostscript) {
+            return $this->rasterizePdfWithGhostscript($ghostscript, $absolutePath, $temporaryDirectory, $firstPage, $lastPage);
+        }
+
+        if ($popplerException) {
+            throw $popplerException;
+        }
+
+        throw new RuntimeException('PDF rasterization requires Poppler pdftoppm or Ghostscript gs on the server.');
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function rasterizePdfWithPoppler(string $pdftoppm, string $absolutePath, string $temporaryDirectory, ?int $firstPage, ?int $lastPage): array
+    {
         $prefix = $temporaryDirectory.'/source-page';
         $arguments = [$pdftoppm, '-jpeg', '-r', (string) self::RASTER_DPI];
 
@@ -229,6 +252,55 @@ class CredentialPreviewRenderer
 
         if ($pages === []) {
             throw new RuntimeException('PDF rasterization produced no readable page images.');
+        }
+
+        return $pages;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function rasterizePdfWithGhostscript(string $ghostscript, string $absolutePath, string $temporaryDirectory, ?int $firstPage, ?int $lastPage): array
+    {
+        $outputPattern = $temporaryDirectory.'/source-page-%03d.png';
+        $arguments = [
+            $ghostscript,
+            '-q',
+            '-dSAFER',
+            '-dBATCH',
+            '-dNOPAUSE',
+            '-sDEVICE=png16m',
+            '-r'.self::RASTER_DPI,
+            '-dTextAlphaBits=4',
+            '-dGraphicsAlphaBits=4',
+        ];
+
+        if ($firstPage !== null) {
+            $arguments[] = '-dFirstPage='.$firstPage;
+        }
+
+        if ($lastPage !== null) {
+            $arguments[] = '-dLastPage='.$lastPage;
+        }
+
+        $arguments[] = '-sOutputFile='.$outputPattern;
+        $arguments[] = $absolutePath;
+
+        $process = new Process($arguments);
+        $process->setTimeout(60);
+        $process->run();
+
+        if (! $process->isSuccessful()) {
+            throw new RuntimeException('Ghostscript PDF rasterization failed with code '.$process->getExitCode().': '.$this->sanitizeProcessOutput($process->getErrorOutput() ?: $process->getOutput()));
+        }
+
+        $pages = glob($temporaryDirectory.'/source-page-*.png') ?: [];
+        natsort($pages);
+
+        $pages = array_values(array_filter($pages, fn (string $path): bool => is_file($path) && filesize($path) > 0));
+
+        if ($pages === []) {
+            throw new RuntimeException('Ghostscript PDF rasterization produced no readable page images.');
         }
 
         return $pages;
@@ -370,8 +442,8 @@ class CredentialPreviewRenderer
     {
         $message = $error instanceof Throwable ? $error->getMessage() : $error;
 
-        if (str_contains($message, 'pdftoppm')) {
-            return 'PDF rasterization requires Poppler pdftoppm on the server.';
+        if (str_contains($message, 'pdftoppm') || str_contains($message, 'Ghostscript') || str_contains($message, ' gs ')) {
+            return 'PDF rasterization requires Poppler pdftoppm or Ghostscript gs on the server.';
         }
 
         return Str::limit(preg_replace('/\s+/', ' ', $message) ?: 'Protected credential generation failed.', 180, '');
@@ -387,6 +459,10 @@ class CredentialPreviewRenderer
 
     private function pdftoppmPath(): ?string
     {
+        if (! config('services.poppler.enabled', true)) {
+            return null;
+        }
+
         $configured = config('services.poppler.pdftoppm');
 
         if (is_string($configured) && $configured !== '' && is_executable($configured)) {
@@ -406,6 +482,37 @@ class CredentialPreviewRenderer
             '/opt/homebrew/bin/pdftoppm',
             $home !== '' ? $home.'/.local/bin/pdftoppm' : null,
             $home !== '' ? $home.'/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/override/pdftoppm' : null,
+        ]);
+
+        foreach ($candidates as $candidate) {
+            if (is_executable($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private function ghostscriptPath(): ?string
+    {
+        $configured = config('services.ghostscript.gs');
+
+        if (is_string($configured) && $configured !== '' && is_executable($configured)) {
+            return $configured;
+        }
+
+        $found = (new ExecutableFinder)->find('gs');
+
+        if ($found && is_executable($found)) {
+            return $found;
+        }
+
+        $home = rtrim((string) (getenv('HOME') ?: ''), '/');
+        $candidates = array_filter([
+            '/usr/bin/gs',
+            '/usr/local/bin/gs',
+            '/opt/homebrew/bin/gs',
+            $home !== '' ? $home.'/.local/bin/gs' : null,
         ]);
 
         foreach ($candidates as $candidate) {

@@ -39,17 +39,17 @@ Local-only evidence was written under:
 
 ## Credential Acceptance
 
-Status: ACCEPTED BY HUMAN QA, READY WITH PRODUCTION PREREQUISITE VALIDATION
+Status: ACCEPTED BY HUMAN QA, READY WITH VERIFIED HOSTINGER GHOSTSCRIPT FALLBACK
 
 - Synthetic team member and credential records were created.
 - The original credential remained private.
 - A protected derivative was generated successfully.
 - The protected derivative was downloadable through the signed credential route.
 - Missing derivative access failed closed with a not-found response.
-- Response headers included PDF content type, attachment disposition, and `nosniff`.
+- Response headers included PDF content type, inline disposition, and `nosniff`.
 - PDF inspection confirmed a single-page protected derivative.
 - Rendered image review confirmed the visible `IGNA Studio` watermark on the synthetic protected credential.
-- Human QA later accepted the corrected real administration upload, regeneration, and protected-viewer path. Production must still confirm GD, Poppler `pdftoppm`, and process functions before relying on credential generation.
+- Human QA later accepted the corrected real administration upload, regeneration, and protected-viewer path. Hostinger production capability verification confirmed PHP GD, Imagick, Ghostscript `/usr/bin/gs` 9.54.0, and `proc_open`/`proc_get_status`/`proc_close`. Poppler `pdftoppm` remains preferred when available; direct Ghostscript execution is the supported production fallback. Imagick PDF support is optional and diagnostic only.
 
 Evidence:
 
@@ -250,5 +250,5 @@ Use the retained synthetic `QA 5A7` records and new Phase 5A.8 evidence folders 
 - Human visual approval of the protected credential derivative after real administration upload succeeds.
 - Human visual approval of the generated proposal PDF.
 - Human copy approval for English and Spanish upload notification messages.
-- Production prerequisite confirmation for credential generation: PHP GD, `pdftoppm`, `proc_open`, `proc_get_status`, and `proc_close`.
+- Production credential generation capability is confirmed for PHP GD, Ghostscript `/usr/bin/gs`, and required PHP process functions. Poppler `pdftoppm` remains preferred when available; Imagick PDF support is not required.
 - Production deployment and production smoke test remain separate human-controlled activities.

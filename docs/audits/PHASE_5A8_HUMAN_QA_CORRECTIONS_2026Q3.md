@@ -191,7 +191,7 @@ Human approval is still required before production deployment. Technical source 
 
 ## Remaining Limitations
 
-- Production credential generation still requires Hostinger capability confirmation for GD, Poppler `pdftoppm`, and process functions.
+- Hostinger credential-rasterization capability is now verified: PHP GD, Imagick diagnostics, Ghostscript `/usr/bin/gs` 9.54.0, and `proc_open`/`proc_get_status`/`proc_close` are available. The supported production fallback is direct Ghostscript execution; Poppler `pdftoppm` remains preferred when available and Imagick PDF support is optional/diagnostic only.
 - No dynamic translation provider is configured; this is explicit rather than hidden by copied text and blocks readiness.
 - Real-provider smoke tests in both directions were not possible locally because no real provider adapter or credential is configured.
 - Full development `npm audit` still reports development-tool advisories; the production audit is clean.

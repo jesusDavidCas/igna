@@ -150,7 +150,7 @@ The Phase 5A.5 decision to allow administrators and superadministrators to manag
 - Temporary raster files are removed by the renderer.
 - Download responses set private/no-store cache headers, noindex robots headers, attachment disposition, and `nosniff`.
 - Private storage paths were not found in credential HTTP responses covered by tests.
-- Production prerequisites still require human server confirmation: PHP GD, `pdftoppm`, `proc_open`, `proc_get_status`, and `proc_close`.
+- Superseding Phase 5A.8/Hostinger note: PHP GD, Ghostscript `/usr/bin/gs` 9.54.0, Imagick diagnostics, and `proc_open`/`proc_get_status`/`proc_close` are verified. Poppler `pdftoppm` remains preferred when available; direct Ghostscript execution is the supported fallback.
 
 ## Code Quality Findings
 
@@ -224,12 +224,12 @@ The Phase 5A.5 decision to allow administrators and superadministrators to manag
 
 - Human visual QA should complete upload, download, PDF, and mail-preview paths with local non-sensitive fixtures.
 - Development-only npm advisories should be handled in a separate dependency-maintenance pass.
-- Production credential generation prerequisites must be confirmed on Hostinger before relying on credential regeneration in production.
+- Production credential generation prerequisites have been confirmed on Hostinger for the supported Ghostscript fallback. Poppler remains preferred when available.
 
 ## Production Prerequisites
 
 - PHP GD enabled.
-- Poppler `pdftoppm` available to the Laravel process.
+- Poppler `pdftoppm` available to the Laravel process, or Ghostscript `/usr/bin/gs` available for the supported fallback.
 - `proc_open`, `proc_get_status`, and `proc_close` enabled.
 - Writable Laravel storage and cache directories.
 - Mail configuration verified in production without exposing credentials.
