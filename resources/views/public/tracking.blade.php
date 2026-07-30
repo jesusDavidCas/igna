@@ -35,7 +35,7 @@
                             <div>
                                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">{{ $ticket->ticket_code }}</p>
                                 <h2 class="mt-3 text-3xl font-semibold text-stone-950">{{ $ticket->localizedProjectName() }}</h2>
-                                <p class="mt-2 text-base text-stone-600">{{ $ticket->service->localizedName() }}</p>
+                                <p class="mt-2 text-base text-stone-600">{{ $ticket->serviceDisplayName() }}</p>
                             </div>
                             <div class="rounded-2xl bg-olive-50 px-4 py-3 text-[15px] text-olive-900">
                                 <p class="font-semibold">{{ __('site.current_stage') }}</p>

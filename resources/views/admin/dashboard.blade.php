@@ -30,7 +30,7 @@
                         <tr>
                             <td class="py-3"><a class="font-semibold text-olive-700" href="{{ route('admin.tickets.show', $ticket) }}">{{ $ticket->ticket_code }}</a></td>
                             <td class="py-3">{{ $ticket->localizedProjectName() }}</td>
-                            <td class="py-3">{{ $ticket->service->localizedName() }}</td>
+                            <td class="py-3">{{ $ticket->serviceDisplayName() }}</td>
                             <td class="py-3">{{ $ticket->currentStage?->localizedName() ?? __('site.pending_assignment') }}</td>
                         </tr>
                     @endforeach

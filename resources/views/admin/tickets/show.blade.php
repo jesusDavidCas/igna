@@ -12,7 +12,7 @@
             <div class="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm">
                 <h2 class="text-xl font-semibold text-stone-950">{{ $ticket->localizedProjectName() }}</h2>
                 <div class="mt-5 grid gap-4 text-[15px] text-stone-600 md:grid-cols-2">
-                    <p><span class="font-semibold text-stone-900">{{ __('site.form_service') }}:</span> {{ $ticket->service->localizedName() }}</p>
+                    <p><span class="font-semibold text-stone-900">{{ __('site.form_service') }}:</span> {{ $ticket->serviceDisplayName() }}</p>
                     <p><span class="font-semibold text-stone-900">{{ __('site.form_email') }}:</span> {{ $ticket->email }}</p>
                     <p><span class="font-semibold text-stone-900">{{ __('site.form_phone') }}:</span> {{ $ticket->phone ?: '-' }}</p>
                     <p><span class="font-semibold text-stone-900">{{ __('site.current_stage') }}:</span> {{ $ticket->currentStage?->localizedName() ?? __('site.pending_assignment') }}</p>

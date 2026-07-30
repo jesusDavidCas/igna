@@ -23,7 +23,7 @@
                             </td>
                             <td class="truncate py-4 pr-5" title="{{ $ticket->localizedProjectName() }}">{{ $ticket->localizedProjectName() }}</td>
                             <td class="truncate py-4 pr-5" title="{{ $ticket->email }}">{{ $ticket->email }}</td>
-                            <td class="truncate py-4 pr-5" title="{{ $ticket->service->localizedName() }}">{{ $ticket->service->localizedName() }}</td>
+                            <td class="truncate py-4 pr-5" title="{{ $ticket->serviceDisplayName() }}">{{ $ticket->serviceDisplayName() }}</td>
                             <td class="py-4 pr-5">{{ $ticket->currentStage?->localizedName() ?? __('site.pending_assignment') }}</td>
                         </tr>
                     @endforeach

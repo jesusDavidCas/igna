@@ -303,12 +303,20 @@
                             <label class="form-label">{{ __('site.form_service') }}</label>
                             <select name="service_id" class="form-input" required>
                                 <option value="">{{ __('site.form_choose_service') }}</option>
-                                @foreach ($services as $service)
-                                    <option value="{{ $service->id }}" @selected((string) old('service_id') === (string) $service->id)>
-                                        {{ $service->localizedName() }}
-                                    </option>
+                                @foreach ($requestServiceGroups as $categoryCode => $groupedServices)
+                                    @if ($groupedServices->isNotEmpty())
+                                        <optgroup label="{{ __('site.service_public_category_'.$categoryCode) }}">
+                                            @foreach ($groupedServices as $service)
+                                                <option value="{{ $service->id }}" @selected((string) old('service_id') === (string) $service->id)>
+                                                    {{ $service->localizedName() }}
+                                                </option>
+                                            @endforeach
+                                        </optgroup>
+                                    @endif
                                 @endforeach
+                                <option value="other" @selected(old('service_id') === 'other')>{{ __('site.service_public_category_other') }}</option>
                             </select>
+                            <p class="mt-2 text-[15px] leading-6 text-stone-500">{{ __('site.form_service_help') }}</p>
                         </div>
                         <div class="sm:col-span-2">
                             <label class="form-label">{{ __('site.form_description') }}</label>

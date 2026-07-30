@@ -6,7 +6,7 @@
     <div class="space-y-6">
         <div class="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm">
             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">{{ $ticket->ticket_code }}</p>
-            <h2 class="mt-3 text-2xl font-semibold text-stone-950">{{ $ticket->service->localizedName() }}</h2>
+            <h2 class="mt-3 text-2xl font-semibold text-stone-950">{{ $ticket->serviceDisplayName() }}</h2>
             <p class="mt-4 text-base leading-7 text-stone-600">{{ $ticket->localizedProjectDescription() }}</p>
         </div>
 

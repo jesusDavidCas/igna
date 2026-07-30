@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Services\PublicServiceTaxonomy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -52,6 +53,16 @@ class Service extends Model
     public function tickets(): HasMany
     {
         return $this->hasMany(Ticket::class);
+    }
+
+    public function publicCategoryCode(): string
+    {
+        return app(PublicServiceTaxonomy::class)->fromBusinessLine($this->business_line);
+    }
+
+    public function publicCategoryLabel(): string
+    {
+        return app(PublicServiceTaxonomy::class)->label($this->publicCategoryCode());
     }
 
     public function localizedName(): string

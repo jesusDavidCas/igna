@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Models\BlogPost;
 use App\Models\Service;
+use App\Services\Services\PublicServiceTaxonomy;
 use App\Models\TeamMember;
 use App\Support\Seo\PublicContent;
 use App\Support\Seo\SeoManager;
@@ -13,14 +14,17 @@ use Illuminate\Http\Request;
 
 class LandingController extends Controller
 {
-    public function __invoke(SeoManager $seo, PublicContent $content): View
+    public function __invoke(SeoManager $seo, PublicContent $content, PublicServiceTaxonomy $taxonomy): View
     {
+        $services = Service::query()
+            ->with(['stages' => fn ($query) => $query->where('is_active', true)->orderBy('sort_order')])
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->get();
+
         return view('public.home', [
-            'services' => Service::query()
-                ->with(['stages' => fn ($query) => $query->where('is_active', true)->orderBy('sort_order')])
-                ->where('is_active', true)
-                ->orderBy('sort_order')
-                ->get(),
+            'services' => $services,
+            'requestServiceGroups' => $taxonomy->groupServices($services),
             'posts' => $content->publishedPostsQuery()
                 ->latest('published_at')
                 ->limit(3)

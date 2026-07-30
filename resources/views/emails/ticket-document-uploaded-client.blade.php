@@ -9,7 +9,7 @@
 @php
     $clientName = trim($ticket->first_name.' '.$ticket->last_name) ?: $ticket->email;
     $projectName = $ticket->localizedProjectName();
-    $serviceName = $ticket->service?->localizedName() ?? __('site.pending_assignment');
+    $serviceName = $ticket->serviceDisplayName();
 @endphp
 <body style="margin:0;padding:0;background:#f5f3ee;color:#1c1917;font-family:Georgia,'Times New Roman',serif;-webkit-text-size-adjust:100%;text-size-adjust:100%;">
     <span style="display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;mso-hide:all;">

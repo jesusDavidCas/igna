@@ -11,6 +11,7 @@ use App\Models\TicketStageAudit;
 use App\Models\TicketStageEvent;
 use App\Models\User;
 use App\Services\Notifications\ProjectNotificationService;
+use App\Services\Services\PublicServiceTaxonomy;
 use App\Support\Tickets\TicketCodeGenerator;
 use Illuminate\Support\Facades\DB;
 
@@ -25,16 +26,24 @@ class TicketLifecycleService
     {
         return DB::transaction(function () use ($payload, $notify): Ticket {
             // Keep ticket creation and workflow initialization atomic so tracking never sees a half-built request.
-            $service = Service::query()
-                ->with([
-                    'stages' => fn ($query) => $query->where('is_active', true)->orderBy('sort_order'),
-                    'deliverables' => fn ($query) => $query->where('is_active', true)->orderBy('sort_order'),
-                ])
-                ->findOrFail($payload['service_id']);
+            $isOtherRequest = ($payload['service_id'] ?? null) === PublicServiceTaxonomy::OTHER;
+            $service = $isOtherRequest
+                ? null
+                : Service::query()
+                    ->with([
+                        'stages' => fn ($query) => $query->where('is_active', true)->orderBy('sort_order'),
+                        'deliverables' => fn ($query) => $query->where('is_active', true)->orderBy('sort_order'),
+                    ])
+                    ->where('is_active', true)
+                    ->findOrFail($payload['service_id']);
 
             $ticket = Ticket::query()->create([
                 'ticket_code' => $this->ticketCodeGenerator->generate(),
-                'service_id' => $service->id,
+                'service_id' => $service?->id,
+                'service_selection' => $isOtherRequest ? PublicServiceTaxonomy::OTHER : 'catalog',
+                'service_public_category' => $isOtherRequest
+                    ? PublicServiceTaxonomy::OTHER
+                    : $service?->publicCategoryCode(),
                 'first_name' => $payload['first_name'],
                 'last_name' => $payload['last_name'],
                 'email' => $payload['email'],
@@ -48,8 +57,10 @@ class TicketLifecycleService
                 'submitted_at' => now(),
             ]);
 
-            $this->syncStages($ticket, $service);
-            $this->syncDeliverables($ticket, $service);
+            if ($service !== null) {
+                $this->syncStages($ticket, $service);
+                $this->syncDeliverables($ticket, $service);
+            }
 
             if ($notify) {
                 $this->projectNotificationService->notifyTicket(
@@ -69,6 +80,10 @@ class TicketLifecycleService
 
     public function ensureDeliverables(Ticket $ticket): void
     {
+        if (! $ticket->hasCatalogService()) {
+            return;
+        }
+
         if ($ticket->deliverables()->exists()) {
             return;
         }

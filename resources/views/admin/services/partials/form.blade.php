@@ -18,11 +18,12 @@
             <input name="code" value="{{ old('code', $service->code) }}" class="form-input" required>
         </div>
         <div>
-            <label class="form-label">{{ __('site.form_business_line') }}</label>
+            <label class="form-label">{{ __('site.form_public_service_category') }}</label>
             <select name="business_line" class="form-input" required>
-                <option value="digital" @selected(old('business_line', $service->business_line) === 'digital')>{{ __('site.business_line_digital') }}</option>
-                <option value="engineering" @selected(old('business_line', $service->business_line) === 'engineering')>{{ __('site.business_line_engineering') }}</option>
+                <option value="digital" @selected(old('business_line', $service->business_line) === 'digital')>{{ __('site.service_public_category_technology') }}</option>
+                <option value="engineering" @selected(old('business_line', $service->business_line) === 'engineering')>{{ __('site.service_public_category_infrastructure_engineering') }}</option>
             </select>
+            <p class="mt-2 text-sm text-stone-500">{{ __('site.form_public_service_category_help') }}</p>
         </div>
         <div>
             <label class="form-label">{{ __('site.form_service_type') }}</label>

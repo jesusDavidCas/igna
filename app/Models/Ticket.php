@@ -16,6 +16,8 @@ class Ticket extends Model
     protected $fillable = [
         'ticket_code',
         'service_id',
+        'service_selection',
+        'service_public_category',
         'client_user_id',
         'current_service_stage_id',
         'first_name',
@@ -45,6 +47,27 @@ class Ticket extends Model
     public function service(): BelongsTo
     {
         return $this->belongsTo(Service::class);
+    }
+
+    public function hasCatalogService(): bool
+    {
+        return $this->service_id !== null;
+    }
+
+    public function serviceDisplayName(): string
+    {
+        if ($this->relationLoaded('service') ? $this->service !== null : $this->service()->exists()) {
+            return $this->service?->localizedName() ?? __('site.service_public_category_other');
+        }
+
+        return __('site.service_public_category_other');
+    }
+
+    public function serviceCategoryLabel(): string
+    {
+        $category = $this->service_public_category ?: $this->service?->publicCategoryCode();
+
+        return $category ? __("site.service_public_category_{$category}") : __('site.service_public_category_other');
     }
 
     public function client(): BelongsTo

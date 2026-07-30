@@ -52,7 +52,7 @@ class TicketController extends Controller
             'deliverables.files.rejectedBy',
         ]);
 
-        $orderedStages = $ticket->service->stages->values();
+        $orderedStages = $ticket->service?->stages?->values() ?? collect();
         $currentIndex = $orderedStages->search(fn ($stage): bool => $stage->id === $ticket->current_service_stage_id);
 
         return view('admin.tickets.show', [
@@ -70,6 +70,8 @@ class TicketController extends Controller
 
     public function moveBack(TicketStageUpdateRequest $request, Ticket $ticket, TicketLifecycleService $ticketLifecycleService): RedirectResponse
     {
+        abort_unless($ticket->hasCatalogService(), 422);
+
         $previousStage = $ticket->service->stages()
             ->where('service_stages.id', $request->validated('service_stage_id'))
             ->firstOrFail();
@@ -111,6 +113,8 @@ class TicketController extends Controller
         Ticket $ticket,
         TicketLifecycleService $ticketLifecycleService,
     ): RedirectResponse {
+        abort_unless($ticket->hasCatalogService(), 422);
+
         $stage = $ticket->service->stages()
             ->where('service_stages.id', $request->validated('service_stage_id'))
             ->firstOrFail();
@@ -121,6 +125,10 @@ class TicketController extends Controller
 
     private function adjacentStage(Ticket $ticket, int $offset): mixed
     {
+        if (! $ticket->hasCatalogService()) {
+            return null;
+        }
+
         $orderedStages = $ticket->service->stages()->orderBy('sort_order')->get()->values();
         $currentIndex = $orderedStages->search(fn ($stage): bool => $stage->id === $ticket->current_service_stage_id);
 

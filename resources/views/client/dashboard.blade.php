@@ -6,7 +6,7 @@
             <a href="{{ route('client.tickets.show', $ticket) }}" class="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">{{ $ticket->ticket_code }}</p>
                 <h2 class="mt-3 text-xl font-semibold text-stone-950">{{ $ticket->localizedProjectName() }}</h2>
-                <p class="mt-2 text-sm text-stone-600">{{ $ticket->service->localizedName() }}</p>
+                <p class="mt-2 text-sm text-stone-600">{{ $ticket->serviceDisplayName() }}</p>
                 <p class="mt-4 text-sm text-olive-700">{{ __('site.current_stage') }}: {{ $ticket->currentStage?->localizedName() ?? __('site.pending_assignment') }}</p>
             </a>
         @empty
