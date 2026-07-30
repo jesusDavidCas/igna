@@ -45,11 +45,15 @@ class ProposalServiceTemplate extends Model
 
     public function scopeOrdered(Builder $query): Builder
     {
-        return $query->orderBy('sort_order')->orderBy('service_number');
+        return $query->orderBy('sort_order')->orderBy('service_number')->orderBy('id');
     }
 
     public function localizedName(): string
     {
-        return app()->getLocale() === 'en' ? $this->name_en : $this->name_es;
+        if (app()->getLocale() === 'en') {
+            return $this->name_en ?: $this->name_es;
+        }
+
+        return $this->name_es ?: $this->name_en;
     }
 }

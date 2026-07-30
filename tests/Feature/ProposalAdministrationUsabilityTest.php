@@ -204,7 +204,7 @@ class ProposalAdministrationUsabilityTest extends TestCase
             ->assertSee('Appended template row retained')
             ->assertSee('data-proposal-template-copies', false)
             ->assertSee('data-add-template-items', false)
-            ->assertSee(__('site.manage_service_templates'));
+            ->assertSee(__('site.manage_proposal_templates'));
     }
 
     public function test_valid_proposal_creation_update_and_pdf_template_keep_complete_content(): void

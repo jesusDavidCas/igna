@@ -590,7 +590,7 @@ class AdminOperationsTest extends TestCase
             ->assertOk()
             ->assertSee(__('site.add_item'))
             ->assertSee(__('site.add_payment'))
-            ->assertSee(__('site.select_service_template'))
+            ->assertSee(__('site.select_proposal_template'))
             ->assertSee('data-proposal-template-select', false)
             ->assertSee('data-proposal-template-copies', false)
             ->assertSee('data-add-template-items', false)
@@ -638,7 +638,7 @@ class AdminOperationsTest extends TestCase
 
         $this->get(route('admin.proposals.edit', $proposal))
             ->assertOk()
-            ->assertSee(__('site.select_service_template'))
+            ->assertSee(__('site.select_proposal_template'))
             ->assertDontSee(__('site.upload_excel_file'))
             ->assertDontSee(__('site.excel_upload_help'))
             ->assertDontSee('proposal-excel-upload', false)

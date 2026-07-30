@@ -33,6 +33,7 @@
                         <a href="{{ route('admin.services.index') }}" class="panel-link {{ request()->routeIs('admin.services.*') ? 'panel-link-active' : '' }}">{{ __('site.admin_services') }}</a>
                         <a href="{{ route('admin.tickets.index') }}" class="panel-link {{ request()->routeIs('admin.tickets.*') ? 'panel-link-active' : '' }}">{{ __('site.admin_tickets') }}</a>
                         <a href="{{ route('admin.proposals.index') }}" class="panel-link {{ request()->routeIs('admin.proposals.*') ? 'panel-link-active' : '' }}">{{ __('site.admin_proposals') }}</a>
+                        <a href="{{ route('admin.proposal-templates.index') }}" class="panel-link {{ request()->routeIs('admin.proposal-templates.*') ? 'panel-link-active' : '' }}">{{ __('site.admin_proposal_templates') }}</a>
                         <a href="{{ route('admin.team.index') }}" class="panel-link {{ request()->routeIs('admin.team.*') ? 'panel-link-active' : '' }}">{{ __('site.admin_team') }}</a>
                         <a href="{{ route('admin.blog.index') }}" class="panel-link {{ request()->routeIs('admin.blog.*') ? 'panel-link-active' : '' }}">{{ __('site.admin_blog') }}</a>
                         @if (auth()->user()->isSuperAdmin())

@@ -4,6 +4,7 @@ use App\Enums\UserRole;
 use App\Http\Controllers\Admin\BlogPostController as AdminBlogPostController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\ProposalController as AdminProposalController;
+use App\Http\Controllers\Admin\ProposalServiceTemplateController as AdminProposalServiceTemplateController;
 use App\Http\Controllers\Admin\ServiceController as AdminServiceController;
 use App\Http\Controllers\Admin\ServiceStageController as AdminServiceStageController;
 use App\Http\Controllers\Admin\SettingController as AdminSettingController;
@@ -132,6 +133,9 @@ Route::prefix('admin')
         Route::post('/team/{teamMember}/credentials', [AdminTeamCredentialController::class, 'store'])->name('team.credentials.store');
         Route::post('/team/{teamMember}/credentials/{credential}/regenerate', [AdminTeamCredentialController::class, 'regenerate'])->name('team.credentials.regenerate');
         Route::delete('/team/{teamMember}/credentials/{credential}', [AdminTeamCredentialController::class, 'destroy'])->name('team.credentials.destroy');
+        Route::post('/proposal-templates/{proposalTemplate}/duplicate', [AdminProposalServiceTemplateController::class, 'duplicate'])->name('proposal-templates.duplicate');
+        Route::patch('/proposal-templates/{proposalTemplate}/status', [AdminProposalServiceTemplateController::class, 'status'])->name('proposal-templates.status');
+        Route::resource('proposal-templates', AdminProposalServiceTemplateController::class)->parameters(['proposal-templates' => 'proposalTemplate'])->except(['show', 'destroy']);
         Route::get('/proposals/{proposal}/pdf', [AdminProposalController::class, 'pdf'])->name('proposals.pdf');
         Route::resource('proposals', AdminProposalController::class)->except(['destroy']);
 

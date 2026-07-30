@@ -226,14 +226,14 @@
         <div class="mt-5 rounded-2xl border border-dashed border-olive-200 bg-olive-50 p-4">
             <div class="grid gap-4 lg:grid-cols-[1fr_0.28fr_auto] lg:items-end">
                 <div>
-                    <label for="proposal-template-select" class="form-label">{{ __('site.select_service_template') }}</label>
+                    <label for="proposal-template-select" class="form-label">{{ __('site.select_proposal_template') }}</label>
                     <select
                         id="proposal-template-select"
                         class="form-input bg-white"
                         data-proposal-template-select
                         data-template-duplicate-message="{{ __('site.template_already_present_confirm') }}"
                     >
-                        <option value="">{{ __('site.select_service_template') }}</option>
+                        <option value="">{{ __('site.select_proposal_template') }}</option>
                         @foreach ($proposalTemplates as $template)
                             <option value="{{ $template->id }}">
                                 {{ str_pad((string) $template->service_number, 2, '0', STR_PAD_LEFT) }} · {{ $template->localizedName() }}
@@ -248,8 +248,8 @@
                 <button type="button" data-add-template-items class="rounded-full bg-olive-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-olive-800">{{ __('site.add_template_items') }}</button>
             </div>
             <div class="mt-3 flex flex-col gap-2 text-[15px] leading-6 text-olive-900 sm:flex-row sm:items-center sm:justify-between">
-                <p>{{ __('site.service_template_append_help') }}</p>
-                <a href="{{ route('admin.services.index') }}" class="font-semibold text-olive-800 underline decoration-olive-300 underline-offset-4">{{ __('site.manage_service_templates') }}</a>
+                <p>{{ __('site.proposal_template_append_help') }}</p>
+                <a href="{{ route('admin.proposal-templates.index') }}" class="font-semibold text-olive-800 underline decoration-olive-300 underline-offset-4">{{ __('site.manage_proposal_templates') }}</a>
             </div>
             <p data-template-added-message class="mt-2 hidden text-sm font-semibold text-olive-950">{{ __('site.template_items_added') }}</p>
         </div>
