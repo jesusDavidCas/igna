@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\TicketClientDocumentUploaded;
 use App\Http\Requests\TicketClientDocumentUploadRequest;
 use App\Models\Ticket;
 use App\Models\TicketFile;
-use App\Services\Notifications\ProjectNotificationService;
 use App\Services\Tickets\ClientDocumentSecurityService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 
 class TicketClientDocumentController extends Controller
 {
@@ -15,11 +16,10 @@ class TicketClientDocumentController extends Controller
         TicketClientDocumentUploadRequest $request,
         Ticket $ticket,
         ClientDocumentSecurityService $documentSecurityService,
-        ProjectNotificationService $projectNotificationService,
     ): RedirectResponse {
         abort_unless($ticket->client_user_id === $request->user()->id, 404);
 
-        $file = $this->storeClientDocument(
+        $this->storeClientDocument(
             request: $request,
             ticket: $ticket,
             documentSecurityService: $documentSecurityService,
@@ -28,23 +28,20 @@ class TicketClientDocumentController extends Controller
             contextHash: hash('sha256', strtolower($ticket->email)),
         );
 
-        $projectNotificationService->notifyAdminsDocumentSubmitted($ticket, $file);
-
-        return back()->with('success', __('site.document_received_successfully'));
+        return back()->with('success', __('site.authenticated_document_received_successfully'));
     }
 
     public function tracking(
         TicketClientDocumentUploadRequest $request,
         Ticket $ticket,
         ClientDocumentSecurityService $documentSecurityService,
-        ProjectNotificationService $projectNotificationService,
     ): RedirectResponse {
         abort_unless($request->hasValidSignature(), 403);
 
         $emailHash = (string) $request->query('email_hash', '');
         abort_unless(hash_equals(hash('sha256', strtolower($ticket->email)), $emailHash), 404);
 
-        $file = $this->storeClientDocument(
+        $this->storeClientDocument(
             request: $request,
             ticket: $ticket,
             documentSecurityService: $documentSecurityService,
@@ -53,9 +50,11 @@ class TicketClientDocumentController extends Controller
             contextHash: $emailHash,
         );
 
-        $projectNotificationService->notifyAdminsDocumentSubmitted($ticket, $file);
+        $request->session()->forget('tracking_lookup');
 
-        return back()->with('success', __('site.document_received_successfully'));
+        return redirect()
+            ->route('tracking.index')
+            ->with('success', __('site.tracking_document_received_successfully'));
     }
 
     private function storeClientDocument(
@@ -66,23 +65,34 @@ class TicketClientDocumentController extends Controller
         ?int $uploadedByUserId,
         string $contextHash,
     ): TicketFile {
-        $storedFile = $documentSecurityService->store($ticket, $request->file('document'), $source);
+        return DB::transaction(function () use ($request, $ticket, $documentSecurityService, $source, $uploadedByUserId, $contextHash): TicketFile {
+            $storedFile = $documentSecurityService->store($ticket, $request->file('document'), $source);
 
-        return TicketFile::query()->create([
-            'ticket_id' => $ticket->id,
-            'uploaded_by_user_id' => $uploadedByUserId,
-            'ticket_deliverable_id' => null,
-            'title' => __('site.ticket_file_category_'.$request->validated('category')),
-            'deliverable_type' => $request->validated('category'),
-            'visibility' => 'internal',
-            'delivery_type' => 'internal',
-            'upload_source' => $source,
-            'review_status' => 'pending_review',
-            'submitted_context_hash' => $contextHash,
-            'is_client_visible' => false,
-            'watermark_status' => 'pending_review',
-            'uploaded_at' => now(),
-            ...$storedFile,
-        ]);
+            $file = TicketFile::query()->create([
+                'ticket_id' => $ticket->id,
+                'uploaded_by_user_id' => $uploadedByUserId,
+                'ticket_deliverable_id' => null,
+                'title' => __('site.ticket_file_category_'.$request->validated('category')),
+                'deliverable_type' => $request->validated('category'),
+                'visibility' => 'internal',
+                'delivery_type' => 'internal',
+                'upload_source' => $source,
+                'review_status' => 'pending_review',
+                'submitted_context_hash' => $contextHash,
+                'is_client_visible' => false,
+                'watermark_status' => 'pending_review',
+                'uploaded_at' => now(),
+                ...$storedFile,
+            ]);
+
+            event(new TicketClientDocumentUploaded(
+                ticketId: $ticket->id,
+                ticketFileId: $file->id,
+                uploadSource: $source,
+                uploadedByUserId: $uploadedByUserId,
+            ));
+
+            return $file;
+        });
     }
 }

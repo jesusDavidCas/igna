@@ -4,11 +4,14 @@ namespace Tests\Feature;
 
 use App\Enums\StageEventStatus;
 use App\Enums\UserRole;
-use App\Mail\AdminNewTicketMail;
+use App\Events\TicketClientDocumentUploaded;
+use App\Mail\TicketDocumentUploadedAdminMail;
+use App\Mail\TicketDocumentUploadedClientMail;
 use App\Models\Service;
 use App\Models\Ticket;
 use App\Models\TicketFile;
 use App\Models\User;
+use App\Services\Notifications\ProjectNotificationService;
 use Database\Seeders\DemoDataSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -224,16 +227,18 @@ class TicketLayoutDocumentExchangeTest extends TestCase
         ] as [$category, $file]) {
             $this->actingAs($client)
                 ->post(route('client.tickets.documents.store', $ticket), [
-                    'category' => $category,
-                    'document' => $file,
-                ])
-                ->assertRedirect();
+                'category' => $category,
+                'document' => $file,
+            ])
+                ->assertRedirect()
+                ->assertSessionHas('success', __('site.authenticated_document_received_successfully'));
         }
 
         $this->assertSame($currentStageId, $ticket->fresh()->current_service_stage_id);
         $this->assertSame(3, TicketFile::query()->where('ticket_id', $ticket->id)->count());
         $this->assertSame(3, TicketFile::query()->where('ticket_id', $ticket->id)->clientSubmitted()->where('review_status', 'pending_review')->count());
-        Mail::assertSent(AdminNewTicketMail::class);
+        Mail::assertSent(TicketDocumentUploadedClientMail::class, 3);
+        Mail::assertSent(TicketDocumentUploadedAdminMail::class);
 
         $this->actingAs($client)
             ->get(route('client.tickets.show', $ticket))
@@ -484,15 +489,31 @@ class TicketLayoutDocumentExchangeTest extends TestCase
             'document' => $this->validPdf('wrong-hash.pdf'),
         ])->assertNotFound();
 
-        $this->post($signedUrl, [
+        $this->withSession([
+            'tracking_lookup' => [
+                'ticket_code' => $ticket->ticket_code,
+                'email' => $ticket->email,
+            ],
+        ])->post($signedUrl, [
             'category' => 'payment_receipt',
             'document' => $this->validPdf('public.pdf'),
-        ])->assertRedirect();
+        ])->assertRedirect(route('tracking.index'))
+            ->assertSessionHas('success', __('site.tracking_document_received_successfully'))
+            ->assertSessionMissing('tracking_lookup');
 
         $file = TicketFile::query()->where('upload_source', 'public_tracking')->firstOrFail();
         $this->assertSame('pending_review', $file->review_status);
         $this->assertSame($emailHash, $file->submitted_context_hash);
         $this->assertSame($currentStageId, $ticket->fresh()->current_service_stage_id);
+        Mail::assertSent(TicketDocumentUploadedClientMail::class, fn (TicketDocumentUploadedClientMail $mail): bool => $mail->hasTo($ticket->email)
+            && $mail->ticket->is($ticket)
+            && $mail->file->is($file)
+            && $mail->locale === 'en'
+            && $mail->category === 'Payment receipt');
+        Mail::assertSent(TicketDocumentUploadedAdminMail::class, fn (TicketDocumentUploadedAdminMail $mail): bool => $mail->ticket->is($ticket)
+            && $mail->file->is($file)
+            && $mail->hasTo('support@ignastudio.com'));
+        Mail::assertNotSent(TicketDocumentUploadedAdminMail::class, fn (TicketDocumentUploadedAdminMail $mail): bool => $mail->hasTo($this->admin->email));
 
         $downloadUrl = URL::temporarySignedRoute('tracking.files.download', now()->addMinutes(5), [
             'ticket' => $ticket,
@@ -505,7 +526,7 @@ class TicketLayoutDocumentExchangeTest extends TestCase
             $this->post($signedUrl, [
                 'category' => 'supporting_document',
                 'document' => $this->validPdf("rate-{$i}.pdf"),
-            ])->assertRedirect();
+            ])->assertRedirect(route('tracking.index'));
         }
 
         $this->post($signedUrl, [
@@ -540,6 +561,99 @@ class TicketLayoutDocumentExchangeTest extends TestCase
         ])->assertSessionHasErrors('initial_file');
 
         $this->assertSame(2, TicketFile::query()->clientSubmitted()->where('upload_source', 'initial_request')->count());
+    }
+
+    public function test_client_upload_confirmation_uses_client_locale_and_active_deduplicated_admin_recipients(): void
+    {
+        $client = User::factory()->create([
+            'role' => UserRole::CLIENT,
+            'email' => 'portal.account@example.com',
+            'preferred_language' => 'es',
+        ]);
+        $englishAdmin = User::factory()->create([
+            'role' => UserRole::ADMIN,
+            'email' => 'english.admin@example.com',
+            'preferred_language' => 'en',
+            'is_active' => true,
+        ]);
+        $inactiveAdmin = User::factory()->create([
+            'role' => UserRole::ADMIN,
+            'email' => 'inactive.admin@example.com',
+            'preferred_language' => 'en',
+            'is_active' => false,
+        ]);
+        $unrelatedAdmin = User::factory()->create([
+            'role' => UserRole::ADMIN,
+            'email' => 'unrelated.admin@example.com',
+            'preferred_language' => 'en',
+            'is_active' => true,
+        ]);
+        $ticket = $this->createTicket('ticket.contact@example.com', 'Portal client upload');
+        $ticket->forceFill([
+            'client_user_id' => $client->id,
+            'preferred_language' => 'en',
+        ])->save();
+        $ticket->stageEvents()->firstOrFail()->forceFill([
+            'changed_by_user_id' => $englishAdmin->id,
+            'superseded_by_user_id' => $inactiveAdmin->id,
+        ])->save();
+
+        Mail::fake();
+
+        $this->actingAs($client)
+            ->post(route('client.tickets.documents.store', $ticket), [
+                'category' => 'requested_document',
+                'document' => $this->validPdf('requested.pdf'),
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success', __('site.authenticated_document_received_successfully'));
+
+        $file = TicketFile::query()->where('upload_source', 'authenticated_client')->firstOrFail();
+
+        Mail::assertSent(TicketDocumentUploadedClientMail::class, fn (TicketDocumentUploadedClientMail $mail): bool => $mail->hasTo($client->email)
+            && ! $mail->hasTo($ticket->email)
+            && $mail->locale === 'es'
+            && $mail->category === trans('site.ticket_file_category_requested_document', [], 'es'));
+        Mail::assertSent(TicketDocumentUploadedAdminMail::class, fn (TicketDocumentUploadedAdminMail $mail): bool => $mail->hasTo($englishAdmin->email)
+            && $mail->locale === 'en'
+            && $mail->file->is($file));
+        $this->assertSame(1, Mail::sent(TicketDocumentUploadedAdminMail::class, fn (TicketDocumentUploadedAdminMail $mail): bool => $mail->hasTo($englishAdmin->email))->count());
+        Mail::assertNotSent(TicketDocumentUploadedAdminMail::class, fn (TicketDocumentUploadedAdminMail $mail): bool => $mail->hasTo($this->admin->email));
+        Mail::assertNotSent(TicketDocumentUploadedAdminMail::class, fn (TicketDocumentUploadedAdminMail $mail): bool => $mail->hasTo($unrelatedAdmin->email));
+        Mail::assertNotSent(TicketDocumentUploadedAdminMail::class, fn (TicketDocumentUploadedAdminMail $mail): bool => $mail->hasTo($inactiveAdmin->email));
+    }
+
+    public function test_document_upload_event_is_after_commit_and_mail_failure_does_not_remove_upload(): void
+    {
+        $this->assertInstanceOf(
+            \Illuminate\Contracts\Events\ShouldDispatchAfterCommit::class,
+            new TicketClientDocumentUploaded(1, 1, 'authenticated_client', 1),
+        );
+
+        $client = User::factory()->create(['role' => UserRole::CLIENT]);
+        $ticket = $this->createTicket('mail-failure@example.com', 'Mail failure upload');
+        $ticket->forceFill(['client_user_id' => $client->id])->save();
+
+        $notifications = \Mockery::mock(ProjectNotificationService::class);
+        $notifications
+            ->shouldReceive('notifyClientDocumentSubmitted')
+            ->once()
+            ->andThrow(new \RuntimeException('simulated mail failure'));
+        $notifications->shouldReceive('notifyAdminsDocumentSubmitted')->never();
+        $this->app->instance(ProjectNotificationService::class, $notifications);
+
+        $this->actingAs($client)
+            ->post(route('client.tickets.documents.store', $ticket), [
+                'category' => 'supporting_document',
+                'document' => $this->validPdf('mail-failure.pdf'),
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success', __('site.authenticated_document_received_successfully'));
+
+        $file = TicketFile::query()->where('ticket_id', $ticket->id)->clientSubmitted()->firstOrFail();
+
+        $this->assertSame('pending_review', $file->review_status);
+        Storage::disk('local')->assertExists($file->storage_path);
     }
 
     public function test_commercial_separation_and_demo_seed_regression(): void

@@ -5,6 +5,8 @@ namespace App\Services\Notifications;
 use App\Enums\UserRole;
 use App\Mail\AdminNewTicketMail;
 use App\Mail\ProjectUpdateMail;
+use App\Mail\TicketDocumentUploadedAdminMail;
+use App\Mail\TicketDocumentUploadedClientMail;
 use App\Models\Service;
 use App\Models\ServiceStage;
 use App\Models\Setting;
@@ -52,7 +54,7 @@ class ProjectNotificationService
     public function notifyAdminsNewTicket(Ticket $ticket): void
     {
         try {
-            foreach ($this->adminRecipients() as $recipient) {
+            foreach ($this->allAdminRecipients() as $recipient) {
                 Mail::to($recipient['email'])->locale($recipient['locale'])->send((new AdminNewTicketMail(
                     ticket: $ticket->fresh(['service', 'currentStage']) ?? $ticket,
                 ))->locale($recipient['locale']));
@@ -65,24 +67,14 @@ class ProjectNotificationService
     public function notifyAdminsDocumentSubmitted(Ticket $ticket, TicketFile $file): void
     {
         try {
-            foreach ($this->adminRecipients() as $recipient) {
+            foreach ($this->adminRecipients($ticket) as $recipient) {
                 $locale = $recipient['locale'];
-                $categoryKey = "site.ticket_file_category_{$file->deliverable_type}";
-                $sourceKey = "site.ticket_file_source_{$file->upload_source}";
-                $category = trans($categoryKey, [], $locale);
-                $source = trans($sourceKey, [], $locale);
 
-                Mail::to($recipient['email'])->locale($locale)->send((new AdminNewTicketMail(
-                    ticket: $ticket->fresh(['service', 'currentStage']) ?? $ticket,
-                    subjectKey: 'site.email_admin_document_submitted_subject',
-                    preheaderKey: 'site.email_admin_document_submitted_preheader',
-                    titleKey: 'site.email_admin_document_submitted_title',
-                    headlineKey: 'site.email_admin_document_submitted_headline',
-                    messageKey: 'site.email_admin_document_submitted_message',
-                    messageReplacements: [
-                        'category' => $category === $categoryKey ? $file->categoryLabel() : $category,
-                        'source' => $source === $sourceKey ? $file->uploadSourceLabel() : $source,
-                    ],
+                Mail::to($recipient['email'])->locale($locale)->send((new TicketDocumentUploadedAdminMail(
+                    ticket: $ticket->fresh(['client', 'service', 'currentStage']) ?? $ticket,
+                    file: $file,
+                    category: $this->localizedTicketFileValue($file, 'ticket_file_category', (string) $file->deliverable_type, $locale),
+                    source: $this->localizedTicketFileValue($file, 'ticket_file_source', (string) $file->upload_source, $locale),
                 ))->locale($locale));
             }
         } catch (Throwable $exception) {
@@ -90,7 +82,39 @@ class ProjectNotificationService
         }
     }
 
-    private function adminRecipients(): array
+    public function notifyClientDocumentSubmitted(Ticket $ticket, TicketFile $file): void
+    {
+        $recipient = $this->clientDocumentRecipient($ticket, $file);
+
+        if (! $recipient) {
+            return;
+        }
+
+        try {
+            Mail::to($recipient['email'])->locale($recipient['locale'])->send((new TicketDocumentUploadedClientMail(
+                ticket: $ticket->fresh(['client', 'service', 'currentStage']) ?? $ticket,
+                file: $file,
+                category: $this->localizedTicketFileValue($file, 'ticket_file_category', (string) $file->deliverable_type, $recipient['locale']),
+            ))->locale($recipient['locale']));
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+    }
+
+    private function adminRecipients(?Ticket $ticket = null): array
+    {
+        if ($ticket) {
+            $responsible = $this->responsibleAdminRecipients($ticket);
+
+            if ($responsible !== []) {
+                return $responsible;
+            }
+        }
+
+        return $this->supportRecipients();
+    }
+
+    private function allAdminRecipients(): array
     {
         $recipients = User::query()
             ->whereIn('role', [UserRole::SUPER_ADMIN, UserRole::ADMIN])
@@ -105,6 +129,51 @@ class ProjectNotificationService
             ])
             ->all();
 
+        return [
+            ...$recipients,
+            ...$this->supportRecipients(),
+        ];
+    }
+
+    private function responsibleAdminRecipients(Ticket $ticket): array
+    {
+        $ticket->loadMissing([
+            'stageEvents.changedBy',
+            'stageEvents.supersededBy',
+            'stageAudits.actor',
+            'files.uploadedBy',
+            'files.firstAdminDownloadedBy',
+            'files.reviewedBy',
+            'files.rejectedBy',
+        ]);
+
+        $admins = collect()
+            ->merge($ticket->stageEvents->pluck('changedBy'))
+            ->merge($ticket->stageEvents->pluck('supersededBy'))
+            ->merge($ticket->stageAudits->pluck('actor'))
+            ->merge($ticket->files->where('upload_source', 'admin')->pluck('uploadedBy'))
+            ->merge($ticket->files->pluck('firstAdminDownloadedBy'))
+            ->merge($ticket->files->pluck('reviewedBy'))
+            ->merge($ticket->files->pluck('rejectedBy'))
+            ->filter(fn (?User $user): bool => $user instanceof User
+                && $user->is_active
+                && $user->role?->canAccessAdmin()
+                && filter_var($user->email, FILTER_VALIDATE_EMAIL))
+            ->mapWithKeys(fn (User $user): array => [
+                strtolower($user->email) => [
+                    'email' => $user->email,
+                    'locale' => $this->localeResolver->forAdmin($user),
+                ],
+            ])
+            ->all();
+
+        return $admins;
+    }
+
+    private function supportRecipients(): array
+    {
+        $recipients = [];
+
         $supportEmail = Setting::query()->where('key', 'support_email')->value('value') ?: config('mail.from.address');
 
         if (filter_var($supportEmail, FILTER_VALIDATE_EMAIL)) {
@@ -115,6 +184,36 @@ class ProjectNotificationService
         }
 
         return $recipients;
+    }
+
+    private function clientDocumentRecipient(Ticket $ticket, TicketFile $file): ?array
+    {
+        if ($file->upload_source === 'authenticated_client') {
+            $file->loadMissing('uploadedBy');
+            $client = $file->uploadedBy;
+
+            if (! $client || ! filter_var($client->email, FILTER_VALIDATE_EMAIL)) {
+                return null;
+            }
+
+            return [
+                'email' => $client->email,
+                'locale' => $this->localeResolver->normalize(
+                    $client->preferred_language,
+                    $ticket->preferred_language,
+                    $this->localeResolver->applicationFallback(),
+                ),
+            ];
+        }
+
+        if (! filter_var($ticket->email, FILTER_VALIDATE_EMAIL)) {
+            return null;
+        }
+
+        return [
+            'email' => $ticket->email,
+            'locale' => $this->localeResolver->forTicketClient($ticket),
+        ];
     }
 
     private function localizedReplacements(array $replacements, string $locale): array
@@ -138,5 +237,19 @@ class ProjectNotificationService
                 return $value;
             })
             ->all();
+    }
+
+    private function localizedTicketFileValue(TicketFile $file, string $prefix, string $value, string $locale): string
+    {
+        $key = "site.{$prefix}_{$value}";
+        $translated = trans($key, [], $locale);
+
+        if ($translated !== $key) {
+            return $translated;
+        }
+
+        return $prefix === 'ticket_file_category'
+            ? $file->categoryLabel()
+            : $file->uploadSourceLabel();
     }
 }
