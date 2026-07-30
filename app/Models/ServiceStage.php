@@ -14,8 +14,12 @@ class ServiceStage extends Model
     protected $fillable = [
         'service_id',
         'name',
+        'name_en',
+        'name_es',
         'code',
         'description',
+        'description_en',
+        'description_es',
         'sort_order',
         'is_active',
         'is_client_visible',
@@ -41,8 +45,21 @@ class ServiceStage extends Model
 
     public function localizedName(): string
     {
+        $field = app()->getLocale() === 'es' ? $this->name_es : $this->name_en;
+
+        if (filled($field)) {
+            return $field;
+        }
+
         return __("stages.{$this->code}") !== "stages.{$this->code}"
             ? __("stages.{$this->code}")
             : $this->name;
+    }
+
+    public function localizedDescription(): ?string
+    {
+        $field = app()->getLocale() === 'es' ? $this->description_es : $this->description_en;
+
+        return filled($field) ? $field : $this->description;
     }
 }

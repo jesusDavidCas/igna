@@ -14,7 +14,11 @@ class ServiceDeliverable extends Model
     protected $fillable = [
         'service_id',
         'name',
+        'name_en',
+        'name_es',
         'description',
+        'description_en',
+        'description_es',
         'sort_order',
         'is_active',
         'is_client_visible_by_default',
@@ -36,5 +40,19 @@ class ServiceDeliverable extends Model
     public function ticketDeliverables(): HasMany
     {
         return $this->hasMany(TicketDeliverable::class);
+    }
+
+    public function localizedName(): string
+    {
+        $field = app()->getLocale() === 'es' ? $this->name_es : $this->name_en;
+
+        return filled($field) ? $field : $this->name;
+    }
+
+    public function localizedDescription(): ?string
+    {
+        $field = app()->getLocale() === 'es' ? $this->description_es : $this->description_en;
+
+        return filled($field) ? $field : $this->description;
     }
 }

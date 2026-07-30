@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Services\Services\ServiceDeliverableNormalizer;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -21,7 +22,9 @@ class ServiceRequest extends FormRequest
         $serviceScopes = array_keys(config('igna.service_scopes'));
 
         return [
-            'name' => ['required', 'string', 'max:180'],
+            'name' => ['nullable', 'string', 'max:180'],
+            'name_en' => ['nullable', 'string', 'max:180', 'required_without_all:name_es,name'],
+            'name_es' => ['nullable', 'string', 'max:180', 'required_without_all:name_en,name'],
             'code' => [
                 'required',
                 'string',
@@ -32,7 +35,11 @@ class ServiceRequest extends FormRequest
             'service_type' => ['required', 'string', 'max:60', Rule::in($serviceTypes)],
             'service_scope' => ['required', 'string', 'max:60', Rule::in($serviceScopes)],
             'description' => ['nullable', 'string'],
-            'deliverables' => ['nullable', 'string', 'max:5000'],
+            'description_en' => ['nullable', 'string'],
+            'description_es' => ['nullable', 'string'],
+            'deliverables' => ['nullable'],
+            'deliverables.*.en' => ['nullable', 'string', 'max:500'],
+            'deliverables.*.es' => ['nullable', 'string', 'max:500'],
             'is_active' => ['nullable', 'boolean'],
         ];
     }
@@ -44,6 +51,10 @@ class ServiceRequest extends FormRequest
                 'code' => Str::upper($this->string('code')->trim()->toString()),
             ]);
         }
+
+        $this->merge([
+            'deliverables' => app(ServiceDeliverableNormalizer::class)->rows($this->input('deliverables')),
+        ]);
     }
 
     public function after(): array

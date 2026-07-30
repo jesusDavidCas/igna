@@ -107,8 +107,11 @@ Route::prefix('admin')
         Route::get('/', AdminDashboardController::class)->name('dashboard');
 
         Route::resource('services', AdminServiceController::class)->except(['show', 'destroy']);
+        Route::match(['post', 'put'], '/services/{service}/translate', [AdminServiceController::class, 'translate'])->name('services.translate');
         Route::post('/services/{service}/stages', [AdminServiceStageController::class, 'store'])->name('services.stages.store');
         Route::put('/services/{service}/stages/{stage}', [AdminServiceStageController::class, 'update'])->name('services.stages.update');
+        Route::match(['post', 'put'], '/services/{service}/stages/{stage}/translate', [AdminServiceStageController::class, 'translate'])->name('services.stages.translate');
+        Route::delete('/services/{service}/stages/{stage}', [AdminServiceStageController::class, 'destroy'])->name('services.stages.destroy');
 
         Route::get('/tickets', [AdminTicketController::class, 'index'])->name('tickets.index');
         Route::get('/tickets/{ticket}', [AdminTicketController::class, 'show'])->name('tickets.show');
