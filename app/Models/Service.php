@@ -67,7 +67,9 @@ class Service extends Model
 
     public function localizedName(): string
     {
-        $field = app()->getLocale() === 'es' ? $this->name_es : $this->name_en;
+        $field = app()->getLocale() === 'es'
+            ? ($this->isUsableTranslation($this->name_en, $this->name_es) ? $this->name_es : null)
+            : $this->name_en;
 
         if (filled($field)) {
             return $field;
@@ -80,7 +82,9 @@ class Service extends Model
 
     public function localizedDescription(): ?string
     {
-        $field = app()->getLocale() === 'es' ? $this->description_es : $this->description_en;
+        $field = app()->getLocale() === 'es'
+            ? ($this->isUsableTranslation($this->description_en, $this->description_es) ? $this->description_es : null)
+            : $this->description_en;
 
         if (filled($field)) {
             return $field;
@@ -97,16 +101,25 @@ class Service extends Model
             ? $this->deliverables
             : $this->deliverables()->where('is_active', true)->orderBy('sort_order')->get();
         $locale = app()->getLocale();
+        $translated = __("services.catalog.{$this->code}.deliverables");
 
-        if ($deliverables->isNotEmpty() && ($locale !== 'es' || $deliverables->contains(fn (ServiceDeliverable $deliverable): bool => filled($deliverable->name_es)))) {
+        if ($deliverables->isNotEmpty()) {
             return $deliverables
-                ->map(fn (ServiceDeliverable $deliverable): string => $deliverable->localizedName())
+                ->values()
+                ->map(function (ServiceDeliverable $deliverable, int $index) use ($locale, $translated): string {
+                    if ($locale === 'es'
+                        && ! $this->isUsableTranslation($deliverable->name_en, $deliverable->name_es)
+                        && is_array($translated)
+                        && filled($translated[$index] ?? null)) {
+                        return (string) $translated[$index];
+                    }
+
+                    return $deliverable->localizedName();
+                })
                 ->filter()
                 ->values()
                 ->all();
         }
-
-        $translated = __("services.catalog.{$this->code}.deliverables");
 
         if (is_array($translated)) {
             return $translated;
@@ -119,5 +132,13 @@ class Service extends Model
             ->filter()
             ->values()
             ->all();
+    }
+
+    private function isUsableTranslation(?string $source, ?string $target): bool
+    {
+        $source = mb_strtolower(trim(preg_replace('/\s+/u', ' ', html_entity_decode((string) $source, ENT_QUOTES | ENT_HTML5, 'UTF-8')) ?? ''));
+        $target = mb_strtolower(trim(preg_replace('/\s+/u', ' ', html_entity_decode((string) $target, ENT_QUOTES | ENT_HTML5, 'UTF-8')) ?? ''));
+
+        return $target !== '' && $target !== $source;
     }
 }

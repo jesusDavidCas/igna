@@ -44,15 +44,27 @@ class ServiceDeliverable extends Model
 
     public function localizedName(): string
     {
-        $field = app()->getLocale() === 'es' ? $this->name_es : $this->name_en;
+        $field = app()->getLocale() === 'es'
+            ? ($this->isUsableTranslation($this->name_en, $this->name_es) ? $this->name_es : null)
+            : $this->name_en;
 
         return filled($field) ? $field : $this->name;
     }
 
     public function localizedDescription(): ?string
     {
-        $field = app()->getLocale() === 'es' ? $this->description_es : $this->description_en;
+        $field = app()->getLocale() === 'es'
+            ? ($this->isUsableTranslation($this->description_en, $this->description_es) ? $this->description_es : null)
+            : $this->description_en;
 
         return filled($field) ? $field : $this->description;
+    }
+
+    private function isUsableTranslation(?string $source, ?string $target): bool
+    {
+        $source = mb_strtolower(trim(preg_replace('/\s+/u', ' ', html_entity_decode((string) $source, ENT_QUOTES | ENT_HTML5, 'UTF-8')) ?? ''));
+        $target = mb_strtolower(trim(preg_replace('/\s+/u', ' ', html_entity_decode((string) $target, ENT_QUOTES | ENT_HTML5, 'UTF-8')) ?? ''));
+
+        return $target !== '' && $target !== $source;
     }
 }

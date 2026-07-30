@@ -17,7 +17,7 @@
     <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between print:hidden">
         <div>
             <p class="text-[15px] text-stone-500">{{ $proposal->statusLabel() }}</p>
-            <h2 class="text-2xl font-semibold text-stone-950">{{ $proposal->title }}</h2>
+            <h2 class="text-2xl font-semibold text-stone-950">{{ $proposal->localizedTitle() }}</h2>
         </div>
         <div class="flex flex-wrap gap-3">
             <a href="{{ route('admin.proposals.pdf', $proposal) }}" target="_blank" rel="noopener" class="inline-flex items-center rounded-full bg-olive-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-olive-800">{{ __('site.generate_pdf') }}</a>
@@ -34,7 +34,7 @@
         data-message-template="{{ e(__('site.whatsapp_default_message', [
             'client' => '__CLIENT__',
             'proposal' => $proposal->proposal_number,
-            'title' => $proposal->title,
+            'title' => $proposal->localizedTitle(),
             'link' => $proposalAccessUrl,
         ])) }}"
         class="mt-6 hidden rounded-[2rem] border border-olive-200 bg-olive-50 p-6 shadow-sm print:hidden"

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 class TeamCredential extends Model
 {
@@ -76,6 +77,34 @@ class TeamCredential extends Model
 
     public function hasProtectedDerivative(): bool
     {
-        return $this->protection_status === 'ready' && filled($this->protected_document_path);
+        return filled($this->protected_document_path)
+            && Storage::disk('local')->exists($this->protected_document_path);
+    }
+
+    public function hasOriginalFile(): bool
+    {
+        return filled($this->document_path)
+            && Storage::disk('local')->exists($this->document_path);
+    }
+
+    public function protectionState(): string
+    {
+        if (! $this->hasOriginalFile()) {
+            return 'original_missing';
+        }
+
+        if ($this->hasProtectedDerivative() && filled($this->protection_error)) {
+            return 'ready_with_warning';
+        }
+
+        if ($this->hasProtectedDerivative()) {
+            return 'ready';
+        }
+
+        if ($this->protection_status === 'generating') {
+            return 'generating';
+        }
+
+        return 'failed';
     }
 }

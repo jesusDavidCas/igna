@@ -17,12 +17,21 @@
                     <div class="p-10 text-base leading-7 text-stone-600">{{ __('site.credential_file_missing') }}</div>
                 @elseif ($credential->isPdf())
                     <div class="rounded-2xl bg-white p-3 shadow-sm">
-                        <div class="mb-3 flex flex-col gap-3 rounded-xl border border-stone-200 bg-stone-50 p-4 md:flex-row md:items-center md:justify-between">
-                            <p class="text-sm leading-6 text-stone-600">{{ __('site.protected_pdf_download_note') }}</p>
-                            <a href="{{ URL::temporarySignedRoute('team.credentials.file', now()->addMinutes(10), [$teamMember, $credential]) }}" class="inline-flex justify-center rounded-full bg-olive-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-olive-800">
-                                {{ __('site.download_protected_credential') }}
-                            </a>
+                        <div class="mb-3 rounded-xl border border-stone-200 bg-stone-50 p-4">
+                            <p class="text-sm leading-6 text-stone-600">{{ __('site.protected_pdf_inline_note') }}</p>
                         </div>
+                        <object
+                            data="{{ URL::temporarySignedRoute('team.credentials.file', now()->addMinutes(10), [$teamMember, $credential]) }}#toolbar=0&navpanes=0"
+                            type="application/pdf"
+                            class="h-[72vh] min-h-[28rem] w-full rounded-xl border border-stone-200 bg-white"
+                            aria-label="{{ $credential->title }}"
+                        >
+                            <iframe
+                                src="{{ URL::temporarySignedRoute('team.credentials.file', now()->addMinutes(10), [$teamMember, $credential]) }}#toolbar=0&navpanes=0"
+                                class="h-[72vh] min-h-[28rem] w-full rounded-xl border border-stone-200 bg-white"
+                                title="{{ $credential->title }}"
+                            ></iframe>
+                        </object>
                     </div>
                 @elseif ($credential->hasRenderablePreview())
                     <div class="space-y-5">

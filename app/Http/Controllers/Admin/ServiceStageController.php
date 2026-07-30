@@ -29,7 +29,7 @@ class ServiceStageController extends Controller
         abort_unless($stage->service_id === $service->id, 404);
 
         $stage->update([
-            ...$this->payload($request),
+            ...$this->payload($request, $stage),
             'is_active' => $request->boolean('is_active'),
             'is_client_visible' => $request->boolean('is_client_visible'),
         ]);
@@ -94,10 +94,23 @@ class ServiceStageController extends Controller
             ->with('success', __('site.service_translation_ready'));
     }
 
-    private function payload(ServiceStageRequest $request): array
+    private function payload(ServiceStageRequest $request, ?ServiceStage $stage = null): array
     {
+        $contentLocale = $request->input('content_locale') === 'es' ? 'es' : 'en';
+        $translator = app(ServiceContentTranslator::class);
         $nameEn = trim((string) $request->validated('name_en'));
         $nameEs = trim((string) $request->validated('name_es'));
+        $descriptionEn = trim((string) $request->validated('description_en'));
+        $descriptionEs = trim((string) $request->validated('description_es'));
+
+        if ($contentLocale === 'en') {
+            $nameEs = $this->cachedTranslation($translator, $nameEn, 'en', 'es', $stage?->name_es, $nameEs);
+            $descriptionEs = $this->cachedTranslation($translator, $descriptionEn, 'en', 'es', $stage?->description_es, $descriptionEs);
+        } else {
+            $nameEn = $this->cachedTranslation($translator, $nameEs, 'es', 'en', $stage?->name_en, $nameEn);
+            $descriptionEn = $this->cachedTranslation($translator, $descriptionEs, 'es', 'en', $stage?->description_en, $descriptionEn);
+        }
+
         $legacyName = trim((string) $request->validated('name'));
         $name = $nameEn ?: ($nameEs ?: $legacyName);
 
@@ -106,10 +119,41 @@ class ServiceStageController extends Controller
             'name_en' => $nameEn ?: null,
             'name_es' => $nameEs ?: null,
             'code' => Str::upper((string) $request->validated('code')),
-            'description' => $request->validated('description_en') ?: ($request->validated('description_es') ?: $request->validated('description')),
-            'description_en' => $request->validated('description_en'),
-            'description_es' => $request->validated('description_es'),
+            'description' => $descriptionEn ?: ($descriptionEs ?: $request->validated('description')),
+            'description_en' => $descriptionEn ?: null,
+            'description_es' => $descriptionEs ?: null,
             'sort_order' => $request->validated('sort_order'),
         ];
+    }
+
+    private function cachedTranslation(ServiceContentTranslator $translator, ?string $source, string $sourceLocale, string $targetLocale, ?string $existing, ?string $submitted = null): ?string
+    {
+        $source = trim((string) $source);
+        $existing = trim((string) $existing);
+        $submitted = trim((string) $submitted);
+
+        if ($source === '') {
+            return $translator->isUsableTranslation('', $existing) ? $existing : null;
+        }
+
+        if ($translator->isUsableTranslation($source, $submitted)) {
+            return $submitted;
+        }
+
+        if ($translator->isUsableTranslation($source, $existing)) {
+            return $existing;
+        }
+
+        try {
+            $translated = $translator->translate($source, $sourceLocale, $targetLocale);
+
+            if ($translator->isUsableTranslation($source, $translated)) {
+                return $translated;
+            }
+        } catch (\Throwable) {
+            session()->flash('warning', __('site.dynamic_translation_unavailable'));
+        }
+
+        return null;
     }
 }

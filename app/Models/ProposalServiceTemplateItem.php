@@ -37,8 +37,20 @@ class ProposalServiceTemplateItem extends Model
 
     public function localizedDescription(): string
     {
-        return app()->getLocale() === 'en'
-            ? ($this->description_en ?: $this->description_es)
-            : $this->description_es;
+        if (app()->getLocale() === 'es') {
+            return $this->isUsableTranslation($this->description_en, $this->description_es)
+                ? $this->description_es
+                : ($this->description_en ?: $this->description_es);
+        }
+
+        return $this->description_en ?: $this->description_es;
+    }
+
+    private function isUsableTranslation(?string $source, ?string $target): bool
+    {
+        $source = mb_strtolower(trim(preg_replace('/\s+/u', ' ', html_entity_decode((string) $source, ENT_QUOTES | ENT_HTML5, 'UTF-8')) ?? ''));
+        $target = mb_strtolower(trim(preg_replace('/\s+/u', ' ', html_entity_decode((string) $target, ENT_QUOTES | ENT_HTML5, 'UTF-8')) ?? ''));
+
+        return $target !== '' && $target !== $source;
     }
 }

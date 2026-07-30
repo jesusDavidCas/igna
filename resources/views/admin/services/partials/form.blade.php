@@ -1,17 +1,21 @@
+@php
+    $contentLocale = app()->getLocale() === 'es' ? 'es' : 'en';
+    $targetLocale = $contentLocale === 'es' ? 'en' : 'es';
+    $localizedDeliverables = $service->exists ? $service->localizedDeliverables() : [];
+@endphp
+
 <form id="service-form" method="POST" action="{{ $action }}" class="rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
     @csrf
     @if ($method !== 'POST')
         @method($method)
     @endif
+    <input type="hidden" name="content_locale" value="{{ $contentLocale }}">
 
     <div class="grid gap-5 md:grid-cols-2">
-        <div>
-            <label class="form-label">{{ __('site.form_name') }} EN</label>
-            <input name="name_en" value="{{ old('name_en', $service->name_en ?: $service->name) }}" class="form-input" required>
-        </div>
-        <div>
-            <label class="form-label">{{ __('site.form_name') }} ES</label>
-            <input name="name_es" value="{{ old('name_es', $service->name_es) }}" class="form-input">
+        <div class="md:col-span-2">
+            <label class="form-label">{{ __('site.form_name') }}</label>
+            <input name="name" value="{{ old('name', old("name_{$contentLocale}", $contentLocale === 'es' ? ($service->name_es ?: $service->localizedName()) : ($service->name_en ?: $service->localizedName()))) }}" class="form-input" required>
+            <input type="hidden" name="name_{{ $targetLocale }}" value="{{ old("name_{$targetLocale}", $targetLocale === 'es' ? $service->name_es : $service->name_en) }}">
         </div>
         <div>
             <label class="form-label">{{ __('site.form_code') }}</label>
@@ -52,28 +56,27 @@
             </label>
         </div>
         <div class="md:col-span-2">
-            <label class="form-label">{{ __('site.form_description') }} EN</label>
-            <textarea name="description_en" rows="4" class="form-input">{{ old('description_en', $service->description_en ?: $service->description) }}</textarea>
-        </div>
-        <div class="md:col-span-2">
-            <label class="form-label">{{ __('site.form_description') }} ES</label>
-            <textarea name="description_es" rows="4" class="form-input">{{ old('description_es', $service->description_es) }}</textarea>
+            <label class="form-label">{{ __('site.form_description') }}</label>
+            <textarea name="description" rows="4" class="form-input">{{ old('description', old("description_{$contentLocale}", $contentLocale === 'es' ? ($service->description_es ?: $service->localizedDescription()) : ($service->description_en ?: $service->localizedDescription()))) }}</textarea>
+            <input type="hidden" name="description_{{ $targetLocale }}" value="{{ old("description_{$targetLocale}", $targetLocale === 'es' ? $service->description_es : $service->description_en) }}">
         </div>
         <div class="md:col-span-2">
             @php
                 $deliverableRows = old('deliverables');
                 if (! is_array($deliverableRows)) {
                     $deliverableRows = $service->relationLoaded('deliverables') && $service->deliverables->isNotEmpty()
-                        ? $service->deliverables->map(fn ($deliverable) => [
+                        ? $service->deliverables->values()->map(fn ($deliverable, int $index) => [
+                            'id' => $deliverable->id,
                             'en' => $deliverable->name_en ?: $deliverable->name,
                             'es' => $deliverable->name_es,
+                            'content' => $contentLocale === 'es' ? ($localizedDeliverables[$index] ?? $deliverable->localizedName()) : ($deliverable->name_en ?: $deliverable->localizedName()),
                         ])->values()->all()
                         : collect($service->deliverables_schema ?? [])->map(fn ($deliverable) => is_array($deliverable)
-                            ? ['en' => $deliverable['en'] ?? '', 'es' => $deliverable['es'] ?? '']
-                            : ['en' => (string) $deliverable, 'es' => ''])->values()->all();
+                            ? ['id' => $deliverable['id'] ?? null, 'en' => $deliverable['en'] ?? '', 'es' => $deliverable['es'] ?? '', 'content' => $deliverable[$contentLocale] ?? $deliverable['en'] ?? $deliverable['es'] ?? '']
+                            : ['id' => null, 'en' => (string) $deliverable, 'es' => '', 'content' => (string) $deliverable])->values()->all();
                 }
                 if ($deliverableRows === []) {
-                    $deliverableRows = [['en' => '', 'es' => '']];
+                    $deliverableRows = [['id' => null, 'en' => '', 'es' => '', 'content' => '']];
                 }
             @endphp
             <div class="flex items-center justify-between gap-4">
@@ -82,14 +85,12 @@
             </div>
             <div data-deliverables-list class="mt-3 space-y-3">
                 @foreach ($deliverableRows as $index => $deliverable)
-                    <div data-deliverable-row class="grid gap-3 rounded-2xl bg-stone-50 p-4 md:grid-cols-[1fr_1fr_auto]">
+                    <div data-deliverable-row class="grid gap-3 rounded-2xl bg-stone-50 p-4 md:grid-cols-[1fr_auto]">
                         <div>
-                            <label class="form-label" for="deliverable-{{ $index }}-en">{{ __('site.deliverable_en') }}</label>
-                            <input id="deliverable-{{ $index }}-en" name="deliverables[{{ $index }}][en]" value="{{ $deliverable['en'] ?? '' }}" class="form-input">
-                        </div>
-                        <div>
-                            <label class="form-label" for="deliverable-{{ $index }}-es">{{ __('site.deliverable_es') }}</label>
-                            <input id="deliverable-{{ $index }}-es" name="deliverables[{{ $index }}][es]" value="{{ $deliverable['es'] ?? '' }}" class="form-input">
+                            <label class="form-label" for="deliverable-{{ $index }}-content">{{ __('site.form_deliverable') }}</label>
+                            <input type="hidden" name="deliverables[{{ $index }}][id]" value="{{ $deliverable['id'] ?? '' }}">
+                            <input id="deliverable-{{ $index }}-content" name="deliverables[{{ $index }}][content]" value="{{ $deliverable['content'] ?? $deliverable[$contentLocale] ?? '' }}" class="form-input">
+                            <input type="hidden" name="deliverables[{{ $index }}][{{ $targetLocale }}]" value="{{ $deliverable[$targetLocale] ?? '' }}">
                         </div>
                         <div class="flex items-end">
                             <button type="button" data-remove-deliverable class="rounded-full border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700">{{ __('site.remove_deliverable') }}</button>
@@ -104,12 +105,7 @@
     <div class="mt-6 flex flex-wrap gap-3">
         <button type="submit" class="rounded-full bg-olive-700 px-5 py-2.5 text-sm font-semibold text-white">{{ __('site.save_changes') }}</button>
         @if ($service->exists)
-            <button type="submit" name="source_locale" value="es" formaction="{{ route('admin.services.translate', $service) }}" class="rounded-full border border-stone-300 px-5 py-2.5 text-sm font-semibold text-stone-700">{{ __('site.translate_from_spanish') }}</button>
-            <button type="submit" name="source_locale" value="en" formaction="{{ route('admin.services.translate', $service) }}" class="rounded-full border border-stone-300 px-5 py-2.5 text-sm font-semibold text-stone-700">{{ __('site.translate_from_english') }}</button>
-            <label class="inline-flex items-center gap-2 text-sm text-stone-700">
-                <input type="checkbox" name="overwrite" value="1">
-                {{ __('site.overwrite_translations') }}
-            </label>
+            <p class="text-sm leading-6 text-stone-500">{{ __('site.dynamic_translation_cache_note') }}</p>
         @endif
     </div>
 </form>
@@ -124,15 +120,13 @@
             const index = list.querySelectorAll('[data-deliverable-row]').length;
             const row = document.createElement('div');
             row.setAttribute('data-deliverable-row', '');
-            row.className = 'grid gap-3 rounded-2xl bg-stone-50 p-4 md:grid-cols-[1fr_1fr_auto]';
+            row.className = 'grid gap-3 rounded-2xl bg-stone-50 p-4 md:grid-cols-[1fr_auto]';
             row.innerHTML = `
                 <div>
-                    <label class="form-label" for="deliverable-${index}-en">{{ __('site.deliverable_en') }}</label>
-                    <input id="deliverable-${index}-en" name="deliverables[${index}][en]" class="form-input">
-                </div>
-                <div>
-                    <label class="form-label" for="deliverable-${index}-es">{{ __('site.deliverable_es') }}</label>
-                    <input id="deliverable-${index}-es" name="deliverables[${index}][es]" class="form-input">
+                    <label class="form-label" for="deliverable-${index}-content">{{ __('site.form_deliverable') }}</label>
+                    <input type="hidden" name="deliverables[${index}][id]">
+                    <input id="deliverable-${index}-content" name="deliverables[${index}][content]" class="form-input">
+                    <input type="hidden" name="deliverables[${index}][{{ $targetLocale }}]">
                 </div>
                 <div class="flex items-end">
                     <button type="button" data-remove-deliverable class="rounded-full border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700">{{ __('site.remove_deliverable') }}</button>

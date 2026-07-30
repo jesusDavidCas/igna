@@ -11,12 +11,18 @@
 - Human QA status: HUMAN ACCEPTANCE FAILED - CORRECTIVE WORK REQUIRED
 - Source corrections: required in Phase 5A.8
 - Graphify regeneration: required after corrective source changes
+- Phase 5A.8 round-four status: HUMAN ACCEPTANCE FAILED - DYNAMIC LOCALIZATION PROVIDER REMAINS
+- Phase 5A.8 round-six status: TECHNICALLY READY - FINAL HUMAN APPROVAL PENDING
 
 ## Human QA Finding
 
 HUMAN ACCEPTANCE FAILED - CORRECTIVE WORK REQUIRED
 
 The human review supersedes the earlier local acceptance recommendation. Release preparation must stop until Phase 5A.8 corrects the confirmed defects below.
+
+Update after Phase 5A.8 Round 4: human QA accepted the real credential upload/regeneration/protected-viewer workflow and accepted rich-text bold, italic, clear formatting, bulleted lists, numbered lists, and character counting. Round 4 replaced proposal-template deactivate/reactivate with permanent deletion and expanded locale-aware dynamic content rendering. Release readiness is still blocked by the missing real dynamic translation provider.
+
+Update after Phase 5A.8 Round 6: the remaining confirmed defect was service deliverables staying in their English source language after a global switch to Spanish. Round 6 backfilled catalog deliverable translations, preserved deliverable IDs during service saves, and verified service 13 (`PTP`) switches deliverables English/Spanish in the local browser. The source is technically ready for final human approval; production deployment remains a separate human decision.
 
 ## QA Data Strategy
 
@@ -33,7 +39,7 @@ Local-only evidence was written under:
 
 ## Credential Acceptance
 
-Status: RELEASE BLOCKER
+Status: ACCEPTED BY HUMAN QA, READY WITH PRODUCTION PREREQUISITE VALIDATION
 
 - Synthetic team member and credential records were created.
 - The original credential remained private.
@@ -43,7 +49,7 @@ Status: RELEASE BLOCKER
 - Response headers included PDF content type, attachment disposition, and `nosniff`.
 - PDF inspection confirmed a single-page protected derivative.
 - Rendered image review confirmed the visible `IGNA Studio` watermark on the synthetic protected credential.
-- Human QA later confirmed protected credential derivative generation failed through the real administration interface. Phase 5A.8 must reproduce and correct the real upload/regeneration failure path before release preparation resumes.
+- Human QA later accepted the corrected real administration upload, regeneration, and protected-viewer path. Production must still confirm GD, Poppler `pdftoppm`, and process functions before relying on credential generation.
 
 Evidence:
 
@@ -117,7 +123,7 @@ Evidence:
 
 ## Grouped Public Request Acceptance
 
-Status: CORRECTIVE WORK REQUIRED
+Status: READY WITH HUMAN FINAL VISUAL CONFIRMATION
 
 - The public request form rendered persisted active services under grouped category headings.
 - Technology and Infrastructure Engineering groups were present in local browser checks.
@@ -139,8 +145,7 @@ Status: CORRECTIVE WORK REQUIRED
 - Proposal editor template controls rendered on desktop without console errors.
 - Active template insertion and repeated insertion behavior remain covered by focused tests.
 - Template snapshot independence was verified through database inspection and automated tests.
-- Human QA confirmed the catalogue contains noisy or unexplained counters and incorrect labels.
-- Human QA confirmed proposal-template editing duplicates language inputs and must be refactored to one visible localized title field.
+- Round 4 removed deactivate/reactivate as the normal workflow and added permanent deletion. Existing inactive templates remain visible as legacy records until a human intentionally deletes them. Historical proposal snapshots remain independent.
 
 Evidence:
 
@@ -150,13 +155,13 @@ Evidence:
 
 ## Proposal PDF Acceptance
 
-Status: CORRECTIVE WORK REQUIRED
+Status: ACCEPTED BY HUMAN QA, READY WITH FINAL PDF VISUAL CONFIRMATION
 
 - A synthetic proposal PDF was generated locally through the application PDF view path.
 - PDF inspection confirmed a single-page landscape PDF.
 - Saved proposal item values remained independent from reusable template rows.
 - Human visual approval should confirm final formatting in a browser/PDF viewer before release approval.
-- Human QA confirmed proposal rich-text bullet and numbered-list controls do not work reliably and the character-limit behavior requires synchronization.
+- Human QA accepted bold, italic, clear formatting, bulleted lists, numbered lists, and character counting after Phase 5A.8 corrections.
 
 Evidence:
 
@@ -187,7 +192,7 @@ Status: CORRECTIVE WORK REQUIRED
 - Grouped public selector labels rendered in the current interface locale.
 - English and Spanish mail behavior remains covered by automated tests.
 - Human review should approve final wording in English and Spanish before release approval.
-- Human QA confirmed dynamic database content translation is incorrect or ineffective and must be corrected without destructive data loss.
+- Round 4 corrected locale-aware rendering for stored service parent content, deliverables, workflow stages, proposal titles, and proposal-template rows when target-locale values exist. Automatic translation remains blocked until a real provider is configured and smoke-tested.
 
 ## Browser Console And Network Review
 
@@ -207,23 +212,18 @@ Evidence:
 
 ## Confirmed Release Blockers
 
-- Protected credential derivative generation failed through the real administration interface.
+- No confirmed source-level release blocker remains after Round 6 local verification.
+- No real dynamic-content translation provider is configured for automatic database-content translation.
 
 ## Functional Corrections Required
 
-- Service deliverables show duplicate English and Spanish inputs.
-- Spanish service values currently repeat English content.
-- Service workflow-stage editing shows duplicate bilingual fields.
-- Per-section translation actions do not produce useful translated content.
-- Proposal-template catalogue contains noisy or unexplained counters.
-- Proposal-template edit label is incorrectly localized.
-- Proposal-template editing duplicates language inputs.
-- Proposal rich-text bullet and numbered-list controls do not work.
-- Proposal rich-text character-limit behavior requires synchronization.
+- Complete final human approval using the Round 6 checklist before production deployment.
+- Confirm production capability prerequisites before relying on credential generation.
+- Re-run any older failed credential records the human expects to recover; missing originals must be reuploaded.
 
 ## Corrections Made
 
-None in Phase 5A.7. Corrective work is required in Phase 5A.8.
+Phase 5A.8 corrections remain unstaged. The second corrective round added real credential upload/regeneration validation, a one-visible-field proposal-template row model, provider-backed local translation sync tooling, and richer browser/PDF list handling. Human QA must repeat acceptance before release preparation.
 
 ## Human Checklist
 
@@ -239,7 +239,7 @@ Use the retained synthetic `QA 5A7` records and new Phase 5A.8 evidence folders 
 | Mail | Inspect English and Spanish local mail previews. | No attachments, private paths, recipient leakage, or unsafe links. |
 | Services | Edit a synthetic service in the current locale. | One visible field per content item; translation cache updates safely; ordering and category assignment persist. |
 | Public request | Open the public request form in both locales. | Technology and Infrastructure Engineering groups render; "Other" remains available. |
-| Proposal templates | Create, deactivate, reactivate, duplicate, and edit a synthetic template. | Catalogue is clean; Edit/Editar labels are correct; one visible title field is shown. |
+| Proposal templates | Create, duplicate, edit, and permanently delete a disposable synthetic template. | Catalogue is clean; Edit/Editar labels are correct; one visible title field is shown; deleted templates disappear without changing historical proposals. |
 | Proposal rich text | Use bold, italic, clear formatting, bulleted lists, numbered lists, and boundary-length content. | Formatting persists, lists render semantically, PDF output preserves lists, and over-limit content is rejected without truncation. |
 | Proposal PDF | Open the generated synthetic proposal PDF. | PDF reflects saved proposal items, not later template changes. |
 | Responsive | Check public request and proposal-template pages on mobile width. | No broken layout or horizontal overflow. |

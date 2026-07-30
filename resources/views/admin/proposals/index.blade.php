@@ -45,7 +45,7 @@
                         {{ $proposal->proposal_number }}
                     </a>
                     <div class="min-w-0">
-                        <h2 class="break-words font-semibold text-stone-950">{{ $proposal->title }}</h2>
+                        <h2 class="break-words font-semibold text-stone-950">{{ $proposal->localizedTitle() }}</h2>
                         <p class="mt-1 break-words text-sm text-stone-500">{{ $proposal->clientDisplayName() }}</p>
                     </div>
                     <dl class="grid gap-3 text-sm">
@@ -95,7 +95,7 @@
                                     {{ $proposal->proposal_number }}
                                 </a>
                             </td>
-                            <td class="truncate py-4 pr-5" title="{{ $proposal->title }}">{{ $proposal->title }}</td>
+                            <td class="truncate py-4 pr-5" title="{{ $proposal->localizedTitle() }}">{{ $proposal->localizedTitle() }}</td>
                             <td class="truncate py-4 pr-5" title="{{ $proposal->clientDisplayName() }}">{{ $proposal->clientDisplayName() }}</td>
                             <td class="py-4 pr-5">{{ $proposal->statusLabel() }}</td>
                             <td class="py-4 pr-5">{{ $proposal->created_at?->translatedFormat('Y-m-d H:i') }}</td>

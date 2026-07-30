@@ -5,9 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ProposalServiceTemplateRequest;
 use App\Models\ProposalServiceTemplate;
+use App\Services\Services\ServiceContentTranslator;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -18,12 +18,10 @@ class ProposalServiceTemplateController extends Controller
         $templates = ProposalServiceTemplate::query()
             ->withCount('items')
             ->ordered()
-            ->get()
-            ->groupBy(fn (ProposalServiceTemplate $template): string => $template->is_active ? 'active' : 'inactive');
+            ->get();
 
         return view('admin.proposal-templates.index', [
-            'activeTemplates' => $templates->get('active', collect()),
-            'inactiveTemplates' => $templates->get('inactive', collect()),
+            'templates' => $templates,
         ]);
     }
 
@@ -45,7 +43,7 @@ class ProposalServiceTemplateController extends Controller
     {
         $template = DB::transaction(function () use ($request): ProposalServiceTemplate {
             $template = ProposalServiceTemplate::query()->create($this->payload($request));
-            $this->syncItems($template, $request->validated('items'));
+            $this->syncItems($template, $request->validated('items'), $request->input('content_locale') === 'es' ? 'es' : 'en');
 
             return $template;
         });
@@ -65,7 +63,7 @@ class ProposalServiceTemplateController extends Controller
     {
         DB::transaction(function () use ($request, $proposalTemplate): void {
             $proposalTemplate->update($this->payload($request));
-            $this->syncItems($proposalTemplate, $request->validated('items'));
+            $this->syncItems($proposalTemplate, $request->validated('items'), $request->input('content_locale') === 'es' ? 'es' : 'en');
         });
 
         return redirect()->route('admin.proposal-templates.edit', $proposalTemplate)->with('success', __('site.proposal_template_updated'));
@@ -84,7 +82,7 @@ class ProposalServiceTemplateController extends Controller
                 'landing_title_es' => Str::limit(($proposalTemplate->landing_title_es ?: $proposalTemplate->name_es).' copia', 255, ''),
                 'landing_description_en' => $proposalTemplate->landing_description_en,
                 'landing_description_es' => $proposalTemplate->landing_description_es,
-                'is_active' => false,
+                'is_active' => true,
                 'sort_order' => ((int) (ProposalServiceTemplate::query()->max('sort_order') ?? 0)) + 1,
             ]);
 
@@ -106,18 +104,18 @@ class ProposalServiceTemplateController extends Controller
         return redirect()->route('admin.proposal-templates.edit', $copy)->with('success', __('site.proposal_template_duplicated'));
     }
 
-    public function status(Request $request, ProposalServiceTemplate $proposalTemplate): RedirectResponse
+    public function destroy(ProposalServiceTemplate $proposalTemplate): RedirectResponse
     {
-        $proposalTemplate->update([
-            'is_active' => $request->boolean('is_active'),
-        ]);
+        DB::transaction(function () use ($proposalTemplate): void {
+            $proposalTemplate->delete();
+        });
 
-        return redirect()->route('admin.proposal-templates.index')->with('success', __('site.proposal_template_status_updated'));
+        return redirect()->route('admin.proposal-templates.index')->with('success', __('site.proposal_template_deleted'));
     }
 
     private function payload(ProposalServiceTemplateRequest $request): array
     {
-        return collect($request->validated())
+        $payload = collect($request->validated())
             ->only([
                 'code',
                 'service_number',
@@ -131,17 +129,46 @@ class ProposalServiceTemplateController extends Controller
                 'is_active',
             ])
             ->all();
+
+        $contentLocale = $request->input('content_locale') === 'es' ? 'es' : 'en';
+        $translator = app(ServiceContentTranslator::class);
+        $sourceKey = "name_{$contentLocale}";
+        $targetKey = $contentLocale === 'es' ? 'name_en' : 'name_es';
+        $source = trim((string) ($payload[$sourceKey] ?? ''));
+        $target = trim((string) ($payload[$targetKey] ?? ''));
+
+        if (! $translator->isUsableTranslation($source, $target)) {
+            try {
+                $translated = $translator->translate($source, $contentLocale, $contentLocale === 'es' ? 'en' : 'es');
+                $payload[$targetKey] = $translator->isUsableTranslation($source, $translated) ? $translated : '';
+            } catch (\Throwable) {
+                $payload[$targetKey] = '';
+                session()->flash('warning', __('site.dynamic_translation_unavailable'));
+            }
+        }
+
+        $payload['landing_title_en'] = $payload['name_en'] ?? '';
+        $payload['landing_title_es'] = $payload['name_es'] ?? '';
+
+        return $payload;
     }
 
-    private function syncItems(ProposalServiceTemplate $template, array $items): void
+    private function syncItems(ProposalServiceTemplate $template, array $items, string $contentLocale): void
     {
         $template->items()->delete();
+        $translator = app(ServiceContentTranslator::class);
 
-        collect($items)->values()->each(function (array $item, int $index) use ($template): void {
+        collect($items)->values()->each(function (array $item, int $index) use ($template, $contentLocale, $translator): void {
+            if ($contentLocale === 'en') {
+                $item['description_es'] = $this->cachedTranslation($translator, $item['description_en'] ?? null, 'en', 'es', $item['description_es'] ?? null);
+            } else {
+                $item['description_en'] = $this->cachedTranslation($translator, $item['description_es'] ?? null, 'es', 'en', $item['description_en'] ?? null);
+            }
+
             $template->items()->create([
                 'item_code' => $item['item_code'] ?? null,
-                'description_en' => $item['description_en'],
-                'description_es' => $item['description_es'],
+                'description_en' => $item['description_en'] ?? '',
+                'description_es' => $item['description_es'] ?? '',
                 'unit' => $item['unit'] ?? null,
                 'quantity' => $item['quantity'] ?? null,
                 'unit_value' => $item['unit_value'] ?? null,
@@ -162,6 +189,31 @@ class ProposalServiceTemplateController extends Controller
                 'unit_value' => $item->unit_value,
             ])
             ->all();
+    }
+
+    private function cachedTranslation(ServiceContentTranslator $translator, ?string $source, string $sourceLocale, string $targetLocale, ?string $existing): ?string
+    {
+        $source = trim((string) $source);
+
+        if ($source === '') {
+            return $translator->isUsableTranslation('', $existing) ? $existing : null;
+        }
+
+        if ($translator->isUsableTranslation($source, $existing)) {
+            return $existing;
+        }
+
+        try {
+            $translated = $translator->translate($source, $sourceLocale, $targetLocale);
+
+            if ($translator->isUsableTranslation($source, $translated)) {
+                return $translated;
+            }
+        } catch (\Throwable) {
+            session()->flash('warning', __('site.dynamic_translation_unavailable'));
+        }
+
+        return null;
     }
 
     private function copyCode(string $code): string

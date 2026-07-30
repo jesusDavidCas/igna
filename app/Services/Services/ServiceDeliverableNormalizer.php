@@ -6,7 +6,7 @@ class ServiceDeliverableNormalizer
 {
     /**
      * @param  mixed  $value
-     * @return array<int, array{en: string, es: string}>
+     * @return array<int, array{id: int|null, en: string, es: string}>
      */
     public function rows(mixed $value): array
     {
@@ -15,12 +15,13 @@ class ServiceDeliverableNormalizer
                 ->map(function (mixed $row): array {
                     if (is_array($row)) {
                         return [
-                            'en' => trim((string) ($row['en'] ?? $row['name_en'] ?? $row['name'] ?? '')),
+                            'id' => filled($row['id'] ?? null) ? (int) $row['id'] : null,
+                            'en' => trim((string) ($row['en'] ?? $row['name_en'] ?? $row['name'] ?? $row['content'] ?? '')),
                             'es' => trim((string) ($row['es'] ?? $row['name_es'] ?? '')),
                         ];
                     }
 
-                    return ['en' => trim((string) $row), 'es' => ''];
+                    return ['id' => null, 'en' => trim((string) $row), 'es' => ''];
                 })
                 ->filter(fn (array $row): bool => $row['en'] !== '' || $row['es'] !== '')
                 ->values()
@@ -29,7 +30,7 @@ class ServiceDeliverableNormalizer
 
         return collect(preg_split('/\r\n|\r|\n/', (string) $value) ?: [])
             ->flatMap(fn (string $line): array => str_contains($line, '|') ? explode('|', $line) : [$line])
-            ->map(fn (string $line): array => ['en' => trim($line), 'es' => ''])
+            ->map(fn (string $line): array => ['id' => null, 'en' => trim($line), 'es' => ''])
             ->filter(fn (array $row): bool => $row['en'] !== '')
             ->values()
             ->all();

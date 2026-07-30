@@ -44,6 +44,7 @@
             <h2 class="text-lg font-semibold text-stone-950">{{ __('site.credentials') }}</h2>
             <div class="mt-5 space-y-4">
                 @forelse ($teamMember->credentials as $credential)
+                    @php($protectionState = $credential->protectionState())
                     <div class="rounded-2xl border border-stone-200 bg-stone-50 p-4">
                         <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                             <div>
@@ -56,12 +57,14 @@
                                     {{ $credential->is_public ? __('site.public_listing') : __('site.internal_only') }}
                                     · {{ trans_choice('site.view_count', $credential->views->count(), ['count' => $credential->views->count()]) }}
                                 </p>
-                                <p class="mt-2 text-xs font-semibold uppercase tracking-[0.18em] {{ $credential->hasProtectedDerivative() ? 'text-emerald-700' : 'text-amber-700' }}">
-                                    @if ($credential->hasProtectedDerivative() && $credential->protection_error)
+                                <p class="mt-2 text-xs font-semibold uppercase tracking-[0.18em] {{ in_array($protectionState, ['ready', 'ready_with_warning'], true) ? 'text-emerald-700' : 'text-amber-700' }}">
+                                    @if ($protectionState === 'ready_with_warning')
                                         {{ __('site.credential_protection_ready_with_warning') }}
-                                    @elseif ($credential->hasProtectedDerivative())
+                                    @elseif ($protectionState === 'ready')
                                         {{ __('site.credential_protection_ready') }}
-                                    @elseif ($credential->protection_status === 'generating')
+                                    @elseif ($protectionState === 'original_missing')
+                                        {{ __('site.credential_original_missing') }}
+                                    @elseif ($protectionState === 'generating')
                                         {{ __('site.credential_protection_generating') }}
                                     @else
                                         {{ __('site.credential_protection_failed') }}

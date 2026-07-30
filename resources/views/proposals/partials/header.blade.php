@@ -15,7 +15,7 @@
             <div class="min-w-0">
                 <p class="text-xs font-semibold uppercase tracking-[0.22em] text-olive-700">{{ __('site.quote_proposal') }}</p>
                 <{{ $headingTag }} class="mt-2 max-w-3xl text-2xl font-semibold leading-tight text-stone-950 md:text-3xl">
-                    {{ $proposal->title }}
+                    {{ $proposal->localizedTitle() }}
                 </{{ $headingTag }}>
                 <p class="mt-2 max-w-3xl text-base leading-7 text-stone-600">{{ $proposal->subject }}</p>
             </div>

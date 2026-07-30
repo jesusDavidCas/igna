@@ -189,7 +189,7 @@ class CredentialPreviewRenderer
      */
     private function rasterizePdf(string $absolutePath, string $temporaryDirectory, ?int $firstPage, ?int $lastPage): array
     {
-        $pdftoppm = (new ExecutableFinder)->find('pdftoppm');
+        $pdftoppm = $this->pdftoppmPath();
 
         if (! $pdftoppm) {
             throw new RuntimeException('PDF rasterization requires the pdftoppm executable from Poppler.');
@@ -213,12 +213,25 @@ class CredentialPreviewRenderer
 
         $process = new Process($arguments);
         $process->setTimeout(60);
-        $process->mustRun();
+        $process->run();
 
-        $pages = glob($temporaryDirectory.'/source-page-*.jpg') ?: [];
+        if (! $process->isSuccessful()) {
+            throw new RuntimeException('PDF rasterization failed with code '.$process->getExitCode().': '.$this->sanitizeProcessOutput($process->getErrorOutput() ?: $process->getOutput()));
+        }
+
+        $pages = [
+            ...(glob($temporaryDirectory.'/source-page-*.jpg') ?: []),
+            ...(glob($temporaryDirectory.'/source-page-*.jpeg') ?: []),
+        ];
         natsort($pages);
 
-        return array_values($pages);
+        $pages = array_values(array_filter($pages, fn (string $path): bool => is_file($path) && filesize($path) > 0));
+
+        if ($pages === []) {
+            throw new RuntimeException('PDF rasterization produced no readable page images.');
+        }
+
+        return $pages;
     }
 
     private function normalizeImage(string $absolutePath, string $temporaryDirectory): string
@@ -362,6 +375,46 @@ class CredentialPreviewRenderer
         }
 
         return Str::limit(preg_replace('/\s+/', ' ', $message) ?: 'Protected credential generation failed.', 180, '');
+    }
+
+    private function sanitizeProcessOutput(string $output): string
+    {
+        $output = preg_replace('/[A-Za-z]:?[^\\s]+(?:\\/[^\\s]+)+/', '[path]', $output) ?? $output;
+        $output = preg_replace('/\\/[^\\s]+(?:\\/[^\\s]+)+/', '[path]', $output) ?? $output;
+
+        return Str::limit(preg_replace('/\s+/', ' ', trim($output)) ?: 'process failed', 120, '');
+    }
+
+    private function pdftoppmPath(): ?string
+    {
+        $configured = config('services.poppler.pdftoppm');
+
+        if (is_string($configured) && $configured !== '' && is_executable($configured)) {
+            return $configured;
+        }
+
+        $found = (new ExecutableFinder)->find('pdftoppm');
+
+        if ($found && is_executable($found)) {
+            return $found;
+        }
+
+        $home = rtrim((string) (getenv('HOME') ?: ''), '/');
+        $candidates = array_filter([
+            '/usr/bin/pdftoppm',
+            '/usr/local/bin/pdftoppm',
+            '/opt/homebrew/bin/pdftoppm',
+            $home !== '' ? $home.'/.local/bin/pdftoppm' : null,
+            $home !== '' ? $home.'/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/override/pdftoppm' : null,
+        ]);
+
+        foreach ($candidates as $candidate) {
+            if (is_executable($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 
     private function temporaryDirectory(): string

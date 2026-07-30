@@ -3,6 +3,8 @@
     $errorId = fn (string $name): string => 'error-'.str_replace(['.', '_'], '-', $name);
     $errorAttributes = fn (string $name): string => $errors->has($name) ? 'aria-invalid="true" aria-describedby="'.$errorId($name).'"' : '';
     $rows = old('items', $items);
+    $contentLocale = app()->getLocale() === 'es' ? 'es' : 'en';
+    $targetLocale = $contentLocale === 'es' ? 'en' : 'es';
 @endphp
 
 <form method="POST" action="{{ $action }}" class="space-y-8" data-proposal-template-form>
@@ -10,6 +12,7 @@
     @if ($method !== 'POST')
         @method($method)
     @endif
+    <input type="hidden" name="content_locale" value="{{ $contentLocale }}">
 
     <div class="flex flex-wrap items-center justify-between gap-3">
         <a href="{{ route('admin.proposal-templates.index') }}" class="text-sm font-semibold text-olive-700">{{ __('site.back_to_templates') }}</a>
@@ -19,19 +22,15 @@
     <section class="rounded-[1rem] border border-stone-200 bg-white p-6 shadow-sm">
         <div>
             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-olive-700">{{ __('site.proposal_template_identity') }}</p>
-            <h2 class="mt-2 text-2xl font-semibold text-stone-950">{{ __('site.proposal_template_titles') }}</h2>
+            <h2 class="mt-2 text-2xl font-semibold text-stone-950">{{ __('site.proposal_template_title') }}</h2>
         </div>
 
         <div class="mt-6 grid gap-5 md:grid-cols-2">
-            <div>
-                <label for="template-name-en" class="form-label">{{ __('site.proposal_template_title_en') }}</label>
-                <input id="template-name-en" name="name_en" value="{{ old('name_en', $proposalTemplate->name_en) }}" class="{{ $fieldClass('name_en') }}" required {!! $errorAttributes('name_en') !!}>
-                @error('name_en') <p id="{{ $errorId('name_en') }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
-            </div>
-            <div>
-                <label for="template-name-es" class="form-label">{{ __('site.proposal_template_title_es') }}</label>
-                <input id="template-name-es" name="name_es" value="{{ old('name_es', $proposalTemplate->name_es) }}" class="{{ $fieldClass('name_es') }}" required {!! $errorAttributes('name_es') !!}>
-                @error('name_es') <p id="{{ $errorId('name_es') }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
+            <div class="md:col-span-2">
+                <label for="template-name" class="form-label">{{ __('site.proposal_template_title') }}</label>
+                <input id="template-name" name="name" value="{{ old('name', old("name_{$contentLocale}", $contentLocale === 'es' ? ($proposalTemplate->name_es ?: $proposalTemplate->name_en) : ($proposalTemplate->name_en ?: $proposalTemplate->name_es))) }}" class="{{ $fieldClass("name_{$contentLocale}") }}" required {!! $errorAttributes("name_{$contentLocale}") !!}>
+                <input type="hidden" name="name_{{ $targetLocale }}" value="{{ old("name_{$targetLocale}", $targetLocale === 'es' ? $proposalTemplate->name_es : $proposalTemplate->name_en) }}">
+                @error("name_{$contentLocale}") <p id="{{ $errorId("name_{$contentLocale}") }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
             </div>
             <div>
                 <label for="template-code" class="form-label">{{ __('site.proposal_template_code') }}</label>
@@ -67,21 +66,17 @@
         <div id="proposal-template-items" class="mt-6 space-y-4">
             @foreach ($rows as $index => $item)
                 <div class="rounded-2xl border border-stone-200 bg-stone-50 p-4" data-template-row>
-                    <div class="grid gap-4 lg:grid-cols-[0.45fr_1fr_1fr_0.35fr_0.4fr_0.55fr_auto]">
+                    <div class="grid gap-4 lg:grid-cols-[0.45fr_1.6fr_0.35fr_0.4fr_0.55fr_auto]">
                         <div>
                             <label class="form-label" for="template-item-code-{{ $index }}">{{ __('site.template_row_code') }}</label>
                             <input id="template-item-code-{{ $index }}" name="items[{{ $index }}][item_code]" value="{{ $item['item_code'] ?? '' }}" class="{{ $fieldClass("items.$index.item_code") }}" {!! $errorAttributes("items.$index.item_code") !!}>
                             @error("items.$index.item_code") <p id="{{ $errorId("items.$index.item_code") }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
                         </div>
                         <div>
-                            <label class="form-label" for="template-item-en-{{ $index }}">{{ __('site.template_row_en') }}</label>
-                            <textarea id="template-item-en-{{ $index }}" name="items[{{ $index }}][description_en]" rows="3" class="{{ $fieldClass("items.$index.description_en") }}" required {!! $errorAttributes("items.$index.description_en") !!}>{{ $item['description_en'] ?? '' }}</textarea>
-                            @error("items.$index.description_en") <p id="{{ $errorId("items.$index.description_en") }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
-                        </div>
-                        <div>
-                            <label class="form-label" for="template-item-es-{{ $index }}">{{ __('site.template_row_es') }}</label>
-                            <textarea id="template-item-es-{{ $index }}" name="items[{{ $index }}][description_es]" rows="3" class="{{ $fieldClass("items.$index.description_es") }}" required {!! $errorAttributes("items.$index.description_es") !!}>{{ $item['description_es'] ?? '' }}</textarea>
-                            @error("items.$index.description_es") <p id="{{ $errorId("items.$index.description_es") }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
+                            <label class="form-label" for="template-item-description-{{ $index }}">{{ __('site.template_row_description') }}</label>
+                            <textarea id="template-item-description-{{ $index }}" name="items[{{ $index }}][description]" rows="3" class="{{ $fieldClass("items.$index.description_{$contentLocale}") }}" required {!! $errorAttributes("items.$index.description_{$contentLocale}") !!}>{{ old("items.$index.description", $contentLocale === 'es' ? (($item['description_es'] ?? '') ?: ($item['description_en'] ?? '')) : (($item['description_en'] ?? '') ?: ($item['description_es'] ?? ''))) }}</textarea>
+                            <input type="hidden" name="items[{{ $index }}][description_{{ $targetLocale }}]" value="{{ old("items.$index.description_{$targetLocale}", $targetLocale === 'es' ? ($item['description_es'] ?? '') : ($item['description_en'] ?? '')) }}">
+                            @error("items.$index.description_{$contentLocale}") <p id="{{ $errorId("items.$index.description_{$contentLocale}") }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
                         </div>
                         <div>
                             <label class="form-label" for="template-item-unit-{{ $index }}">{{ __('site.template_row_unit') }}</label>
@@ -113,18 +108,15 @@
 
 <template id="proposal-template-row-template">
     <div class="rounded-2xl border border-stone-200 bg-stone-50 p-4" data-template-row>
-        <div class="grid gap-4 lg:grid-cols-[0.45fr_1fr_1fr_0.35fr_0.4fr_0.55fr_auto]">
+        <div class="grid gap-4 lg:grid-cols-[0.45fr_1.6fr_0.35fr_0.4fr_0.55fr_auto]">
             <div>
                 <label class="form-label">{{ __('site.template_row_code') }}</label>
                 <input data-template-field="item_code" class="form-input">
             </div>
             <div>
-                <label class="form-label">{{ __('site.template_row_en') }}</label>
-                <textarea data-template-field="description_en" rows="3" class="form-input" required></textarea>
-            </div>
-            <div>
-                <label class="form-label">{{ __('site.template_row_es') }}</label>
-                <textarea data-template-field="description_es" rows="3" class="form-input" required></textarea>
+                <label class="form-label">{{ __('site.template_row_description') }}</label>
+                <textarea data-template-field="description" rows="3" class="form-input" required></textarea>
+                <input type="hidden" data-template-field="description_{{ $targetLocale }}">
             </div>
             <div>
                 <label class="form-label">{{ __('site.template_row_unit') }}</label>

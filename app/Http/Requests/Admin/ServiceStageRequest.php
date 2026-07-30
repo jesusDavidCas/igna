@@ -37,4 +37,21 @@ class ServiceStageRequest extends FormRequest
             'is_client_visible' => ['nullable', 'boolean'],
         ];
     }
+
+    protected function prepareForValidation(): void
+    {
+        $contentLocale = $this->input('content_locale') === 'es' ? 'es' : 'en';
+
+        if ($this->has('name')) {
+            $this->merge([
+                "name_{$contentLocale}" => $this->input('name'),
+            ]);
+        }
+
+        if ($this->has('description')) {
+            $this->merge([
+                "description_{$contentLocale}" => $this->input('description'),
+            ]);
+        }
+    }
 }

@@ -115,7 +115,7 @@ class TeamCredentialProtectionTest extends TestCase
         Storage::disk('local')->assertExists($oldProtectedPath);
     }
 
-    public function test_authorized_download_returns_attachment_without_storage_path(): void
+    public function test_authorized_view_returns_inline_protected_pdf_without_storage_path(): void
     {
         Storage::fake('local');
 
@@ -141,7 +141,7 @@ class TeamCredentialProtectionTest extends TestCase
         $response = $this->get($url)
             ->assertOk()
             ->assertHeader('content-type', 'application/pdf')
-            ->assertHeader('content-disposition', 'attachment; filename="credential-protected.pdf"')
+            ->assertHeader('content-disposition', 'inline; filename="credential-protected.pdf"')
             ->assertHeader('x-content-type-options', 'nosniff');
 
         $this->assertStringStartsWith('%PDF', $response->getContent());

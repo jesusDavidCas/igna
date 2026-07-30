@@ -306,10 +306,10 @@ class PublicPlatformTest extends TestCase
         $this->get($url)
             ->assertOk()
             ->assertSee('Professional diploma')
-            ->assertSeeText(__('site.download_protected_credential'))
-            ->assertSeeText(__('site.protected_pdf_download_note'))
-            ->assertDontSee('toolbar=1', false)
-            ->assertDontSee('<object', false);
+            ->assertSeeText(__('site.protected_pdf_inline_note'))
+            ->assertSee('<object', false)
+            ->assertSee('type="application/pdf"', false)
+            ->assertSee('toolbar=0', false);
     }
 
     public function test_public_pdf_credential_file_route_returns_rasterized_derivative_only(): void
@@ -348,7 +348,7 @@ class PublicPlatformTest extends TestCase
         $response
             ->assertOk()
             ->assertHeader('content-type', 'application/pdf')
-            ->assertHeader('content-disposition', 'attachment; filename="credential-protected.pdf"')
+            ->assertHeader('content-disposition', 'inline; filename="credential-protected.pdf"')
             ->assertHeader('x-content-type-options', 'nosniff');
 
         $this->assertStringStartsWith('%PDF', $response->getContent());

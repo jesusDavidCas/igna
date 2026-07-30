@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\ProposalRequest;
 use App\Models\Proposal;
 use App\Models\ProposalServiceTemplate;
 use App\Models\User;
+use App\Services\Services\ServiceContentTranslator;
 use App\Support\Proposals\ProposalContentSanitizer;
 use App\Support\Proposals\ProposalNumberGenerator;
 use App\Support\Proposals\ProposalQrCode;
@@ -229,7 +230,7 @@ class ProposalController extends Controller
             'prospect_email' => $request->validated('prospect_email'),
             'prospect_phone' => $request->validated('prospect_phone'),
             'signer_user_id' => $request->validated('signer_user_id'),
-            'title' => $request->validated('title'),
+            ...$this->localizedTitlePayload($request),
             'subject' => $request->validated('subject'),
             'description' => app(ProposalContentSanitizer::class)->clean($request->validated('description')),
             'scope' => app(ProposalContentSanitizer::class)->clean($request->validated('scope')),
@@ -268,6 +269,36 @@ class ProposalController extends Controller
         }
     }
 
+    private function localizedTitlePayload(ProposalRequest $request): array
+    {
+        $contentLocale = $request->input('content_locale') === 'es' ? 'es' : 'en';
+        $targetLocale = $contentLocale === 'es' ? 'en' : 'es';
+        $sourceKey = "title_{$contentLocale}";
+        $targetKey = "title_{$targetLocale}";
+        $source = trim((string) $request->validated($sourceKey));
+        $target = trim((string) $request->validated($targetKey));
+        $translator = app(ServiceContentTranslator::class);
+
+        if (! $translator->isUsableTranslation($source, $target)) {
+            try {
+                $translated = $translator->translate($source, $contentLocale, $targetLocale);
+                $target = $translator->isUsableTranslation($source, $translated) ? $translated : '';
+            } catch (\Throwable) {
+                $target = '';
+                session()->flash('warning', __('site.dynamic_translation_unavailable'));
+            }
+        }
+
+        $titleEn = $contentLocale === 'en' ? $source : $target;
+        $titleEs = $contentLocale === 'es' ? $source : $target;
+
+        return [
+            'title' => $titleEn ?: ($titleEs ?: $source),
+            'title_en' => $titleEn ?: null,
+            'title_es' => $titleEs ?: null,
+        ];
+    }
+
     private function timelineText(int $months, int $weeks): string
     {
         $parts = [];
@@ -302,7 +333,6 @@ class ProposalController extends Controller
     {
         return ProposalServiceTemplate::query()
             ->with('items')
-            ->active()
             ->ordered()
             ->get();
     }

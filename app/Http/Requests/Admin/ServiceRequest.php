@@ -38,6 +38,7 @@ class ServiceRequest extends FormRequest
             'description_en' => ['nullable', 'string'],
             'description_es' => ['nullable', 'string'],
             'deliverables' => ['nullable'],
+            'deliverables.*.id' => ['nullable', 'integer'],
             'deliverables.*.en' => ['nullable', 'string', 'max:500'],
             'deliverables.*.es' => ['nullable', 'string', 'max:500'],
             'is_active' => ['nullable', 'boolean'],
@@ -46,14 +47,44 @@ class ServiceRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $contentLocale = $this->input('content_locale') === 'es' ? 'es' : 'en';
+
+        if ($this->has('name')) {
+            $this->merge([
+                "name_{$contentLocale}" => $this->input('name'),
+            ]);
+        }
+
+        if ($this->has('description')) {
+            $this->merge([
+                "description_{$contentLocale}" => $this->input('description'),
+            ]);
+        }
+
         if ($this->filled('code')) {
             $this->merge([
                 'code' => Str::upper($this->string('code')->trim()->toString()),
             ]);
         }
 
+        $deliverables = $this->input('deliverables');
+
+        if (is_array($deliverables)) {
+            $deliverables = collect($deliverables)
+                ->map(function (mixed $row) use ($contentLocale): mixed {
+                    if (! is_array($row) || ! array_key_exists('content', $row)) {
+                        return $row;
+                    }
+
+                    $row[$contentLocale] = $row['content'];
+
+                    return $row;
+                })
+                ->all();
+        }
+
         $this->merge([
-            'deliverables' => app(ServiceDeliverableNormalizer::class)->rows($this->input('deliverables')),
+            'deliverables' => app(ServiceDeliverableNormalizer::class)->rows($deliverables),
         ]);
     }
 

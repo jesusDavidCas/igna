@@ -11,17 +11,31 @@ class ProposalServiceTemplateRequest extends FormRequest
 {
     protected function prepareForValidation(): void
     {
+        $contentLocale = $this->input('content_locale') === 'es' ? 'es' : 'en';
+
+        if ($this->has('name')) {
+            $this->merge([
+                "name_{$contentLocale}" => $this->input('name'),
+            ]);
+        }
+
         $items = collect($this->input('items', []))
             ->filter(fn ($item): bool => is_array($item))
             ->filter(fn (array $item): bool => collect($item)->contains(fn ($value): bool => filled($value)))
-            ->map(fn (array $item): array => [
-                'item_code' => filled($item['item_code'] ?? null) ? Str::upper(trim((string) $item['item_code'])) : null,
-                'description_en' => trim((string) ($item['description_en'] ?? '')),
-                'description_es' => trim((string) ($item['description_es'] ?? '')),
-                'unit' => filled($item['unit'] ?? null) ? trim((string) $item['unit']) : null,
-                'quantity' => $this->numericValue($item['quantity'] ?? null, integer: true),
-                'unit_value' => $this->numericValue($item['unit_value'] ?? null),
-            ])
+            ->map(function (array $item) use ($contentLocale): array {
+                if (array_key_exists('description', $item)) {
+                    $item["description_{$contentLocale}"] = $item['description'];
+                }
+
+                return [
+                    'item_code' => filled($item['item_code'] ?? null) ? Str::upper(trim((string) $item['item_code'])) : null,
+                    'description_en' => trim((string) ($item['description_en'] ?? '')),
+                    'description_es' => trim((string) ($item['description_es'] ?? '')),
+                    'unit' => filled($item['unit'] ?? null) ? trim((string) $item['unit']) : null,
+                    'quantity' => $this->numericValue($item['quantity'] ?? null, integer: true),
+                    'unit_value' => $this->numericValue($item['unit_value'] ?? null),
+                ];
+            })
             ->values()
             ->all();
 
@@ -56,18 +70,18 @@ class ProposalServiceTemplateRequest extends FormRequest
                 Rule::unique(ProposalServiceTemplate::class, 'code')->ignore($templateId),
             ],
             'service_number' => ['required', 'integer', 'min:1', 'max:9999'],
-            'name_en' => ['required', 'string', 'max:255'],
-            'name_es' => ['required', 'string', 'max:255'],
-            'landing_title_en' => ['required', 'string', 'max:255'],
-            'landing_title_es' => ['required', 'string', 'max:255'],
+            'name_en' => ['nullable', 'string', 'max:255', 'required_without:name_es'],
+            'name_es' => ['nullable', 'string', 'max:255', 'required_without:name_en'],
+            'landing_title_en' => ['nullable', 'string', 'max:255'],
+            'landing_title_es' => ['nullable', 'string', 'max:255'],
             'landing_description_en' => ['nullable', 'string', 'max:10000'],
             'landing_description_es' => ['nullable', 'string', 'max:10000'],
             'sort_order' => ['required', 'integer', 'min:0', 'max:9999'],
             'is_active' => ['boolean'],
             'items' => ['required', 'array', 'min:1', 'max:80'],
             'items.*.item_code' => ['nullable', 'string', 'max:40'],
-            'items.*.description_en' => ['required', 'string', 'max:1200'],
-            'items.*.description_es' => ['required', 'string', 'max:1200'],
+            'items.*.description_en' => ['nullable', 'string', 'max:1200', 'required_without:items.*.description_es'],
+            'items.*.description_es' => ['nullable', 'string', 'max:1200', 'required_without:items.*.description_en'],
             'items.*.unit' => ['nullable', 'string', 'max:40'],
             'items.*.quantity' => ['nullable', 'integer', 'min:0', 'max:999999'],
             'items.*.unit_value' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
@@ -85,8 +99,8 @@ class ProposalServiceTemplateRequest extends FormRequest
             'is_active' => __('site.proposal_template_status'),
             'items' => __('site.proposal_template_items'),
             'items.*.item_code' => __('site.template_row_code'),
-            'items.*.description_en' => __('site.template_row_en'),
-            'items.*.description_es' => __('site.template_row_es'),
+            'items.*.description_en' => __('site.template_row_description'),
+            'items.*.description_es' => __('site.template_row_description'),
             'items.*.unit' => __('site.template_row_unit'),
             'items.*.quantity' => __('site.qty_abbr'),
             'items.*.unit_value' => __('site.unit_value_label'),

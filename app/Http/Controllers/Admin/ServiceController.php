@@ -53,7 +53,9 @@ class ServiceController extends Controller
         ]);
         $this->syncDeliverables($service, $request->validated('deliverables') ?? []);
 
-        return redirect()->route('admin.services.index')->with('success', __('site.service_created'));
+        return redirect()
+            ->route('admin.services.index')
+            ->with('success', __('site.service_created'));
     }
 
     public function edit(Service $service): View
@@ -72,7 +74,7 @@ class ServiceController extends Controller
 
     public function update(ServiceRequest $request, Service $service): RedirectResponse
     {
-        $service->update($this->payload($request));
+        $service->update($this->payload($request, $service));
         $this->syncDeliverables($service, $request->validated('deliverables') ?? []);
 
         return redirect()->route('admin.services.edit', $service)->with('success', __('site.service_updated'));
@@ -125,11 +127,25 @@ class ServiceController extends Controller
             ->with('success', __('site.service_translation_ready'));
     }
 
-    private function payload(ServiceRequest $request): array
+    private function payload(ServiceRequest $request, ?Service $service = null): array
     {
         $deliverables = $this->deliverableRows($request->validated('deliverables') ?? []);
+        $contentLocale = $request->input('content_locale') === 'es' ? 'es' : 'en';
+        $targetLocale = $contentLocale === 'es' ? 'en' : 'es';
+        $translator = app(ServiceContentTranslator::class);
         $nameEn = trim((string) $request->validated('name_en'));
         $nameEs = trim((string) $request->validated('name_es'));
+        $descriptionEn = trim((string) $request->validated('description_en'));
+        $descriptionEs = trim((string) $request->validated('description_es'));
+
+        if ($contentLocale === 'en') {
+            $nameEs = $this->cachedTranslation($translator, $nameEn, 'en', 'es', $service?->name_es, $nameEs);
+            $descriptionEs = $this->cachedTranslation($translator, $descriptionEn, 'en', 'es', $service?->description_es, $descriptionEs);
+        } else {
+            $nameEn = $this->cachedTranslation($translator, $nameEs, 'es', 'en', $service?->name_en, $nameEn);
+            $descriptionEn = $this->cachedTranslation($translator, $descriptionEs, 'es', 'en', $service?->description_en, $descriptionEn);
+        }
+
         $legacyName = trim((string) $request->validated('name'));
         $name = $nameEn ?: ($nameEs ?: $legacyName);
 
@@ -142,9 +158,9 @@ class ServiceController extends Controller
             'business_line' => $request->validated('business_line'),
             'service_type' => $request->validated('service_type'),
             'service_scope' => $request->validated('service_scope'),
-            'description' => $request->validated('description_en') ?: ($request->validated('description_es') ?: $request->validated('description')),
-            'description_en' => $request->validated('description_en'),
-            'description_es' => $request->validated('description_es'),
+            'description' => $descriptionEn ?: ($descriptionEs ?: $request->validated('description')),
+            'description_en' => $descriptionEn ?: null,
+            'description_es' => $descriptionEs ?: null,
             'deliverables_schema' => collect($deliverables)
                 ->map(fn (array $row): string => $row['en'] ?: $row['es'])
                 ->values()
@@ -156,13 +172,25 @@ class ServiceController extends Controller
     private function syncDeliverables(Service $service, array $rawDeliverables): void
     {
         $deliverables = $this->deliverableRows($rawDeliverables);
+        $contentLocale = request()->input('content_locale') === 'es' ? 'es' : 'en';
+        $translator = app(ServiceContentTranslator::class);
+        $existing = $service->deliverables()->get()->keyBy('id');
+        $retainedIds = [];
 
-        $service->deliverables()->delete();
+        collect($deliverables)->each(function (array $row, int $index) use ($service, $contentLocale, $translator, $existing, &$retainedIds): void {
+            $deliverable = filled($row['id'] ?? null) ? $existing->get((int) $row['id']) : null;
+            $existingEs = $deliverable?->name_es;
+            $existingEn = $deliverable?->name_en;
 
-        collect($deliverables)->each(function (array $row, int $index) use ($service): void {
+            if ($contentLocale === 'en') {
+                $row['es'] = $this->cachedTranslation($translator, $row['en'], 'en', 'es', $existingEs, $row['es']);
+            } else {
+                $row['en'] = $this->cachedTranslation($translator, $row['es'], 'es', 'en', $existingEn, $row['en']);
+            }
+
             $name = $row['en'] ?: $row['es'];
 
-            $service->deliverables()->create([
+            $payload = [
                 'name' => $name,
                 'name_en' => $row['en'] ?: null,
                 'name_es' => $row['es'] ?: null,
@@ -170,12 +198,57 @@ class ServiceController extends Controller
                 'sort_order' => $index + 1,
                 'is_active' => true,
                 'is_client_visible_by_default' => true,
-            ]);
+            ];
+
+            if ($deliverable) {
+                $deliverable->update($payload);
+                $retainedIds[] = $deliverable->id;
+
+                return;
+            }
+
+            $created = $service->deliverables()->create($payload);
+            $retainedIds[] = $created->id;
         });
+
+        $service->deliverables()
+            ->when($retainedIds !== [], fn ($query) => $query->whereNotIn('id', $retainedIds))
+            ->delete();
     }
 
     private function deliverableRows(array $rows): array
     {
         return app(ServiceDeliverableNormalizer::class)->rows($rows);
+    }
+
+    private function cachedTranslation(ServiceContentTranslator $translator, ?string $source, string $sourceLocale, string $targetLocale, ?string $existing, ?string $submitted = null): ?string
+    {
+        $source = trim((string) $source);
+        $existing = trim((string) $existing);
+        $submitted = trim((string) $submitted);
+
+        if ($source === '') {
+            return $translator->isUsableTranslation('', $existing) ? $existing : null;
+        }
+
+        if ($translator->isUsableTranslation($source, $submitted)) {
+            return $submitted;
+        }
+
+        if ($translator->isUsableTranslation($source, $existing)) {
+            return $existing;
+        }
+
+        try {
+            $translated = $translator->translate($source, $sourceLocale, $targetLocale);
+
+            if ($translator->isUsableTranslation($source, $translated)) {
+                return $translated;
+            }
+        } catch (\Throwable) {
+            session()->flash('warning', __('site.dynamic_translation_unavailable'));
+        }
+
+        return null;
     }
 }

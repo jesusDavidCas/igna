@@ -170,7 +170,14 @@
             margin: 0 0 5px;
             padding-left: 14px;
         }
+        .rich-copy ul {
+            list-style-type: disc;
+        }
+        .rich-copy ol {
+            list-style-type: decimal;
+        }
         .rich-copy li {
+            display: list-item;
             margin: 0 0 3px;
         }
         .description-card,
@@ -344,7 +351,7 @@
                             </td>
                             <td class="meta-cell">
                                 <div class="label">{{ __('site.quote_proposal') }}</div>
-                                <h1 class="title">{{ $proposal->title }}</h1>
+                                <h1 class="title">{{ $proposal->localizedTitle() }}</h1>
                                 <p class="subtitle">{{ $proposal->subject }}</p>
                                 <div class="tiny muted" style="margin-top: 5px;">
                                     <strong>{{ $proposal->proposal_number }}</strong>

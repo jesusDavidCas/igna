@@ -50,10 +50,20 @@ class ProposalServiceTemplate extends Model
 
     public function localizedName(): string
     {
-        if (app()->getLocale() === 'en') {
-            return $this->name_en ?: $this->name_es;
+        if (app()->getLocale() === 'es') {
+            return $this->isUsableTranslation($this->name_en, $this->name_es)
+                ? $this->name_es
+                : ($this->name_en ?: $this->name_es);
         }
 
-        return $this->name_es ?: $this->name_en;
+        return $this->name_en ?: $this->name_es;
+    }
+
+    private function isUsableTranslation(?string $source, ?string $target): bool
+    {
+        $source = mb_strtolower(trim(preg_replace('/\s+/u', ' ', (string) $source) ?? ''));
+        $target = mb_strtolower(trim(preg_replace('/\s+/u', ' ', (string) $target) ?? ''));
+
+        return $target !== '' && $target !== $source;
     }
 }

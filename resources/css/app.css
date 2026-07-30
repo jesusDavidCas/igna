@@ -266,6 +266,23 @@
         @apply block w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-base text-stone-900 shadow-sm outline-none transition focus:border-olive-700 focus:ring-2 focus:ring-olive-100;
     }
 
+    [data-rich-text-editor] ul {
+        list-style: disc;
+        margin: 0.35rem 0 0.7rem 1.35rem;
+        padding-left: 1.1rem;
+    }
+
+    [data-rich-text-editor] ol {
+        list-style: decimal;
+        margin: 0.35rem 0 0.7rem 1.35rem;
+        padding-left: 1.1rem;
+    }
+
+    [data-rich-text-editor] li {
+        display: list-item;
+        margin: 0.15rem 0;
+    }
+
     .ticket-file-card {
         container-type: inline-size;
         width: 100%;

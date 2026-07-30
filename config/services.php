@@ -49,4 +49,8 @@ return [
         ],
     ],
 
+    'poppler' => [
+        'pdftoppm' => env('POPPLER_PDFTOPPM_PATH'),
+    ],
+
 ];

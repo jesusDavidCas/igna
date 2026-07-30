@@ -48,7 +48,7 @@
             @forelse ($recentProposals as $proposal)
                 <a href="{{ route('admin.proposals.show', $proposal) }}" class="rounded-2xl border border-stone-200 bg-stone-50 p-4 transition hover:border-olive-300 hover:bg-olive-50/40">
                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">{{ $proposal->proposal_number }}</p>
-                    <h3 class="mt-2 font-semibold text-stone-950">{{ $proposal->title }}</h3>
+                    <h3 class="mt-2 font-semibold text-stone-950">{{ $proposal->localizedTitle() }}</h3>
                     <p class="mt-1 text-sm text-stone-500">{{ $proposal->client?->name ?? __('site.unassigned') }} · {{ $proposal->statusLabel() }}</p>
                     <p class="mt-3 text-sm font-semibold text-olive-800">{{ number_format((float) $proposal->total, 2) }}</p>
                 </a>

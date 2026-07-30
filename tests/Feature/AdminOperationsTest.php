@@ -400,7 +400,7 @@ class AdminOperationsTest extends TestCase
         $this->get($fileUrl)
             ->assertOk()
             ->assertHeader('content-type', 'application/pdf')
-            ->assertHeader('content-disposition', 'attachment; filename="diploma-protected.pdf"');
+            ->assertHeader('content-disposition', 'inline; filename="diploma-protected.pdf"');
     }
 
     public function test_admin_can_create_proposal_with_calculated_totals(): void

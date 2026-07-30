@@ -178,11 +178,23 @@ class ServiceCatalogSeeder extends Seeder
                 ['code' => $payload['code']],
                 [
                     'name' => $payload['name'],
+                    'name_en' => trans("services.catalog.{$payload['code']}.name", [], 'en') !== "services.catalog.{$payload['code']}.name"
+                        ? trans("services.catalog.{$payload['code']}.name", [], 'en')
+                        : $payload['name'],
+                    'name_es' => trans("services.catalog.{$payload['code']}.name", [], 'es') !== "services.catalog.{$payload['code']}.name"
+                        ? trans("services.catalog.{$payload['code']}.name", [], 'es')
+                        : null,
                     'slug' => Str::slug($payload['name']),
                     'business_line' => $payload['business_line'],
                     'service_type' => $payload['service_type'],
                     'service_scope' => $payload['service_scope'],
                     'description' => $payload['description'],
+                    'description_en' => trans("services.catalog.{$payload['code']}.description", [], 'en') !== "services.catalog.{$payload['code']}.description"
+                        ? trans("services.catalog.{$payload['code']}.description", [], 'en')
+                        : $payload['description'],
+                    'description_es' => trans("services.catalog.{$payload['code']}.description", [], 'es') !== "services.catalog.{$payload['code']}.description"
+                        ? trans("services.catalog.{$payload['code']}.description", [], 'es')
+                        : null,
                     'deliverables_schema' => $payload['deliverables_schema'],
                     'is_active' => true,
                     'sort_order' => $index + 1,
@@ -203,9 +215,14 @@ class ServiceCatalogSeeder extends Seeder
             }
 
             foreach ($payload['deliverables_schema'] as $deliverableIndex => $deliverable) {
+                $englishDeliverables = trans("services.catalog.{$payload['code']}.deliverables", [], 'en');
+                $spanishDeliverables = trans("services.catalog.{$payload['code']}.deliverables", [], 'es');
+
                 $service->deliverables()->updateOrCreate(
                     ['name' => $deliverable],
                     [
+                        'name_en' => is_array($englishDeliverables) ? ($englishDeliverables[$deliverableIndex] ?? $deliverable) : $deliverable,
+                        'name_es' => is_array($spanishDeliverables) ? ($spanishDeliverables[$deliverableIndex] ?? null) : null,
                         'description' => null,
                         'sort_order' => $deliverableIndex + 1,
                         'is_active' => true,

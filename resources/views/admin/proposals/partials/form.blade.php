@@ -7,6 +7,8 @@
     $sectionClass = 'rounded-[1.5rem] border border-stone-200 bg-white p-6 shadow-sm md:p-8';
     $sectionHeadingClass = 'text-lg font-semibold text-stone-950';
     $sectionCopyClass = 'mt-2 max-w-3xl text-[15px] leading-6 text-stone-500';
+    $contentLocale = app()->getLocale() === 'es' ? 'es' : 'en';
+    $targetLocale = $contentLocale === 'es' ? 'en' : 'es';
 @endphp
 
 @if ($errors->any())
@@ -36,6 +38,7 @@
     @if ($method !== 'POST')
         @method($method)
     @endif
+    <input type="hidden" name="content_locale" value="{{ $contentLocale }}">
 
     <section class="{{ $sectionClass }}" data-proposal-section="identity">
         <div>
@@ -62,8 +65,9 @@
             </div>
             <div>
                 <label for="{{ $fieldId('title') }}" class="form-label">{{ __('site.form_title') }}</label>
-                <input id="{{ $fieldId('title') }}" name="title" value="{{ old('title', $proposal->title) }}" class="{{ $fieldClass('title') }}" required {!! $errorAttributes('title') !!}>
-                @error('title') <p id="{{ $errorId('title') }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
+                <input id="{{ $fieldId('title') }}" name="title" value="{{ old('title', old("title_{$contentLocale}", $contentLocale === 'es' ? ($proposal->title_es ?: $proposal->localizedTitle()) : ($proposal->title_en ?: $proposal->title))) }}" class="{{ $fieldClass("title_{$contentLocale}") }}" required {!! $errorAttributes("title_{$contentLocale}") !!}>
+                <input type="hidden" name="title_{{ $targetLocale }}" value="{{ old("title_{$targetLocale}", $targetLocale === 'es' ? $proposal->title_es : $proposal->title_en) }}">
+                @error("title_{$contentLocale}") <p id="{{ $errorId("title_{$contentLocale}") }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
             </div>
             <div>
                 <label for="{{ $fieldId('subject') }}" class="form-label">{{ __('site.subject') }}</label>
@@ -415,7 +419,9 @@
                 const cleaned = cleanRichText(editor.innerHTML);
                 input.value = cleaned;
                 const length = editor.innerText.trim().length;
+                const maximum = Number(field.dataset.maxCharacters || 10000);
                 if (count) count.textContent = length.toLocaleString();
+                field.classList.toggle('rich-text-over-limit', length > maximum);
                 if (warning) warning.classList.toggle('hidden', length <= Number(field.dataset.warningThreshold || 1200));
             };
 
@@ -436,9 +442,14 @@
 
                         const range = selection.getRangeAt(0);
                         savedRange = rangeBelongsToEditor(range) ? range.cloneRange() : null;
+                        field._savedRichTextRange = savedRange;
                     };
 
                     const restoreSelection = () => {
+                        if ((!savedRange || !rangeBelongsToEditor(savedRange)) && field._savedRichTextRange) {
+                            savedRange = field._savedRichTextRange;
+                        }
+
                         if (!savedRange || !rangeBelongsToEditor(savedRange)) {
                             editor.focus();
                             return false;
@@ -467,6 +478,114 @@
                         }
 
                         return lines.map((line) => `<p>${escapeHtml(line)}</p>`).join('');
+                    };
+
+                    const linesFromFragment = (fragment) => {
+                        const lines = [];
+                        const pushLine = (value) => {
+                            const line = String(value || '').trim();
+                            if (line !== '') lines.push(line);
+                        };
+
+                        fragment.childNodes.forEach((node) => {
+                            if (node.nodeType === Node.TEXT_NODE) {
+                                pushLine(node.textContent);
+                                return;
+                            }
+
+                            if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+                            const tag = node.tagName.toLowerCase();
+                            if (tag === 'br') {
+                                return;
+                            }
+
+                            if (['p', 'div', 'li'].includes(tag)) {
+                                pushLine(node.textContent);
+                                return;
+                            }
+
+                            const nested = linesFromFragment(node);
+                            nested.forEach(pushLine);
+                        });
+
+                        return lines;
+                    };
+
+                    const selectedLines = () => {
+                        const selection = window.getSelection();
+                        const activeRange = selection && selection.rangeCount > 0 && rangeBelongsToEditor(selection.getRangeAt(0))
+                            ? selection.getRangeAt(0)
+                            : (savedRange || field._savedRichTextRange);
+
+                        if (activeRange && !activeRange.collapsed) {
+                            const fragmentLines = linesFromFragment(activeRange.cloneContents());
+
+                            if (fragmentLines.length > 1) {
+                                return fragmentLines;
+                            }
+                        }
+
+                        const text = activeRange && !activeRange.collapsed ? activeRange.toString() : editor.innerText;
+
+                        return String(text || '')
+                            .split(/\r?\n/)
+                            .map((line) => line.trim())
+                            .filter(Boolean);
+                    };
+
+                    const insertSemanticList = (tag) => {
+                        const lines = selectedLines();
+                        const list = document.createElement(tag);
+
+                        (lines.length ? lines : ['']).forEach((line) => {
+                            const item = document.createElement('li');
+                            if (line === '') {
+                                item.appendChild(document.createElement('br'));
+                            } else {
+                                item.textContent = line;
+                            }
+                            list.appendChild(item);
+                        });
+
+                        const selection = window.getSelection();
+                        const range = selection && selection.rangeCount > 0 && rangeBelongsToEditor(selection.getRangeAt(0))
+                            ? selection.getRangeAt(0)
+                            : savedRange;
+
+                        if (range && rangeBelongsToEditor(range)) {
+                            range.deleteContents();
+                            range.insertNode(list);
+                            range.setStartAfter(list);
+                            range.collapse(true);
+                            selection?.removeAllRanges();
+                            selection?.addRange(range);
+                            savedRange = range.cloneRange();
+                        } else {
+                            editor.appendChild(list);
+                        }
+                    };
+
+                    const insertLineBreakAtCaret = () => {
+                        let selection = window.getSelection();
+                        if (!selection || selection.rangeCount === 0 || !rangeBelongsToEditor(selection.getRangeAt(0))) {
+                            restoreSelection();
+                            selection = window.getSelection();
+                        }
+
+                        if (!selection || selection.rangeCount === 0) return;
+
+                        const range = selection.getRangeAt(0);
+                        const br = document.createElement('br');
+                        range.deleteContents();
+                        range.insertNode(br);
+                        range.setStartAfter(br);
+                        range.collapse(true);
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                        savedRange = range.cloneRange();
+                        field._savedRichTextRange = savedRange;
+                        syncAndSave();
                     };
 
                     const updateToolbarState = () => {
@@ -514,6 +633,10 @@
                                 } else {
                                     document.execCommand('removeFormat', false, null);
                                 }
+                            } else if (button.dataset.richCommand === 'insertUnorderedList') {
+                                insertSemanticList('ul');
+                            } else if (button.dataset.richCommand === 'insertOrderedList') {
+                                insertSemanticList('ol');
                             } else {
                                 document.execCommand(button.dataset.richCommand, false, null);
                             }
@@ -529,6 +652,18 @@
                         saveSelection();
                         updateToolbarState();
                     });
+                    editor.addEventListener('keydown', (event) => {
+                        if (event.key !== 'Enter') return;
+
+                        event.preventDefault();
+                        insertLineBreakAtCaret();
+                    });
+                    editor.addEventListener('beforeinput', (event) => {
+                        if (!['insertParagraph', 'insertLineBreak'].includes(event.inputType)) return;
+
+                        event.preventDefault();
+                        insertLineBreakAtCaret();
+                    });
                     editor.addEventListener('mouseup', () => {
                         saveSelection();
                         updateToolbarState();
@@ -543,6 +678,25 @@
                         updateToolbarState();
                     });
                     updateRichTextField(field);
+                });
+
+                document.addEventListener('selectionchange', () => {
+                    document.querySelectorAll('[data-rich-text-field]').forEach((field) => {
+                        const editor = field.querySelector('[data-rich-text-editor]');
+                        if (!editor || document.activeElement !== editor) return;
+
+                        const selection = window.getSelection();
+                        if (!selection || selection.rangeCount === 0) return;
+
+                        const range = selection.getRangeAt(0);
+                        const container = range.commonAncestorContainer.nodeType === Node.TEXT_NODE
+                            ? range.commonAncestorContainer.parentElement
+                            : range.commonAncestorContainer;
+
+                        if (container && editor.contains(container)) {
+                            field._savedRichTextRange = range.cloneRange();
+                        }
+                    });
                 });
 
                 document.getElementById('proposal-form')?.addEventListener('submit', () => {

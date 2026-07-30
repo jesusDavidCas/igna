@@ -25,6 +25,8 @@ class Proposal extends Model
         'created_by_user_id',
         'signer_user_id',
         'title',
+        'title_en',
+        'title_es',
         'subject',
         'description',
         'scope',
@@ -89,6 +91,17 @@ class Proposal extends Model
     public function statusLabel(): string
     {
         return __("site.proposal_status_{$this->status}");
+    }
+
+    public function localizedTitle(): string
+    {
+        if (app()->getLocale() === 'es') {
+            return $this->isUsableTranslation($this->title_en, $this->title_es)
+                ? $this->title_es
+                : ($this->title_en ?: ($this->title ?: ''));
+        }
+
+        return $this->title_en ?: ($this->title ?: '');
     }
 
     public function scopePubliclyAccessible(Builder $query): Builder
@@ -189,5 +202,13 @@ class Proposal extends Model
         } while (static::query()->where('public_token', $token)->exists());
 
         return $token;
+    }
+
+    private function isUsableTranslation(?string $source, ?string $target): bool
+    {
+        $source = mb_strtolower(trim(preg_replace('/\s+/u', ' ', html_entity_decode((string) $source, ENT_QUOTES | ENT_HTML5, 'UTF-8')) ?? ''));
+        $target = mb_strtolower(trim(preg_replace('/\s+/u', ' ', html_entity_decode((string) $target, ENT_QUOTES | ENT_HTML5, 'UTF-8')) ?? ''));
+
+        return $target !== '' && $target !== $source;
     }
 }

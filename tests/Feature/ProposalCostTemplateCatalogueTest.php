@@ -7,6 +7,7 @@ use App\Models\Proposal;
 use App\Models\ProposalServiceTemplate;
 use App\Models\Service;
 use App\Models\User;
+use App\Services\Services\ServiceContentTranslator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -46,7 +47,9 @@ class ProposalCostTemplateCatalogueTest extends TestCase
         $this->actingAs($this->superAdmin)
             ->get(route('admin.proposal-templates.create'))
             ->assertOk()
-            ->assertSee(__('site.proposal_template_title_en'))
+            ->assertSee(__('site.proposal_template_title'))
+            ->assertDontSee(__('site.proposal_template_title_en'))
+            ->assertDontSee(__('site.proposal_template_title_es'))
             ->assertDontSee(__('site.business_line_digital'));
     }
 
@@ -86,6 +89,104 @@ class ProposalCostTemplateCatalogueTest extends TestCase
         ]);
     }
 
+    public function test_catalogue_is_clean_and_template_form_uses_one_visible_title_field(): void
+    {
+        $template = $this->createTemplate('CLEAN-CAT', 'Clean template', isActive: true);
+
+        $html = $this->actingAs($this->superAdmin)
+            ->get(route('admin.proposal-templates.index'))
+            ->assertOk()
+            ->assertSee('CLEAN-CAT')
+            ->assertSee('Clean template')
+            ->assertSee(__('site.edit'))
+            ->assertSee(__('site.duplicate_template'))
+            ->assertSee(__('site.delete'))
+            ->assertSee(__('site.confirm_delete_template_title'))
+            ->assertDontSee(__('site.deactivate_template'))
+            ->assertDontSee(__('site.activate_template'))
+            ->assertDontSee(__('site.proposal_template_item_count', ['count' => $template->items()->count()]))
+            ->assertDontSee(__('site.proposal_template_sort_order').': '.$template->sort_order)
+            ->assertDontSee(str_pad((string) $template->service_number, 2, '0', STR_PAD_LEFT).' · Clean template')
+            ->getContent();
+
+        $this->assertStringNotContainsString('Site edit', $html);
+        $this->assertStringNotContainsString('Side edit', $html);
+        $this->assertStringNotContainsString('Edit site', $html);
+        $this->assertStringNotContainsString('site.edit', $html);
+
+        $formHtml = $this->withSession(['locale' => 'en'])
+            ->get(route('admin.proposal-templates.edit', $template))
+            ->assertOk()
+            ->assertSee('name="name"', false)
+            ->assertSee('name="items[0][description]"', false)
+            ->assertSee(__('site.template_row_description'))
+            ->assertDontSee(__('site.proposal_template_title_en'))
+            ->assertDontSee(__('site.proposal_template_title_es'))
+            ->assertDontSee(__('site.template_row_en'))
+            ->assertDontSee(__('site.template_row_es'))
+            ->getContent();
+
+        $this->assertSame(0, substr_count($formHtml, 'id="template-name-en"'));
+        $this->assertSame(0, substr_count($formHtml, 'id="template-name-es"'));
+        $this->assertSame(1, substr_count($formHtml, 'name="items[0][description]"'));
+        $this->assertSame(0, substr_count($formHtml, 'name="items[0][description_en]"'));
+    }
+
+    public function test_template_row_visible_description_switches_with_locale_when_translation_cache_exists(): void
+    {
+        $this->fakeTranslator();
+
+        $this->actingAs($this->superAdmin)
+            ->withSession(['locale' => 'en'])
+            ->post(route('admin.proposal-templates.store'), $this->templatePayload([
+                'name' => 'Localized template',
+                'name_en' => '',
+                'name_es' => '',
+                'items' => [
+                    ['item_code' => 'LOC', 'description' => 'English cost row', 'description_es' => '', 'unit' => 'hr', 'quantity' => '1', 'unit_value' => '250'],
+                ],
+            ]))
+            ->assertRedirect();
+
+        $template = ProposalServiceTemplate::query()->where('code', 'STRATEGY')->firstOrFail();
+        $item = $template->items()->firstOrFail();
+
+        $this->assertSame('English cost row', $item->description_en);
+        $this->assertSame('es: English cost row', $item->description_es);
+
+        $this->actingAs($this->superAdmin)
+            ->withSession(['locale' => 'es'])
+            ->get(route('admin.proposal-templates.edit', $template))
+            ->assertOk()
+            ->assertSee('name="items[0][description]"', false)
+            ->assertSee('es: English cost row')
+            ->assertDontSee('English row description')
+            ->assertDontSee('Spanish row description');
+
+        $this->actingAs($this->superAdmin)
+            ->withSession(['locale' => 'en'])
+            ->get(route('admin.proposal-templates.edit', $template))
+            ->assertOk()
+            ->assertSee('English cost row')
+            ->assertDontSee('es: English cost row</textarea>', false);
+    }
+
+    public function test_template_title_cache_does_not_accept_copied_source_as_translation(): void
+    {
+        $this->actingAs($this->superAdmin)
+            ->post(route('admin.proposal-templates.store'), $this->templatePayload([
+                'name' => 'Single template title',
+                'name_es' => 'Single template title',
+            ]))
+            ->assertRedirect()
+            ->assertSessionHas('warning', __('site.dynamic_translation_unavailable'));
+
+        $template = ProposalServiceTemplate::query()->where('code', 'STRATEGY')->firstOrFail();
+
+        $this->assertSame('Single template title', $template->name_en);
+        $this->assertSame('', $template->name_es);
+    }
+
     public function test_validation_retains_submitted_titles_and_rows(): void
     {
         $response = $this->actingAs($this->superAdmin)
@@ -109,7 +210,7 @@ class ProposalCostTemplateCatalogueTest extends TestCase
             ->assertSee('KEEP');
     }
 
-    public function test_inactive_templates_are_visible_in_catalogue_but_hidden_from_proposal_editor_until_reactivated(): void
+    public function test_legacy_inactive_templates_remain_visible_and_usable_until_deleted(): void
     {
         $active = $this->createTemplate('ACTIVE-CAT', 'Active catalogue template', isActive: true);
         $inactive = $this->createTemplate('INACTIVE-CAT', 'Inactive catalogue template', isActive: false);
@@ -119,25 +220,19 @@ class ProposalCostTemplateCatalogueTest extends TestCase
             ->assertOk()
             ->assertSee('Active catalogue template')
             ->assertSee('Inactive catalogue template')
-            ->assertSee(__('site.inactive_templates'));
+            ->assertSee(__('site.legacy_inactive_template'))
+            ->assertSee(__('site.delete'));
 
         $this->actingAs($this->superAdmin)
             ->get(route('admin.proposals.create'))
             ->assertOk()
             ->assertSee('Active catalogue template')
-            ->assertDontSee('Inactive catalogue template')
+            ->assertSee('Inactive catalogue template')
             ->assertSee('<option value="'.$active->id.'">', false)
-            ->assertDontSee('<option value="'.$inactive->id.'">', false);
-
-        $this->patch(route('admin.proposal-templates.status', $inactive), ['is_active' => '1'])
-            ->assertRedirect(route('admin.proposal-templates.index'));
-
-        $this->get(route('admin.proposals.create'))
-            ->assertOk()
-            ->assertSee('Inactive catalogue template');
+            ->assertSee('<option value="'.$inactive->id.'">', false);
     }
 
-    public function test_duplicate_creates_inactive_editable_copy_without_mutating_source(): void
+    public function test_duplicate_creates_active_editable_copy_without_mutating_source(): void
     {
         $source = $this->createTemplate('DUP-CAT', 'Duplicate source', isActive: true);
 
@@ -149,7 +244,7 @@ class ProposalCostTemplateCatalogueTest extends TestCase
             ->where('code', 'DUP-CAT-COPY')
             ->firstOrFail();
 
-        $this->assertFalse($copy->is_active);
+        $this->assertTrue($copy->is_active);
         $this->assertSame('Duplicate source Copy', $copy->name_en);
         $this->assertSame($source->items()->count(), $copy->items()->count());
         $this->assertNotSame($source->items()->firstOrFail()->id, $copy->items()->firstOrFail()->id);
@@ -165,6 +260,78 @@ class ProposalCostTemplateCatalogueTest extends TestCase
         $this->assertSame('Duplicate source', $source->fresh()->name_en);
         $this->assertSame('Independent copy', $copy->fresh()->name_en);
         $this->assertTrue($copy->fresh()->is_active);
+    }
+
+    public function test_authorized_template_delete_removes_rows_and_preserves_historical_proposal_snapshots(): void
+    {
+        $template = $this->createTemplate('DELETE-CAT', 'Delete source', isActive: true);
+        $other = $this->createTemplate('KEEP-CAT', 'Keep source', isActive: true);
+        $item = $template->items()->firstOrFail();
+        $service = Service::query()->firstOrFail();
+        $ticketCount = $service->tickets()->count();
+
+        $this->actingAs($this->superAdmin)
+            ->post(route('admin.proposals.store'), $this->proposalPayload([
+                'items' => [
+                    [
+                        'category' => '',
+                        'item_code' => $item->item_code,
+                        'description' => $item->description_en,
+                        'unit' => $item->unit,
+                        'quantity' => (string) $item->quantity,
+                        'unit_value' => (string) $item->unit_value,
+                    ],
+                ],
+            ]))
+            ->assertRedirect();
+
+        $proposal = Proposal::query()->where('title', 'Catalogue proposal')->firstOrFail();
+        $savedItem = $proposal->items()->firstOrFail();
+
+        $this->delete(route('admin.proposal-templates.destroy', $template))
+            ->assertRedirect(route('admin.proposal-templates.index'))
+            ->assertSessionHas('success', __('site.proposal_template_deleted'));
+
+        $this->assertModelMissing($template);
+        $this->assertDatabaseMissing('proposal_service_template_items', [
+            'proposal_service_template_id' => $template->id,
+        ]);
+        $this->assertModelExists($other->fresh());
+        $this->assertSame(1, $other->items()->count());
+        $this->assertModelExists($proposal);
+        $this->assertSame('Planning row', $savedItem->fresh()->description);
+        $this->assertSame(5000.0, (float) $savedItem->fresh()->unit_value);
+        $this->assertSame($ticketCount, $service->fresh()->tickets()->count());
+
+        $this->get(route('admin.proposals.create'))
+            ->assertOk()
+            ->assertDontSee('<option value="'.$template->id.'">', false)
+            ->assertSee('<option value="'.$other->id.'">', false);
+
+        $this->delete(route('admin.proposal-templates.destroy', $template))
+            ->assertNotFound();
+    }
+
+    public function test_template_delete_is_authorized_and_not_available_to_guests_clients_or_public_methods(): void
+    {
+        $template = $this->createTemplate('AUTH-DELETE', 'Delete authorization', isActive: true);
+        $client = User::factory()->create(['role' => UserRole::CLIENT]);
+
+        auth()->logout();
+        $this->flushSession();
+
+        $this->delete(route('admin.proposal-templates.destroy', $template))
+            ->assertRedirect(route('login'));
+
+        $this->actingAs($client)
+            ->delete(route('admin.proposal-templates.destroy', $template))
+            ->assertForbidden();
+
+        $this->actingAs($this->superAdmin)
+            ->get('/admin/proposal-templates/'.$template->id)
+            ->assertMethodNotAllowed();
+
+        $this->assertModelExists($template);
     }
 
     public function test_template_rows_insert_as_saved_proposal_items_and_remain_historical_snapshots(): void
@@ -310,5 +477,16 @@ class ProposalCostTemplateCatalogueTest extends TestCase
             ],
             ...$overrides,
         ];
+    }
+
+    private function fakeTranslator(): void
+    {
+        app()->instance(ServiceContentTranslator::class, new class extends ServiceContentTranslator
+        {
+            public function translate(?string $value, string $sourceLocale, string $targetLocale): string
+            {
+                return $targetLocale.': '.trim((string) $value);
+            }
+        });
     }
 }

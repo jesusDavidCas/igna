@@ -73,7 +73,7 @@ class TeamCredentialController extends Controller
 
         return response($contents, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="'.$safeName.'-protected.pdf"',
+            'Content-Disposition' => 'inline; filename="'.$safeName.'-protected.pdf"',
             'Cache-Control' => 'no-store, private',
             'X-Robots-Tag' => 'noindex, nofollow, noarchive',
             'X-Content-Type-Options' => 'nosniff',

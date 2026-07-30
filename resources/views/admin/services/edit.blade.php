@@ -1,6 +1,11 @@
 @extends('layouts.panel', ['title' => $service->localizedName(), 'heading' => $service->localizedName()])
 
 @section('content')
+    @php
+        $contentLocale = app()->getLocale() === 'es' ? 'es' : 'en';
+        $targetLocale = $contentLocale === 'es' ? 'en' : 'es';
+    @endphp
+
     @include('admin.services.partials.form', [
         'action' => route('admin.services.update', $service),
         'method' => 'PUT',
@@ -30,14 +35,12 @@
                             @csrf
                             @method('PUT')
                             <input type="hidden" name="editing_stage_id" value="{{ $stage->id }}">
+                            <input type="hidden" name="content_locale" value="{{ $contentLocale }}">
                             <div class="grid gap-4 md:grid-cols-2">
-                                <div>
-                                    <label class="form-label">{{ __('site.form_name') }} EN</label>
-                                    <input name="name_en" value="{{ old('name_en', $stage->name_en ?: $stage->name) }}" class="form-input" required>
-                                </div>
-                                <div>
-                                    <label class="form-label">{{ __('site.form_name') }} ES</label>
-                                    <input name="name_es" value="{{ old('name_es', $stage->name_es) }}" class="form-input">
+                                <div class="md:col-span-2">
+                                    <label class="form-label">{{ __('site.form_name') }}</label>
+                                    <input name="name" value="{{ old('name', old("name_{$contentLocale}", $contentLocale === 'es' ? ($stage->name_es ?: $stage->localizedName()) : ($stage->name_en ?: $stage->localizedName()))) }}" class="form-input" required>
+                                    <input type="hidden" name="name_{{ $targetLocale }}" value="{{ old("name_{$targetLocale}", $targetLocale === 'es' ? $stage->name_es : $stage->name_en) }}">
                                 </div>
                                 <div>
                                     <label class="form-label">{{ __('site.form_code') }}</label>
@@ -48,12 +51,9 @@
                                     <input type="number" min="1" name="sort_order" value="{{ old('sort_order', $stage->sort_order) }}" class="form-input" required>
                                 </div>
                                 <div class="md:col-span-2">
-                                    <label class="form-label">{{ __('site.form_description') }} EN</label>
-                                    <textarea name="description_en" rows="2" class="form-input">{{ old('description_en', $stage->description_en ?: $stage->description) }}</textarea>
-                                </div>
-                                <div class="md:col-span-2">
-                                    <label class="form-label">{{ __('site.form_description') }} ES</label>
-                                    <textarea name="description_es" rows="2" class="form-input">{{ old('description_es', $stage->description_es) }}</textarea>
+                                    <label class="form-label">{{ __('site.form_description') }}</label>
+                                    <textarea name="description" rows="2" class="form-input">{{ old('description', old("description_{$contentLocale}", $contentLocale === 'es' ? ($stage->description_es ?: $stage->localizedDescription()) : ($stage->description_en ?: $stage->localizedDescription()))) }}</textarea>
+                                    <input type="hidden" name="description_{{ $targetLocale }}" value="{{ old("description_{$targetLocale}", $targetLocale === 'es' ? $stage->description_es : $stage->description_en) }}">
                                 </div>
                                 <div class="flex items-end gap-5 md:col-span-2">
                                     <label class="inline-flex items-center gap-2 text-sm text-stone-700">
@@ -68,12 +68,7 @@
                             </div>
                             <div class="mt-4 flex flex-wrap gap-3">
                                 <button type="submit" class="rounded-full border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700">{{ __('site.save_stage') }}</button>
-                                <button type="submit" name="source_locale" value="es" formaction="{{ route('admin.services.stages.translate', [$service, $stage]) }}" class="rounded-full border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700">{{ __('site.translate_from_spanish') }}</button>
-                                <button type="submit" name="source_locale" value="en" formaction="{{ route('admin.services.stages.translate', [$service, $stage]) }}" class="rounded-full border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700">{{ __('site.translate_from_english') }}</button>
-                                <label class="inline-flex items-center gap-2 text-sm text-stone-700">
-                                    <input type="checkbox" name="overwrite" value="1">
-                                    {{ __('site.overwrite_translations') }}
-                                </label>
+                                <p class="text-sm leading-6 text-stone-500">{{ __('site.dynamic_translation_cache_note') }}</p>
                             </div>
                         </form>
                         <form method="POST" action="{{ route('admin.services.stages.destroy', [$service, $stage]) }}" class="mt-3">
@@ -90,25 +85,18 @@
             <h2 class="text-lg font-semibold text-stone-950">{{ __('site.add_stage') }}</h2>
             <form method="POST" action="{{ route('admin.services.stages.store', $service) }}" class="mt-6 space-y-4">
                 @csrf
+                <input type="hidden" name="content_locale" value="{{ $contentLocale }}">
                 <div>
-                    <label class="form-label">{{ __('site.form_name') }} EN</label>
-                    <input name="name_en" class="form-input" required>
-                </div>
-                <div>
-                    <label class="form-label">{{ __('site.form_name') }} ES</label>
-                    <input name="name_es" class="form-input">
+                    <label class="form-label">{{ __('site.form_name') }}</label>
+                    <input name="name" class="form-input" required>
                 </div>
                 <div>
                     <label class="form-label">{{ __('site.form_code') }}</label>
                     <input name="code" class="form-input" required>
                 </div>
                 <div>
-                    <label class="form-label">{{ __('site.form_description') }} EN</label>
-                    <textarea name="description_en" rows="3" class="form-input"></textarea>
-                </div>
-                <div>
-                    <label class="form-label">{{ __('site.form_description') }} ES</label>
-                    <textarea name="description_es" rows="3" class="form-input"></textarea>
+                    <label class="form-label">{{ __('site.form_description') }}</label>
+                    <textarea name="description" rows="3" class="form-input"></textarea>
                 </div>
                 <div>
                     <label class="form-label">{{ __('site.form_sort_order') }}</label>

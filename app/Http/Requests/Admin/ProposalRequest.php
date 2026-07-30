@@ -3,14 +3,25 @@
 namespace App\Http\Requests\Admin;
 
 use App\Enums\UserRole;
+use App\Support\Proposals\ProposalContentSanitizer;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class ProposalRequest extends FormRequest
 {
+    private const RICH_TEXT_VISIBLE_CHARACTER_LIMIT = 10000;
+
     protected function prepareForValidation(): void
     {
+        $contentLocale = $this->input('content_locale') === 'es' ? 'es' : 'en';
+
+        if ($this->has('title')) {
+            $this->merge([
+                "title_{$contentLocale}" => $this->input('title'),
+            ]);
+        }
+
         $items = collect($this->input('items', []))
             ->filter(fn (array $item): bool => filled($item['description'] ?? null))
             ->map(fn (array $item): array => [
@@ -26,7 +37,12 @@ class ProposalRequest extends FormRequest
             ->values()
             ->all();
 
-        $this->merge(['items' => $items, 'payment_schedule' => $payments]);
+        $this->merge([
+            'title_en' => trim((string) $this->input('title_en', '')),
+            'title_es' => trim((string) $this->input('title_es', '')),
+            'items' => $items,
+            'payment_schedule' => $payments,
+        ]);
     }
 
     private function numericValue(mixed $value, bool $integer = false): string|int|float|null
@@ -78,6 +94,8 @@ class ProposalRequest extends FormRequest
             'prospect_phone' => ['nullable', 'string', 'max:80'],
             'signer_user_id' => ['nullable', Rule::exists('users', 'id')->whereIn('role', [UserRole::SUPER_ADMIN->value, UserRole::ADMIN->value])],
             'title' => ['required', 'string', 'max:180'],
+            'title_en' => ['nullable', 'string', 'max:180', 'required_without:title_es'],
+            'title_es' => ['nullable', 'string', 'max:180', 'required_without:title_en'],
             'subject' => ['required', 'string', 'max:180'],
             'description' => ['nullable', 'string', 'max:10000'],
             'scope' => ['nullable', 'string', 'max:10000'],
@@ -110,6 +128,8 @@ class ProposalRequest extends FormRequest
             'prospect_phone' => __('site.manual_client_phone'),
             'signer_user_id' => __('site.proposal_signer'),
             'title' => __('site.form_title'),
+            'title_en' => __('site.form_title'),
+            'title_es' => __('site.form_title'),
             'subject' => __('site.subject'),
             'description' => __('site.proposal_description'),
             'scope' => __('site.proposal_scope'),
@@ -145,6 +165,16 @@ class ProposalRequest extends FormRequest
 
                 if ((int) $this->input('timeline_months', 0) === 0 && (int) $this->input('timeline_weeks', 0) === 0) {
                     $validator->errors()->add('timeline_months', __('site.timeline_required_error'));
+                }
+
+                $sanitizer = app(ProposalContentSanitizer::class);
+
+                foreach (['description', 'scope'] as $field) {
+                    if (mb_strlen($sanitizer->toPlainText($this->input($field))) > self::RICH_TEXT_VISIBLE_CHARACTER_LIMIT) {
+                        $validator->errors()->add($field, __('site.rich_text_character_limit_error', [
+                            'max' => number_format(self::RICH_TEXT_VISIBLE_CHARACTER_LIMIT),
+                        ]));
+                    }
                 }
             },
         ];

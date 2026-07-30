@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\UserRole;
 use App\Models\Proposal;
 use App\Models\User;
+use App\Services\Services\ServiceContentTranslator;
 use App\Support\Proposals\ProposalContentSanitizer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
@@ -95,6 +96,47 @@ class ProposalAdministrationUsabilityTest extends TestCase
             ->assertHeader('content-type', 'application/pdf');
     }
 
+    public function test_proposal_title_uses_current_locale_cache_without_changing_values(): void
+    {
+        $this->fakeTranslator();
+
+        $this->actingAs($this->superAdmin)
+            ->withSession(['locale' => 'en'])
+            ->post(route('admin.proposals.store'), $this->validPayload([
+                'title' => 'Localized proposal title',
+                'title_es' => '',
+            ]))
+            ->assertRedirect();
+
+        $proposal = Proposal::query()->where('title', 'Localized proposal title')->firstOrFail();
+
+        $this->assertSame('Localized proposal title', $proposal->title_en);
+        $this->assertSame('es: Localized proposal title', $proposal->title_es);
+        $this->assertSame(100000.0, (float) $proposal->total);
+
+        $this->actingAs($this->superAdmin)
+            ->withSession(['locale' => 'es'])
+            ->get(route('admin.proposals.show', $proposal))
+            ->assertOk()
+            ->assertSee('es: Localized proposal title')
+            ->assertDontSee('<h2 class="text-2xl font-semibold text-stone-950">Localized proposal title</h2>', false);
+
+        $html = view('admin.proposals.pdf', [
+            'proposal' => tap($proposal->fresh('items'), fn () => app()->setLocale('es')),
+            'brand' => ['company_name' => 'IGNA Studio', 'logo_text' => 'IG'],
+            'proposalAccessUrl' => $proposal->publicUrl(),
+            'qrCodeDataUri' => 'data:image/png;base64,'.base64_encode('qr'),
+        ])->render();
+
+        $this->assertStringContainsString('es: Localized proposal title', $html);
+
+        $this->actingAs($this->superAdmin)
+            ->withSession(['locale' => 'en'])
+            ->get(route('admin.proposals.show', $proposal))
+            ->assertOk()
+            ->assertSee('Localized proposal title');
+    }
+
     public function test_rich_text_toolbar_controls_render_for_create_and_edit_with_independent_targets(): void
     {
         $this->actingAs($this->superAdmin);
@@ -174,6 +216,26 @@ class ProposalAdministrationUsabilityTest extends TestCase
         $this->assertStringNotContainsString('style=', $description.$scope);
         $this->assertStringNotContainsString('onclick', $description.$scope);
         $this->assertStringNotContainsString('<img', $description.$scope);
+    }
+
+    public function test_rich_text_counter_declares_plain_text_limit_and_server_rejects_over_limit_without_truncating(): void
+    {
+        $this->actingAs($this->superAdmin)
+            ->get(route('admin.proposals.create'))
+            ->assertOk()
+            ->assertSee('data-max-characters="10000"', false)
+            ->assertSee(__('site.character_count').': <span>0</span> / 10,000', false);
+
+        $overLimit = str_repeat('a', 10001);
+
+        $this->actingAs($this->superAdmin)
+            ->from(route('admin.proposals.create'))
+            ->post(route('admin.proposals.store'), $this->validPayload([
+                'description' => '<p>'.$overLimit.'</p>',
+            ]))
+            ->assertRedirect(route('admin.proposals.create'))
+            ->assertSessionHasErrors('description')
+            ->assertSessionHasInput('description', '<p>'.$overLimit.'</p>');
     }
 
     public function test_rich_text_old_input_and_template_append_controls_render(): void
@@ -267,6 +329,7 @@ class ProposalAdministrationUsabilityTest extends TestCase
         return Proposal::query()->create([
             'proposal_number' => 'IGNA-2026-T'.str_pad((string) (Proposal::query()->count() + 1), 4, '0', STR_PAD_LEFT),
             'title' => $title,
+            'title_en' => $title,
             'subject' => 'Operational proposal',
             'description' => 'Description',
             'scope' => 'Scope',
@@ -310,5 +373,16 @@ class ProposalAdministrationUsabilityTest extends TestCase
             ],
             ...$overrides,
         ];
+    }
+
+    private function fakeTranslator(): void
+    {
+        app()->instance(ServiceContentTranslator::class, new class extends ServiceContentTranslator
+        {
+            public function translate(?string $value, string $sourceLocale, string $targetLocale): string
+            {
+                return $targetLocale.': '.trim((string) $value);
+            }
+        });
     }
 }
