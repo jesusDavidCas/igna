@@ -201,15 +201,7 @@
                     @foreach ($teamProfiles as $profile)
                         <article class="expert-profile group">
                             <div class="grid gap-6 sm:grid-cols-[9.5rem_1fr] sm:items-start">
-                                <div class="expert-photo aspect-[4/5] overflow-hidden rounded-[1.3rem] bg-olive-700 text-white">
-                                    @if ($profile->photoUrl())
-                                        <img src="{{ $profile->photoUrl() }}" alt="{{ $profile->name }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105">
-                                    @else
-                                        <div class="grid h-full place-items-center text-xl font-semibold">
-                                            {{ collect(explode(' ', $profile->name))->map(fn ($part) => mb_substr($part, 0, 1))->take(2)->join('') }}
-                                        </div>
-                                    @endif
-                                </div>
+                                <x-team.photo :member="$profile" variant="card" />
                                 <div class="min-w-0">
                                     <p class="section-kicker">{{ $profile->role }}</p>
                                     <h3 class="mt-3 text-3xl font-semibold leading-tight tracking-[-0.03em] text-igna-charcoal">{{ $profile->name }}</h3>

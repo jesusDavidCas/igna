@@ -10,13 +10,7 @@
         @foreach ($members as $member)
             <article class="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm">
                 <div class="flex items-start gap-4">
-                    <div class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-olive-700 text-sm font-semibold text-white">
-                        @if ($member->photoUrl())
-                            <img src="{{ $member->photoUrl() }}" alt="{{ $member->name }}" class="h-full w-full object-cover">
-                        @else
-                            {{ collect(explode(' ', $member->name))->map(fn ($part) => mb_substr($part, 0, 1))->take(2)->join('') }}
-                        @endif
-                    </div>
+                    <x-team.photo :member="$member" variant="avatar" />
                     <div>
                         <h2 class="text-lg font-semibold text-stone-950">{{ $member->name }}</h2>
                         <p class="text-sm text-stone-500">{{ $member->role }}</p>

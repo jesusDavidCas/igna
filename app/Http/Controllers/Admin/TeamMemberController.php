@@ -7,9 +7,9 @@ use App\Http\Requests\Admin\GuardedDeletionRequest;
 use App\Http\Requests\Admin\TeamMemberRequest;
 use App\Models\TeamMember;
 use App\Services\Deletion\DeleteTeamMember;
+use App\Services\Team\TeamPhotoManager;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Storage;
 
 class TeamMemberController extends Controller
 {
@@ -27,10 +27,10 @@ class TeamMemberController extends Controller
         ]);
     }
 
-    public function store(TeamMemberRequest $request): RedirectResponse
+    public function store(TeamMemberRequest $request, TeamPhotoManager $photos): RedirectResponse
     {
         $teamMember = TeamMember::query()->create($this->payload($request));
-        $this->storePhoto($request, $teamMember);
+        $this->storePhoto($request, $teamMember, $photos);
 
         return redirect()->route('admin.team.edit', $teamMember)->with('success', __('site.team_member_created'));
     }
@@ -52,10 +52,10 @@ class TeamMemberController extends Controller
         return redirect()->route('admin.team.index')->with('success', __('site.team_member_deleted'));
     }
 
-    public function update(TeamMemberRequest $request, TeamMember $teamMember): RedirectResponse
+    public function update(TeamMemberRequest $request, TeamMember $teamMember, TeamPhotoManager $photos): RedirectResponse
     {
         $teamMember->update($this->payload($request));
-        $this->storePhoto($request, $teamMember);
+        $this->storePhoto($request, $teamMember, $photos);
 
         return redirect()->route('admin.team.edit', $teamMember)->with('success', __('site.team_member_updated'));
     }
@@ -74,18 +74,18 @@ class TeamMemberController extends Controller
         ];
     }
 
-    private function storePhoto(TeamMemberRequest $request, TeamMember $teamMember): void
+    private function storePhoto(TeamMemberRequest $request, TeamMember $teamMember, TeamPhotoManager $photos): void
     {
         if (! $request->hasFile('photo')) {
             return;
         }
 
-        if ($teamMember->photo_path) {
-            Storage::disk('public')->delete($teamMember->photo_path);
-        }
+        $previousPath = $teamMember->photo_path;
 
         $teamMember->forceFill([
-            'photo_path' => $request->file('photo')->store('team/photos', 'public'),
+            'photo_path' => $photos->store($request->file('photo')),
         ])->save();
+
+        $photos->deleteIfUnreferenced($previousPath);
     }
 }

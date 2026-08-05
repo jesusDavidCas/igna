@@ -358,6 +358,8 @@ return [
     'team_member_created' => 'Team member created successfully.',
     'team_member_updated' => 'Team member updated successfully.',
     'profile_photo' => 'Profile photo',
+    'profile_photo_help' => 'JPG, PNG, or WebP. Minimum 300x300 px, maximum 6000x6000 px and 5 MB. Uploaded photos are normalized for public delivery.',
+    'team_photo_fallback_label' => 'Initials placeholder for :name',
     'short_description' => 'Short description',
     'bio' => 'Bio',
     'one_item_per_line' => 'Write one item per line.',

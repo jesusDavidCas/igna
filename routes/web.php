@@ -25,6 +25,7 @@ use App\Http\Controllers\Public\ProposalController;
 use App\Http\Controllers\Public\SeoResourceController;
 use App\Http\Controllers\Public\ServiceRequestController;
 use App\Http\Controllers\Public\TeamCredentialController;
+use App\Http\Controllers\Public\TeamPhotoController;
 use App\Http\Controllers\Public\TicketTrackingController;
 use App\Http\Controllers\TicketClientDocumentController;
 use App\Http\Controllers\TicketFileDownloadController;
@@ -32,6 +33,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', LandingController::class)->name('home');
 Route::get('/brand/favicon', BrandFaviconController::class)->name('brand.favicon');
+Route::get('/team/{teamMember:slug}/photo', TeamPhotoController::class)
+    ->middleware('throttle:120,1')
+    ->name('team.photo');
 Route::get('/team/{slug}', [LandingController::class, 'team'])->name('team.show');
 Route::get('/sitemap.xml', [SeoResourceController::class, 'sitemap'])->name('seo.sitemap');
 Route::get('/robots.txt', [SeoResourceController::class, 'robots'])->name('seo.robots');

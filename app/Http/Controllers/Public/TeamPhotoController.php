@@ -1,0 +1,34 @@
+<?php
+
+namespace App\Http\Controllers\Public;
+
+use App\Http\Controllers\Controller;
+use App\Models\TeamMember;
+use App\Services\Team\TeamPhotoManager;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
+
+class TeamPhotoController extends Controller
+{
+    public function __invoke(Request $request, TeamMember $teamMember, TeamPhotoManager $photos): Response
+    {
+        abort_unless($teamMember->is_active, 404);
+
+        $file = $photos->publicFileFor($teamMember) ?? $photos->fallbackFileFor($teamMember);
+        $headers = [
+            'Content-Type' => $file['mime_type'],
+            'Cache-Control' => 'public, max-age=604800',
+            'ETag' => $file['etag'],
+            'X-Content-Type-Options' => 'nosniff',
+        ];
+
+        if ($request->headers->get('If-None-Match') === $file['etag']) {
+            return response('', 304, $headers);
+        }
+
+        return response($file['contents'], 200, [
+            ...$headers,
+            'Content-Length' => (string) strlen($file['contents']),
+        ]);
+    }
+}

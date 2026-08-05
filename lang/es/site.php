@@ -358,6 +358,8 @@ return [
     'team_member_created' => 'Miembro del equipo creado correctamente.',
     'team_member_updated' => 'Miembro del equipo actualizado correctamente.',
     'profile_photo' => 'Foto de perfil',
+    'profile_photo_help' => 'JPG, PNG o WebP. Minimo 300x300 px, maximo 6000x6000 px y 5 MB. Las fotos cargadas se normalizan para entrega publica.',
+    'team_photo_fallback_label' => 'Marcador con iniciales para :name',
     'short_description' => 'Descripción corta',
     'bio' => 'Biografía',
     'one_item_per_line' => 'Escribe un elemento por línea.',

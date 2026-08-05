@@ -37,7 +37,8 @@
         </div>
         <div>
             <label class="form-label">{{ __('site.profile_photo') }}</label>
-            <input type="file" name="photo" class="form-input">
+            <input type="file" name="photo" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" class="form-input">
+            <p class="mt-2 text-xs text-stone-500">{{ __('site.profile_photo_help') }}</p>
         </div>
         <div class="flex items-end">
             <label class="inline-flex items-center gap-2 text-sm text-stone-700">

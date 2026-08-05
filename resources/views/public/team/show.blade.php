@@ -5,13 +5,7 @@
         <a href="{{ route('home') }}#team" class="text-sm font-semibold text-olive-700">{{ __('site.back_to_team') }}</a>
         <div class="mt-8 rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
             <div class="flex flex-col gap-6 md:flex-row md:items-start">
-                <div class="flex h-32 w-32 shrink-0 items-center justify-center overflow-hidden rounded-[2rem] bg-olive-700 text-2xl font-semibold text-white">
-                    @if ($profile->photoUrl())
-                        <img src="{{ $profile->photoUrl() }}" alt="{{ $profile->name }}" class="h-full w-full object-cover">
-                    @else
-                        {{ collect(explode(' ', $profile->name))->map(fn ($part) => mb_substr($part, 0, 1))->take(2)->join('') }}
-                    @endif
-                </div>
+                <x-team.photo :member="$profile" variant="profile" />
                 <div>
                     <p class="text-sm font-semibold uppercase tracking-[0.18em] text-stone-500">{{ $profile->role }}</p>
                     <h1 class="mt-3 text-4xl font-semibold text-stone-950">{{ $profile->name }}</h1>

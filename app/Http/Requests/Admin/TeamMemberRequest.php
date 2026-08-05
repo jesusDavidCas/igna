@@ -24,7 +24,14 @@ class TeamMemberRequest extends FormRequest
             'short_description' => ['nullable', 'string', 'max:1000'],
             'bio' => ['nullable', 'string', 'max:5000'],
             'expertise' => ['nullable', 'string', 'max:3000'],
-            'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            'photo' => [
+                'nullable',
+                'image',
+                'mimes:jpg,jpeg,png,webp',
+                'mimetypes:image/jpeg,image/png,image/webp',
+                'dimensions:min_width=300,min_height=300,max_width=6000,max_height=6000',
+                'max:5120',
+            ],
             'is_active' => ['nullable', 'boolean'],
             'sort_order' => ['required', 'integer', 'min:0'],
         ];
