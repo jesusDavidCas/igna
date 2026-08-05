@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withCommands([
+        App\Console\Commands\LaunchDataResetCommand::class,
         App\Console\Commands\TranslateMissingContent::class,
     ])
     ->withMiddleware(function (Middleware $middleware): void {
