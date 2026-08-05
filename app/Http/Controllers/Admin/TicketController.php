@@ -17,18 +17,28 @@ use App\Services\Notifications\ProjectNotificationService;
 use App\Services\Tickets\TicketLifecycleService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 class TicketController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $sort = $request->query('sort') === 'created_at' ? 'created_at' : 'created_at';
+        $direction = in_array($request->query('direction'), ['asc', 'desc'], true)
+            ? $request->query('direction')
+            : 'desc';
+
         return view('admin.tickets.index', [
             'tickets' => Ticket::query()
                 ->with(['service', 'currentStage'])
-                ->latest()
-                ->paginate(15),
+                ->orderBy($sort, $direction)
+                ->orderBy('id', $direction)
+                ->paginate(15)
+                ->withQueryString(),
+            'sort' => $sort,
+            'direction' => $direction,
         ]);
     }
 
@@ -38,6 +48,7 @@ class TicketController extends Controller
 
         $ticket->load([
             'client',
+            'proposal',
             'service.stages' => fn ($query) => $query->orderBy('sort_order'),
             'currentStage',
             'stageEvents.serviceStage',

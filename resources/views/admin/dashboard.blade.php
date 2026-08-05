@@ -22,18 +22,24 @@
                         <th class="pb-3">{{ __('site.form_ticket_code') }}</th>
                         <th class="pb-3">{{ __('site.form_project_name') }}</th>
                         <th class="pb-3">{{ __('site.form_service') }}</th>
+                        <th class="pb-3">{{ __('site.created_at') }}</th>
                         <th class="pb-3">{{ __('site.current_stage') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-stone-100">
-                    @foreach ($recentTickets as $ticket)
+                    @forelse ($recentTickets as $ticket)
                         <tr>
                             <td class="py-3"><a class="font-semibold text-olive-700" href="{{ route('admin.tickets.show', $ticket) }}">{{ $ticket->ticket_code }}</a></td>
                             <td class="py-3">{{ $ticket->localizedProjectName() }}</td>
                             <td class="py-3">{{ $ticket->serviceDisplayName() }}</td>
+                            <td class="py-3" title="{{ $ticket->created_at?->translatedFormat('M j, Y, g:i A') }}">{{ $ticket->created_at?->translatedFormat('M j, Y') }}</td>
                             <td class="py-3">{{ $ticket->currentStage?->localizedName() ?? __('site.pending_assignment') }}</td>
                         </tr>
-                    @endforeach
+                    @empty
+                        <tr>
+                            <td colspan="5" class="py-8 text-center text-stone-500">{{ __('site.no_projects_yet') }}</td>
+                        </tr>
+                    @endforelse
                 </tbody>
             </table>
         </div>
