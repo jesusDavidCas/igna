@@ -102,11 +102,29 @@
         </div>
     </div>
 
-    <div class="mt-6 flex flex-wrap gap-3">
-        <button type="submit" class="rounded-full bg-olive-700 px-5 py-2.5 text-sm font-semibold text-white">{{ __('site.save_changes') }}</button>
-        @if ($service->exists)
-            <p class="text-sm leading-6 text-stone-500">{{ __('site.dynamic_translation_cache_note') }}</p>
-        @endif
+    <div class="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+            @if ($service->exists && auth()->user()->isSuperAdmin())
+                <button
+                    type="button"
+                    class="rounded-full border border-rose-300 px-4 py-2 text-sm font-semibold text-rose-700 transition enabled:hover:border-rose-700 enabled:hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    data-delete-modal-trigger="delete-service-{{ $service->id }}"
+                    @disabled(! ($deletionImpact ?? null)?->canDelete())
+                >
+                    {{ __('site.deletion_compact_title_service') }}
+                </button>
+                @if (! ($deletionImpact ?? null)?->canDelete())
+                    <p class="mt-2 max-w-xl text-sm leading-6 text-amber-800" data-delete-blocked-message>{{ __('site.service_delete_dependency_blocked') }}</p>
+                @endif
+                @error('deletion') <p class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
+            @endif
+        </div>
+        <div class="flex flex-col gap-3 sm:items-end">
+            <button type="submit" class="rounded-full bg-olive-700 px-5 py-2.5 text-sm font-semibold text-white">{{ __('site.save_changes') }}</button>
+            @if ($service->exists)
+                <p class="text-sm leading-6 text-stone-500">{{ __('site.dynamic_translation_cache_note') }}</p>
+            @endif
+        </div>
     </div>
 </form>
 

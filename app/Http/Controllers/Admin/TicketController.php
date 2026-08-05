@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\GuardedDeletionRequest;
 use App\Http\Requests\Admin\TicketClientAssignmentRequest;
 use App\Http\Requests\Admin\TicketDocumentReviewRequest;
 use App\Http\Requests\Admin\TicketFileUploadRequest;
@@ -13,6 +14,7 @@ use App\Models\TicketFile;
 use App\Models\TicketStageEvent;
 use App\Models\User;
 use App\Services\Files\GoogleDriveFileManager;
+use App\Services\Deletion\DeleteProject;
 use App\Services\Notifications\ProjectNotificationService;
 use App\Services\Tickets\TicketLifecycleService;
 use Illuminate\Contracts\View\View;
@@ -42,7 +44,7 @@ class TicketController extends Controller
         ]);
     }
 
-    public function show(Ticket $ticket): View
+    public function show(Ticket $ticket, DeleteProject $deleteProject): View
     {
         app(TicketLifecycleService::class)->ensureDeliverables($ticket);
 
@@ -76,7 +78,15 @@ class TicketController extends Controller
                 ->orderBy('first_name')
                 ->orderBy('last_name')
                 ->get(),
+            'deletionImpact' => $deleteProject->impact($ticket),
         ]);
+    }
+
+    public function destroy(GuardedDeletionRequest $request, Ticket $ticket, DeleteProject $deleteProject): RedirectResponse
+    {
+        $deleteProject->delete($ticket, $request->user());
+
+        return redirect()->route('admin.tickets.index')->with('success', __('site.project_deleted'));
     }
 
     public function moveBack(TicketStageUpdateRequest $request, Ticket $ticket, TicketLifecycleService $ticketLifecycleService): RedirectResponse

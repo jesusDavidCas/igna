@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\GuardedDeletionRequest;
 use App\Http\Requests\Admin\ServiceRequest;
 use App\Models\Service;
+use App\Services\Deletion\DeleteService;
+use App\Services\Deletion\DeletionBlockedException;
 use App\Services\Services\ServiceDeliverableNormalizer;
 use App\Services\Services\ServiceContentTranslator;
 use Illuminate\Contracts\View\View;
@@ -58,7 +61,7 @@ class ServiceController extends Controller
             ->with('success', __('site.service_created'));
     }
 
-    public function edit(Service $service): View
+    public function edit(Service $service, DeleteService $deleteService): View
     {
         $service->load([
             'stages' => fn ($query) => $query->orderBy('sort_order'),
@@ -69,7 +72,19 @@ class ServiceController extends Controller
             'service' => $service,
             'serviceTypes' => config('igna.service_types'),
             'serviceScopes' => config('igna.service_scopes'),
+            'deletionImpact' => $deleteService->impact($service),
         ]);
+    }
+
+    public function destroy(GuardedDeletionRequest $request, Service $service, DeleteService $deleteService): RedirectResponse
+    {
+        try {
+            $deleteService->delete($service, $request->user());
+        } catch (DeletionBlockedException $exception) {
+            return back()->withErrors(['deletion' => $exception->getMessage()]);
+        }
+
+        return redirect()->route('admin.services.index')->with('success', __('site.service_deleted'));
     }
 
     public function update(ServiceRequest $request, Service $service): RedirectResponse

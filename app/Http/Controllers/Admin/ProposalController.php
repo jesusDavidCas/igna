@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\GuardedDeletionRequest;
 use App\Http\Requests\Admin\ProposalRequest;
 use App\Models\Proposal;
 use App\Models\ProposalServiceTemplate;
 use App\Models\Service;
 use App\Models\User;
+use App\Services\Deletion\DeleteProposal;
+use App\Services\Deletion\DeletionBlockedException;
 use App\Services\Services\ServiceContentTranslator;
 use App\Services\Services\PublicServiceTaxonomy;
 use App\Support\Proposals\ProposalContentSanitizer;
@@ -107,7 +110,7 @@ class ProposalController extends Controller
         return redirect()->route('admin.proposals.show', $proposal)->with('success', __('site.proposal_created'));
     }
 
-    public function show(Proposal $proposal, BrandSettings $brandSettings): View
+    public function show(Proposal $proposal, BrandSettings $brandSettings, DeleteProposal $deleteProposal): View
     {
         $proposal->load(['client', 'createdBy', 'signer', 'items', 'project.currentStage']);
         $serviceGroups = app(PublicServiceTaxonomy::class)->groupServices(
@@ -123,7 +126,19 @@ class ProposalController extends Controller
             'clients' => $this->clients(),
             'proposalAccessUrl' => $proposal->publicUrl(),
             'serviceGroups' => $serviceGroups,
+            'deletionImpact' => $deleteProposal->impact($proposal),
         ]);
+    }
+
+    public function destroy(GuardedDeletionRequest $request, Proposal $proposal, DeleteProposal $deleteProposal): RedirectResponse
+    {
+        try {
+            $deleteProposal->delete($proposal, $request->user());
+        } catch (DeletionBlockedException $exception) {
+            return back()->withErrors(['deletion' => $exception->getMessage()]);
+        }
+
+        return redirect()->route('admin.proposals.index')->with('success', __('site.proposal_deleted'));
     }
 
     public function pdf(Proposal $proposal, BrandSettings $brandSettings, ProposalQrCode $qrCode): Response

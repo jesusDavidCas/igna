@@ -126,6 +126,80 @@
                     pendingForm.dataset.confirmed = 'true';
                     pendingForm.submit();
                 });
+
+                document.querySelectorAll('[data-delete-modal-trigger]').forEach((trigger) => {
+                    const modal = document.getElementById(trigger.dataset.deleteModalTrigger);
+                    if (!modal || trigger.disabled) return;
+
+                    const cancelButton = modal.querySelector('[data-delete-modal-cancel]');
+                    const submitButton = modal.querySelector('[data-delete-modal-submit]');
+                    const form = modal.querySelector('[data-delete-modal-form]');
+                    const focusableSelector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+                    let returnFocus = null;
+                    let submitting = false;
+
+                    const focusableElements = () => Array.from(modal.querySelectorAll(focusableSelector))
+                        .filter((element) => !element.disabled && element.offsetParent !== null);
+
+                    const closeModal = () => {
+                        if (submitting) return;
+                        modal.classList.add('hidden');
+                        modal.classList.remove('flex');
+                        document.body.classList.remove('overflow-hidden');
+                        returnFocus?.focus();
+                    };
+
+                    trigger.addEventListener('click', () => {
+                        returnFocus = trigger;
+                        modal.classList.remove('hidden');
+                        modal.classList.add('flex');
+                        document.body.classList.add('overflow-hidden');
+                        cancelButton?.focus();
+                    });
+
+                    cancelButton?.addEventListener('click', closeModal);
+
+                    modal.addEventListener('click', (event) => {
+                        if (event.target === modal) {
+                            closeModal();
+                        }
+                    });
+
+                    modal.addEventListener('keydown', (event) => {
+                        if (event.key === 'Escape') {
+                            event.preventDefault();
+                            closeModal();
+                            return;
+                        }
+
+                        if (event.key !== 'Tab') return;
+
+                        const elements = focusableElements();
+                        const first = elements[0];
+                        const last = elements[elements.length - 1];
+
+                        if (!first || !last) return;
+
+                        if (event.shiftKey && document.activeElement === first) {
+                            event.preventDefault();
+                            last.focus();
+                        } else if (!event.shiftKey && document.activeElement === last) {
+                            event.preventDefault();
+                            first.focus();
+                        }
+                    });
+
+                    form?.addEventListener('submit', (event) => {
+                        if (submitting) {
+                            event.preventDefault();
+                            return;
+                        }
+
+                        submitting = true;
+                        submitButton.disabled = true;
+                        submitButton.textContent = '{{ __('site.deletion_submitting') }}';
+                    });
+                });
             });
         </script>
     </body>

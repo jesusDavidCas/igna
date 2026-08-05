@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\GuardedDeletionRequest;
 use App\Http\Requests\Admin\TeamMemberRequest;
 use App\Models\TeamMember;
+use App\Services\Deletion\DeleteTeamMember;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
@@ -33,13 +35,21 @@ class TeamMemberController extends Controller
         return redirect()->route('admin.team.edit', $teamMember)->with('success', __('site.team_member_created'));
     }
 
-    public function edit(TeamMember $teamMember): View
+    public function edit(TeamMember $teamMember, DeleteTeamMember $deleteTeamMember): View
     {
         $teamMember->load('credentials.views');
 
         return view('admin.team.edit', [
             'teamMember' => $teamMember,
+            'deletionImpact' => $deleteTeamMember->impact($teamMember),
         ]);
+    }
+
+    public function destroy(GuardedDeletionRequest $request, TeamMember $teamMember, DeleteTeamMember $deleteTeamMember): RedirectResponse
+    {
+        $deleteTeamMember->delete($teamMember, $request->user());
+
+        return redirect()->route('admin.team.index')->with('success', __('site.team_member_deleted'));
     }
 
     public function update(TeamMemberRequest $request, TeamMember $teamMember): RedirectResponse

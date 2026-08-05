@@ -31,4 +31,16 @@
             {{ __('site.reset_password_submit') }}
         </button>
     </form>
+
+    <div class="mt-8">
+        @include('admin.partials.deletion-danger-zone', [
+            'action' => route('admin.users.destroy', $user),
+            'entityKey' => 'user',
+            'entityType' => __('site.deletion_type_user'),
+            'identifier' => $user->email,
+            'label' => $user->name,
+            'impact' => $deletionImpact,
+            'blockedMessage' => $user->is(auth()->user()) ? __('site.user_delete_current_account_blocked') : null,
+        ])
+    </div>
 @endsection

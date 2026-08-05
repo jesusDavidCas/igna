@@ -221,4 +221,15 @@
             </section>
         </aside>
     </div>
+
+    <div class="mt-8">
+        @include('admin.partials.deletion-danger-zone', [
+            'action' => route('admin.tickets.destroy', $ticket),
+            'entityKey' => 'project',
+            'entityType' => __('site.deletion_type_project'),
+            'identifier' => $ticket->ticket_code,
+            'label' => $ticket->project_name,
+            'impact' => $deletionImpact,
+        ])
+    </div>
 @endsection

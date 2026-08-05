@@ -93,4 +93,15 @@
             </div>
         </div>
     </div>
+
+    <div class="mt-8">
+        @include('admin.partials.deletion-danger-zone', [
+            'action' => route('admin.team.destroy', $teamMember),
+            'entityKey' => 'team_member',
+            'entityType' => __('site.deletion_type_team_member'),
+            'identifier' => $teamMember->slug,
+            'label' => $teamMember->name,
+            'impact' => $deletionImpact,
+        ])
+    </div>
 @endsection

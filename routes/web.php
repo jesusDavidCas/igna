@@ -111,6 +111,7 @@ Route::prefix('admin')
         Route::get('/', AdminDashboardController::class)->name('dashboard');
 
         Route::resource('services', AdminServiceController::class)->except(['show', 'destroy']);
+        Route::delete('/services/{service}', [AdminServiceController::class, 'destroy'])->name('services.destroy');
         Route::match(['post', 'put'], '/services/{service}/translate', [AdminServiceController::class, 'translate'])->name('services.translate');
         Route::post('/services/{service}/stages', [AdminServiceStageController::class, 'store'])->name('services.stages.store');
         Route::put('/services/{service}/stages/{stage}', [AdminServiceStageController::class, 'update'])->name('services.stages.update');
@@ -130,9 +131,11 @@ Route::prefix('admin')
         Route::patch('/tickets/{ticket}/files/{file}/reject', [AdminTicketController::class, 'rejectFile'])->name('tickets.files.reject.update');
         Route::delete('/tickets/{ticket}/files/{file}', [AdminTicketController::class, 'destroyFile'])->name('tickets.files.destroy');
         Route::get('/tickets/{ticket}/files/{file}/download', [TicketFileDownloadController::class, 'admin'])->name('tickets.files.download');
+        Route::delete('/tickets/{ticket}', [AdminTicketController::class, 'destroy'])->name('tickets.destroy');
 
         Route::resource('blog', AdminBlogPostController::class)->parameters(['blog' => 'post'])->except(['show']);
         Route::resource('team', AdminTeamMemberController::class)->parameters(['team' => 'teamMember'])->except(['show', 'destroy']);
+        Route::delete('/team/{teamMember}', [AdminTeamMemberController::class, 'destroy'])->name('team.destroy');
         Route::post('/team/{teamMember}/credentials', [AdminTeamCredentialController::class, 'store'])->name('team.credentials.store');
         Route::post('/team/{teamMember}/credentials/{credential}/regenerate', [AdminTeamCredentialController::class, 'regenerate'])->name('team.credentials.regenerate');
         Route::delete('/team/{teamMember}/credentials/{credential}', [AdminTeamCredentialController::class, 'destroy'])->name('team.credentials.destroy');
@@ -141,10 +144,12 @@ Route::prefix('admin')
         Route::get('/proposals/{proposal}/pdf', [AdminProposalController::class, 'pdf'])->name('proposals.pdf');
         Route::post('/proposals/{proposal}/project', [AdminProposalProjectController::class, 'store'])->name('proposals.projects.store');
         Route::resource('proposals', AdminProposalController::class)->except(['destroy']);
+        Route::delete('/proposals/{proposal}', [AdminProposalController::class, 'destroy'])->name('proposals.destroy');
 
         Route::middleware('role:'.UserRole::SUPER_ADMIN->value)->group(function (): void {
             Route::put('/users/{user}/password', [AdminUserController::class, 'updatePassword'])->name('users.password.update');
             Route::resource('users', AdminUserController::class)->except(['show', 'destroy']);
+            Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
             Route::get('/settings', [AdminSettingController::class, 'edit'])->name('settings.edit');
             Route::put('/settings', [AdminSettingController::class, 'update'])->name('settings.update');
         });

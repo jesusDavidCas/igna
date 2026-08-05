@@ -269,6 +269,18 @@
         </div>
     </article>
 
+    <div class="mt-8 print:hidden">
+        @include('admin.partials.deletion-danger-zone', [
+            'action' => route('admin.proposals.destroy', $proposal),
+            'entityKey' => 'proposal',
+            'entityType' => __('site.deletion_type_proposal'),
+            'identifier' => $proposal->proposal_number,
+            'label' => $proposal->localizedTitle(),
+            'impact' => $deletionImpact,
+            'blockedMessage' => $proposal->project ? __('site.proposal_delete_linked_project_blocked', ['project_code' => $proposal->project->ticket_code]) : null,
+        ])
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const projectPanel = document.querySelector('[data-project-panel]');

@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\GuardedDeletionRequest;
 use App\Http\Requests\Admin\UserPasswordResetRequest;
 use App\Http\Requests\Admin\UserRequest;
 use App\Models\User;
+use App\Services\Deletion\DeleteUser;
+use App\Services\Deletion\DeletionBlockedException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -42,12 +45,24 @@ class UserController extends Controller
         return redirect()->route('admin.users.index')->with('success', __('site.user_created'));
     }
 
-    public function edit(User $user): View
+    public function edit(User $user, DeleteUser $deleteUser): View
     {
         return view('admin.users.edit', [
             'user' => $user,
             'roles' => UserRole::cases(),
+            'deletionImpact' => $deleteUser->impact($user),
         ]);
+    }
+
+    public function destroy(GuardedDeletionRequest $request, User $user, DeleteUser $deleteUser): RedirectResponse
+    {
+        try {
+            $deleteUser->delete($user, $request->user());
+        } catch (DeletionBlockedException $exception) {
+            return back()->withErrors(['deletion' => $exception->getMessage()]);
+        }
+
+        return redirect()->route('admin.users.index')->with('success', __('site.user_deleted'));
     }
 
     public function update(UserRequest $request, User $user): RedirectResponse

@@ -12,6 +12,7 @@
         'service' => $service,
         'serviceTypes' => $serviceTypes,
         'serviceScopes' => $serviceScopes,
+        'deletionImpact' => $deletionImpact,
     ])
 
     <div class="mt-8 grid gap-6 lg:grid-cols-[0.6fr_0.4fr]">
@@ -114,4 +115,15 @@
             </form>
         </div>
     </div>
+
+    @if (auth()->user()->isSuperAdmin() && $deletionImpact->canDelete())
+        <x-admin.delete-confirmation-modal
+            id="delete-service-{{ $service->id }}"
+            :action="route('admin.services.destroy', $service)"
+            :title="__('site.deletion_modal_title_service')"
+            :question="__('site.deletion_modal_question_service')"
+            :identifier="$service->code"
+            :consequence="__('site.deletion_modal_consequence_service')"
+        />
+    @endif
 @endsection
