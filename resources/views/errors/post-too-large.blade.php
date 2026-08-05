@@ -4,6 +4,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>{{ $message }}</title>
+        @include('components.favicon-links')
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="bg-stone-100 text-stone-900">

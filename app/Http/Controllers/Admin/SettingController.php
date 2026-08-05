@@ -5,16 +5,19 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\SettingUpdateRequest;
 use App\Models\Setting;
+use App\Support\Settings\BrandSettings;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
 
 class SettingController extends Controller
 {
-    public function edit(): View
+    public function edit(BrandSettings $brandSettings): View
     {
         return view('admin.settings.edit', [
             'settings' => Setting::query()->orderBy('group')->orderBy('key')->get()->groupBy('group'),
+            'branding' => $brandSettings->publicPayload(),
+            'hiddenSettingKeys' => ['brand_favicon_path', 'brand_logo_path'],
         ]);
     }
 
@@ -28,6 +31,10 @@ class SettingController extends Controller
 
         if ($request->hasFile('brand_logo')) {
             $this->storeBrandingFile('brand_logo_path', $request->file('brand_logo')->store('branding', 'public'));
+        }
+
+        if ($request->boolean('restore_brand_favicon')) {
+            $this->clearBrandingFile('brand_favicon_path');
         }
 
         if ($request->hasFile('brand_favicon')) {
@@ -48,5 +55,18 @@ class SettingController extends Controller
         Setting::query()
             ->where('key', $key)
             ->update(['value' => $path]);
+    }
+
+    private function clearBrandingFile(string $key): void
+    {
+        $setting = Setting::query()->where('key', $key)->first();
+
+        if ($setting?->value) {
+            Storage::disk('public')->delete($setting->value);
+        }
+
+        Setting::query()
+            ->where('key', $key)
+            ->update(['value' => null]);
     }
 }

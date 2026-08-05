@@ -5,9 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="robots" content="noindex, nofollow">
         <title>{{ $title ?? 'IGNA Studio' }}</title>
-        @if (! empty($brandSettings['favicon_url']))
-            <link rel="icon" href="{{ $brandSettings['favicon_url'] }}">
-        @endif
+        @include('components.favicon-links')
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="bg-stone-100 text-stone-900">

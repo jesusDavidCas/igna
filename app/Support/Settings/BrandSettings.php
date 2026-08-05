@@ -5,16 +5,22 @@ namespace App\Support\Settings;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class BrandSettings
 {
+    private const FAVICON_SETTING_KEY = 'brand_favicon_path';
+    private const BRANDING_DIRECTORY = 'branding/';
+    private const FAVICON_FALLBACK = 'favicon.ico';
+
     public function publicPayload(): array
     {
         $defaults = [
             'company_name' => 'IGNA Studio',
             'logo_text' => 'IG',
             'logo_url' => null,
-            'favicon_url' => null,
+            'favicon_url' => $this->faviconUrl(),
+            'favicon_version' => $this->faviconVersion(),
         ];
 
         if (! Schema::hasTable('settings')) {
@@ -29,7 +35,8 @@ class BrandSettings
             'company_name' => $settings->get('company_name') ?: $defaults['company_name'],
             'logo_text' => $settings->get('brand_logo_text') ?: $defaults['logo_text'],
             'logo_url' => $this->publicUrl($settings->get('brand_logo_path')),
-            'favicon_url' => $this->publicUrl($settings->get('brand_favicon_path')),
+            'favicon_url' => $this->faviconUrl(),
+            'favicon_version' => $this->faviconVersion(),
         ];
     }
 
@@ -46,6 +53,100 @@ class BrandSettings
         $payload['logo_data_uri'] = $this->dataUri($logoPath, trimWhitespace: true) ?? $this->defaultPdfLogoDataUri();
 
         return $payload;
+    }
+
+    public function faviconUrl(): string
+    {
+        return route('brand.favicon', ['v' => $this->faviconVersion()]);
+    }
+
+    public function faviconVersion(): string
+    {
+        $path = $this->configuredFaviconPath();
+
+        if ($path && $this->isTrustedBrandingPath($path) && Storage::disk('public')->exists($path)) {
+            $disk = Storage::disk('public');
+
+            return substr(sha1(implode('|', [
+                $path,
+                (string) $disk->size($path),
+                (string) $disk->lastModified($path),
+            ])), 0, 12);
+        }
+
+        $fallback = public_path(self::FAVICON_FALLBACK);
+
+        return is_file($fallback)
+            ? substr(sha1((string) filemtime($fallback).'|'.(string) filesize($fallback)), 0, 12)
+            : 'default';
+    }
+
+    public function configuredFaviconPath(): ?string
+    {
+        if (! Schema::hasTable('settings')) {
+            return null;
+        }
+
+        $path = Setting::query()->where('key', self::FAVICON_SETTING_KEY)->value('value');
+
+        return is_string($path) && $path !== '' ? $path : null;
+    }
+
+    public function configuredFaviconFile(): ?array
+    {
+        $path = $this->configuredFaviconPath();
+
+        if (! $this->isTrustedBrandingPath($path) || ! Storage::disk('public')->exists($path)) {
+            return null;
+        }
+
+        $contents = Storage::disk('public')->get($path);
+        $size = @getimagesizefromstring($contents);
+
+        if (! $size) {
+            return null;
+        }
+
+        $mimeType = $this->faviconMimeType($path, Storage::disk('public')->mimeType($path) ?: null, $size['mime'] ?? null);
+
+        if (! $mimeType) {
+            return null;
+        }
+
+        return [
+            'contents' => $contents,
+            'mime_type' => $mimeType,
+            'etag' => '"'.sha1($contents).'"',
+        ];
+    }
+
+    public function fallbackFaviconFile(): array
+    {
+        $path = public_path(self::FAVICON_FALLBACK);
+
+        if (! is_file($path)) {
+            $path = public_path('favicon-32x32.png');
+        }
+
+        $contents = is_file($path) ? file_get_contents($path) : '';
+        $mimeType = str_ends_with($path, '.ico') ? 'image/x-icon' : 'image/png';
+
+        return [
+            'contents' => $contents ?: '',
+            'mime_type' => $mimeType,
+            'etag' => '"'.sha1($contents ?: '').'"',
+        ];
+    }
+
+    public function isTrustedBrandingPath(?string $path): bool
+    {
+        if (! is_string($path) || $path === '') {
+            return false;
+        }
+
+        return Str::startsWith($path, self::BRANDING_DIRECTORY)
+            && ! Str::contains($path, ['..', '\\', "\0"])
+            && ! str_starts_with($path, '/');
     }
 
     private function publicUrl(?string $path): ?string
@@ -72,6 +173,19 @@ class BrandSettings
         $mimeType = Storage::disk('public')->mimeType($path) ?: 'image/png';
 
         return 'data:'.$mimeType.';base64,'.base64_encode($contents);
+    }
+
+    private function faviconMimeType(string $path, ?string $storageMime, ?string $decodedMime): ?string
+    {
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+
+        if ($extension === 'ico') {
+            return in_array($storageMime, ['image/x-icon', 'image/vnd.microsoft.icon'], true)
+                ? $storageMime
+                : 'image/x-icon';
+        }
+
+        return in_array($decodedMime ?: $storageMime, ['image/png'], true) ? 'image/png' : null;
     }
 
     private function trimLogoWhitespace(string $contents): ?string

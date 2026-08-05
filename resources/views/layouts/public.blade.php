@@ -36,9 +36,7 @@
         <meta name="twitter:title" content="{{ $seo['title'] }}">
         <meta name="twitter:description" content="{{ $seo['description'] }}">
         <meta name="twitter:image" content="{{ $seo['image'] }}">
-        @if (! empty($brandSettings['favicon_url']))
-            <link rel="icon" href="{{ $brandSettings['favicon_url'] }}">
-        @endif
+        @include('components.favicon-links')
         @foreach ($seo['schema'] as $schema)
             <script type="application/ld+json">{!! json_encode($schema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) !!}</script>
         @endforeach
