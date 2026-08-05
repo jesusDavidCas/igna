@@ -703,15 +703,15 @@ class AdminOperationsTest extends TestCase
         $this->withSession(['locale' => 'es'])
             ->get(route('admin.dashboard'))
             ->assertOk()
-            ->assertSee('Solicitudes abiertas')
+            ->assertSee('Proyectos abiertos')
             ->assertDontSee('Open tickets');
 
         $this->post(route('locale.switch', 'en'))->assertRedirect();
 
         $this->get(route('admin.dashboard'))
             ->assertOk()
-            ->assertSee('Open tickets')
-            ->assertDontSee('Solicitudes abiertas');
+            ->assertSee('Open projects')
+            ->assertDontSee('Proyectos abiertos');
     }
 
     public function test_demo_seed_data_populates_admin_sections(): void

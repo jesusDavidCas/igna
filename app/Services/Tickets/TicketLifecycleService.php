@@ -95,6 +95,19 @@ class TicketLifecycleService
         $this->syncDeliverables($ticket, $ticket->service);
     }
 
+    public function initializeCatalogWorkflow(Ticket $ticket, Service $service): Ticket
+    {
+        $service->loadMissing([
+            'stages' => fn ($query) => $query->where('is_active', true)->orderBy('sort_order'),
+            'deliverables' => fn ($query) => $query->where('is_active', true)->orderBy('sort_order'),
+        ]);
+
+        $this->syncStages($ticket, $service);
+        $this->syncDeliverables($ticket, $service);
+
+        return $ticket->fresh(['service', 'currentStage', 'stageEvents.serviceStage', 'deliverables']);
+    }
+
     public function moveToStage(Ticket $ticket, ServiceStage $targetStage, ?User $actor = null, ?string $notes = null, bool $notify = true): Ticket
     {
         return DB::transaction(function () use ($ticket, $targetStage, $actor, $notes, $notify): Ticket {

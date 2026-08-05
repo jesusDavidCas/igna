@@ -7,8 +7,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ProposalRequest;
 use App\Models\Proposal;
 use App\Models\ProposalServiceTemplate;
+use App\Models\Service;
 use App\Models\User;
 use App\Services\Services\ServiceContentTranslator;
+use App\Services\Services\PublicServiceTaxonomy;
 use App\Support\Proposals\ProposalContentSanitizer;
 use App\Support\Proposals\ProposalNumberGenerator;
 use App\Support\Proposals\ProposalQrCode;
@@ -107,13 +109,20 @@ class ProposalController extends Controller
 
     public function show(Proposal $proposal, BrandSettings $brandSettings): View
     {
-        $proposal->load(['client', 'createdBy', 'signer', 'items']);
+        $proposal->load(['client', 'createdBy', 'signer', 'items', 'project.currentStage']);
+        $serviceGroups = app(PublicServiceTaxonomy::class)->groupServices(
+            Service::query()
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->get(),
+        );
 
         return view('admin.proposals.show', [
             'proposal' => $proposal,
             'brand' => $brandSettings->pdfPayload(),
             'clients' => $this->clients(),
             'proposalAccessUrl' => $proposal->publicUrl(),
+            'serviceGroups' => $serviceGroups,
         ]);
     }
 
@@ -229,6 +238,8 @@ class ProposalController extends Controller
             'prospect_name' => $request->validated('prospect_name'),
             'prospect_email' => $request->validated('prospect_email'),
             'prospect_phone' => $request->validated('prospect_phone'),
+            'project_location' => $request->validated('project_location'),
+            'requested_deadline' => $request->validated('requested_deadline'),
             'signer_user_id' => $request->validated('signer_user_id'),
             ...$this->localizedTitlePayload($request),
             'subject' => $request->validated('subject'),

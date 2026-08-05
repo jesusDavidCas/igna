@@ -51,15 +51,15 @@ class TicketWorkflowIntegrityTest extends TestCase
         Mail::assertSent(ProjectUpdateMail::class, function (ProjectUpdateMail $mail) use ($spanishTicket): bool {
             return $mail->ticket->is($spanishTicket)
                 && $mail->locale === 'es'
-                && $mail->headline === 'Recibimos tu solicitud'
-                && str_contains((string) $mail->updateMessage, 'Tu solicitud quedó registrada');
+                && $mail->headline === 'Recibimos tu proyecto'
+                && str_contains((string) $mail->updateMessage, 'Tu proyecto quedó registrado');
         });
 
         Mail::assertSent(ProjectUpdateMail::class, function (ProjectUpdateMail $mail) use ($englishTicket): bool {
             return $mail->ticket->is($englishTicket)
                 && $mail->locale === 'en'
-                && $mail->headline === 'We received your request'
-                && str_contains((string) $mail->updateMessage, 'Your request was registered');
+                && $mail->headline === 'We received your project'
+                && str_contains((string) $mail->updateMessage, 'Your project was registered');
         });
     }
 
@@ -107,7 +107,7 @@ class TicketWorkflowIntegrityTest extends TestCase
 
         Mail::assertSent(ProjectUpdateMail::class, fn (ProjectUpdateMail $mail): bool => $mail->ticket->is($invalidLocaleTicket)
             && $mail->locale === 'en'
-            && $mail->headline === 'We received your request');
+            && $mail->headline === 'We received your project');
     }
 
     public function test_admin_new_ticket_email_uses_each_admin_recipient_locale(): void

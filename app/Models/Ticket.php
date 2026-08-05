@@ -15,6 +15,7 @@ class Ticket extends Model
 
     protected $fillable = [
         'ticket_code',
+        'proposal_id',
         'service_id',
         'service_selection',
         'service_public_category',
@@ -47,6 +48,11 @@ class Ticket extends Model
     public function service(): BelongsTo
     {
         return $this->belongsTo(Service::class);
+    }
+
+    public function proposal(): BelongsTo
+    {
+        return $this->belongsTo(Proposal::class);
     }
 
     public function hasCatalogService(): bool

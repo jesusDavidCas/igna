@@ -12,13 +12,18 @@
             <div class="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm">
                 <h2 class="text-xl font-semibold text-stone-950">{{ $ticket->localizedProjectName() }}</h2>
                 <div class="mt-5 grid gap-4 text-[15px] text-stone-600 md:grid-cols-2">
+                    <p><span class="font-semibold text-stone-900">{{ __('site.form_ticket_code') }}:</span> {{ $ticket->ticket_code }}</p>
                     <p><span class="font-semibold text-stone-900">{{ __('site.form_service') }}:</span> {{ $ticket->serviceDisplayName() }}</p>
                     <p><span class="font-semibold text-stone-900">{{ __('site.form_email') }}:</span> {{ $ticket->email }}</p>
                     <p><span class="font-semibold text-stone-900">{{ __('site.form_phone') }}:</span> {{ $ticket->phone ?: '-' }}</p>
+                    <p><span class="font-semibold text-stone-900">{{ __('site.created_at') }}:</span> <span title="{{ $ticket->created_at?->translatedFormat('M j, Y, g:i A') }}">{{ $ticket->created_at?->translatedFormat('M j, Y, g:i A') }}</span></p>
                     <p><span class="font-semibold text-stone-900">{{ __('site.current_stage') }}:</span> {{ $ticket->currentStage?->localizedName() ?? __('site.pending_assignment') }}</p>
                     <p><span class="font-semibold text-stone-900">{{ __('site.assigned_client') }}:</span> {{ $ticket->client?->name ?? __('site.unassigned') }}</p>
                     <p><span class="font-semibold text-stone-900">{{ __('site.form_project_location') }}:</span> {{ $ticket->project_location ?: '-' }}</p>
                     <p><span class="font-semibold text-stone-900">{{ __('site.form_target_date') }}:</span> {{ optional($ticket->target_date)->format('Y-m-d') ?: '-' }}</p>
+                    @if ($ticket->proposal)
+                        <p><span class="font-semibold text-stone-900">{{ __('site.source_proposal') }}:</span> <a href="{{ route('admin.proposals.show', $ticket->proposal) }}" class="font-semibold text-olive-800 underline decoration-olive-300 underline-offset-4">{{ $ticket->proposal->proposal_number }}</a></p>
+                    @endif
                 </div>
                 <div class="mt-5 rounded-2xl bg-stone-50 p-4 text-base leading-7 text-stone-700">
                     {{ $ticket->localizedProjectDescription() }}

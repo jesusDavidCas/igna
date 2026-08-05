@@ -123,6 +123,16 @@
                 <input id="{{ $fieldId('prospect_phone') }}" name="prospect_phone" value="{{ old('prospect_phone', $proposal->prospect_phone) }}" class="{{ $fieldClass('prospect_phone') }}" {!! $errorAttributes('prospect_phone') !!}>
                 @error('prospect_phone') <p id="{{ $errorId('prospect_phone') }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
             </div>
+            <div>
+                <label for="{{ $fieldId('project_location') }}" class="form-label">{{ __('site.form_project_location') }}</label>
+                <input id="{{ $fieldId('project_location') }}" name="project_location" value="{{ old('project_location', $proposal->project_location) }}" class="{{ $fieldClass('project_location') }}" {!! $errorAttributes('project_location') !!}>
+                @error('project_location') <p id="{{ $errorId('project_location') }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <label for="{{ $fieldId('requested_deadline') }}" class="form-label">{{ __('site.form_target_date') }}</label>
+                <input id="{{ $fieldId('requested_deadline') }}" type="date" name="requested_deadline" value="{{ old('requested_deadline', optional($proposal->requested_deadline)->format('Y-m-d')) }}" class="{{ $fieldClass('requested_deadline') }}" {!! $errorAttributes('requested_deadline') !!}>
+                @error('requested_deadline') <p id="{{ $errorId('requested_deadline') }}" class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
+            </div>
         </div>
     </section>
 

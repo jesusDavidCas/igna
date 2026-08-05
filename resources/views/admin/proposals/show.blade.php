@@ -22,9 +22,75 @@
         <div class="flex flex-wrap gap-3">
             <a href="{{ route('admin.proposals.pdf', $proposal) }}" target="_blank" rel="noopener" class="inline-flex items-center rounded-full bg-olive-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-olive-800">{{ __('site.generate_pdf') }}</a>
             <button type="button" data-toggle-whatsapp-panel class="inline-flex items-center rounded-full bg-stone-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-stone-800">{{ __('site.create_whatsapp_link') }}</button>
+            @if ($proposal->project)
+                <a href="{{ route('admin.tickets.show', $proposal->project) }}" class="inline-flex items-center rounded-full bg-olive-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-olive-800">{{ __('site.open_project') }}</a>
+            @elseif ($proposal->isProjectConvertible())
+                <button type="button" data-toggle-project-panel class="inline-flex items-center rounded-full bg-olive-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-olive-800">{{ __('site.create_project') }}</button>
+            @endif
             <a href="{{ route('admin.proposals.edit', $proposal) }}" class="inline-flex items-center rounded-full border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700 transition hover:border-olive-600 hover:text-olive-800">{{ __('site.edit_proposal') }}</a>
         </div>
     </div>
+
+    @if ($proposal->project)
+        <section class="mt-6 rounded-[2rem] border border-olive-200 bg-olive-50 p-6 shadow-sm print:hidden">
+            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-olive-700">{{ __('site.linked_project') }}</p>
+                    <h3 class="mt-2 text-lg font-semibold text-stone-950">{{ $proposal->project->ticket_code }}</h3>
+                    <p class="mt-1 text-[15px] text-stone-600">{{ $proposal->project->currentStage?->localizedName() ?? __('site.pending_assignment') }}</p>
+                </div>
+                <a href="{{ route('admin.tickets.show', $proposal->project) }}" class="inline-flex items-center justify-center rounded-full bg-olive-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-olive-800">{{ __('site.open_project') }}</a>
+            </div>
+        </section>
+    @elseif ($proposal->isProjectConvertible())
+        <section data-project-panel class="mt-6 {{ $errors->has('proposal') || $errors->has('service_category') || $errors->has('service_id') ? '' : 'hidden' }} rounded-[2rem] border border-olive-200 bg-olive-50 p-6 shadow-sm print:hidden">
+            <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold text-stone-950">{{ __('site.create_project_from_proposal') }}</h3>
+                    <p class="mt-2 max-w-3xl text-[15px] leading-6 text-stone-600">{{ __('site.create_project_from_proposal_help') }}</p>
+                </div>
+                <button type="button" data-toggle-project-panel class="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-700">{{ __('site.cancel') }}</button>
+            </div>
+
+            <div class="mt-5 grid gap-4 rounded-2xl bg-white p-4 md:grid-cols-2">
+                <p><span class="font-semibold text-stone-900">{{ __('site.proposal_number') }}:</span> {{ $proposal->proposal_number }}</p>
+                <p><span class="font-semibold text-stone-900">{{ __('site.form_title') }}:</span> {{ $proposal->localizedTitle() }}</p>
+                <p><span class="font-semibold text-stone-900">{{ __('site.client') }}:</span> {{ $proposal->clientDisplayName() }}</p>
+                <p><span class="font-semibold text-stone-900">{{ __('site.form_email') }}:</span> {{ $proposal->clientDisplayEmail() ?: '-' }}</p>
+                <p><span class="font-semibold text-stone-900">{{ __('site.form_phone') }}:</span> {{ $proposal->clientDisplayPhone() ?: '-' }}</p>
+                <p><span class="font-semibold text-stone-900">{{ __('site.form_project_location') }}:</span> {{ $proposal->project_location ?: '-' }}</p>
+                <p><span class="font-semibold text-stone-900">{{ __('site.form_target_date') }}:</span> {{ optional($proposal->requested_deadline)->format('Y-m-d') ?: '-' }}</p>
+            </div>
+
+            <form method="POST" action="{{ route('admin.proposals.projects.store', $proposal) }}" class="mt-5 grid gap-4 rounded-2xl bg-white p-4 md:grid-cols-[1fr_1fr_auto] md:items-end" data-project-conversion-form>
+                @csrf
+                <div>
+                    <label for="proposal-project-category" class="form-label">{{ __('site.form_public_service_category') }}</label>
+                    <select id="proposal-project-category" name="service_category" class="form-input" required data-project-category>
+                        <option value="">{{ __('site.form_public_service_category') }}</option>
+                        @foreach ($serviceGroups as $category => $services)
+                            <option value="{{ $category }}" @selected(old('service_category') === $category)>{{ __("site.service_public_category_{$category}") }}</option>
+                        @endforeach
+                    </select>
+                    @error('service_category') <p class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label for="proposal-project-service" class="form-label">{{ __('site.form_choose_service') }}</label>
+                    <select id="proposal-project-service" name="service_id" class="form-input" required data-project-service>
+                        <option value="">{{ __('site.form_choose_service') }}</option>
+                        @foreach ($serviceGroups as $category => $services)
+                            @foreach ($services as $service)
+                                <option value="{{ $service->id }}" data-category="{{ $category }}" @selected((string) old('service_id') === (string) $service->id)>{{ $service->localizedName() }}</option>
+                            @endforeach
+                        @endforeach
+                    </select>
+                    @error('service_id') <p class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
+                    @error('proposal') <p class="mt-2 text-sm font-semibold text-rose-700">{{ $message }}</p> @enderror
+                </div>
+                <button type="submit" data-project-submit class="rounded-full bg-olive-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-olive-800">{{ __('site.create_project') }}</button>
+            </form>
+        </section>
+    @endif
 
     <section
         data-whatsapp-panel
@@ -109,6 +175,14 @@
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">{{ __('site.validity_days') }}</p>
                 <p class="mt-2 text-stone-950">{{ $proposal->validityLabel() }}</p>
+            </div>
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">{{ __('site.form_project_location') }}</p>
+                <p class="mt-2 text-stone-950">{{ $proposal->project_location ?: '-' }}</p>
+            </div>
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">{{ __('site.form_target_date') }}</p>
+                <p class="mt-2 text-stone-950">{{ optional($proposal->requested_deadline)->format('Y-m-d') ?: '-' }}</p>
             </div>
         </div>
 
@@ -197,6 +271,42 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            const projectPanel = document.querySelector('[data-project-panel]');
+            const categorySelect = document.querySelector('[data-project-category]');
+            const serviceSelect = document.querySelector('[data-project-service]');
+            const projectForm = document.querySelector('[data-project-conversion-form]');
+
+            document.querySelectorAll('[data-toggle-project-panel]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    if (!projectPanel) return;
+                    projectPanel.classList.toggle('hidden');
+                });
+            });
+
+            const filterServices = () => {
+                if (!categorySelect || !serviceSelect) return;
+
+                const selectedCategory = categorySelect.value;
+                serviceSelect.querySelectorAll('option[data-category]').forEach((option) => {
+                    const visible = option.dataset.category === selectedCategory;
+                    option.hidden = !visible;
+
+                    if (!visible && option.selected) {
+                        serviceSelect.value = '';
+                    }
+                });
+            };
+
+            categorySelect?.addEventListener('change', filterServices);
+            filterServices();
+
+            projectForm?.addEventListener('submit', () => {
+                const submit = projectForm.querySelector('[data-project-submit]');
+                if (!submit) return;
+                submit.disabled = true;
+                submit.textContent = '{{ __('site.creating_project') }}';
+            });
+
             const panel = document.querySelector('[data-whatsapp-panel]');
             if (!panel) return;
 

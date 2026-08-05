@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
@@ -22,6 +23,8 @@ class Proposal extends Model
         'prospect_name',
         'prospect_email',
         'prospect_phone',
+        'project_location',
+        'requested_deadline',
         'created_by_user_id',
         'signer_user_id',
         'title',
@@ -43,6 +46,8 @@ class Proposal extends Model
         'issued_at',
         'valid_until',
         'validity_days',
+        'converted_to_project_at',
+        'converted_by_user_id',
     ];
 
     protected function casts(): array
@@ -58,6 +63,8 @@ class Proposal extends Model
             'issued_at' => 'date',
             'valid_until' => 'date',
             'validity_days' => 'integer',
+            'requested_deadline' => 'date',
+            'converted_to_project_at' => 'datetime',
         ];
     }
 
@@ -81,6 +88,16 @@ class Proposal extends Model
     public function signer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'signer_user_id');
+    }
+
+    public function convertedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'converted_by_user_id');
+    }
+
+    public function project(): HasOne
+    {
+        return $this->hasOne(Ticket::class);
     }
 
     public function items(): HasMany
@@ -112,6 +129,19 @@ class Proposal extends Model
     public function isPubliclyAccessible(): bool
     {
         return in_array($this->status, ['sent', 'approved'], true);
+    }
+
+    public function isProjectConvertible(): bool
+    {
+        if ($this->status !== 'approved') {
+            return false;
+        }
+
+        if ($this->valid_until && $this->valid_until->isPast() && ! $this->valid_until->isToday()) {
+            return false;
+        }
+
+        return ! $this->project()->exists();
     }
 
     public function formattedTimeline(): string

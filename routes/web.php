@@ -4,6 +4,7 @@ use App\Enums\UserRole;
 use App\Http\Controllers\Admin\BlogPostController as AdminBlogPostController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\ProposalController as AdminProposalController;
+use App\Http\Controllers\Admin\ProposalProjectController as AdminProposalProjectController;
 use App\Http\Controllers\Admin\ProposalServiceTemplateController as AdminProposalServiceTemplateController;
 use App\Http\Controllers\Admin\ServiceController as AdminServiceController;
 use App\Http\Controllers\Admin\ServiceStageController as AdminServiceStageController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Client\PortalController;
 use App\Http\Controllers\Client\TicketController as ClientTicketController;
+use App\Http\Controllers\Public\BrandFaviconController;
 use App\Http\Controllers\Public\BlogController;
 use App\Http\Controllers\Public\LandingController;
 use App\Http\Controllers\Public\ProposalController;
@@ -29,6 +31,7 @@ use App\Http\Controllers\TicketFileDownloadController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', LandingController::class)->name('home');
+Route::get('/brand/favicon', BrandFaviconController::class)->name('brand.favicon');
 Route::get('/team/{slug}', [LandingController::class, 'team'])->name('team.show');
 Route::get('/sitemap.xml', [SeoResourceController::class, 'sitemap'])->name('seo.sitemap');
 Route::get('/robots.txt', [SeoResourceController::class, 'robots'])->name('seo.robots');
@@ -136,6 +139,7 @@ Route::prefix('admin')
         Route::post('/proposal-templates/{proposalTemplate}/duplicate', [AdminProposalServiceTemplateController::class, 'duplicate'])->name('proposal-templates.duplicate');
         Route::resource('proposal-templates', AdminProposalServiceTemplateController::class)->parameters(['proposal-templates' => 'proposalTemplate'])->except(['show']);
         Route::get('/proposals/{proposal}/pdf', [AdminProposalController::class, 'pdf'])->name('proposals.pdf');
+        Route::post('/proposals/{proposal}/project', [AdminProposalProjectController::class, 'store'])->name('proposals.projects.store');
         Route::resource('proposals', AdminProposalController::class)->except(['destroy']);
 
         Route::middleware('role:'.UserRole::SUPER_ADMIN->value)->group(function (): void {
