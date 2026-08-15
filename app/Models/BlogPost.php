@@ -3,12 +3,12 @@
 namespace App\Models;
 
 use App\Enums\BlogPostStatus;
+use App\Services\Blog\BlogHeaderImageManager;
 use App\Support\Html\HtmlSanitizer;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Storage;
 
 class BlogPost extends Model
 {
@@ -49,7 +49,19 @@ class BlogPost extends Model
 
     public function headerImageUrl(): ?string
     {
-        return $this->header_image_path ? Storage::disk('public')->url($this->header_image_path) : null;
+        if (! $this->header_image_path || ! app(BlogHeaderImageManager::class)->hasPublicFile($this)) {
+            return null;
+        }
+
+        return route('blog.header-image', [
+            'post' => $this,
+            'v' => $this->headerImageVersion(),
+        ]);
+    }
+
+    public function headerImageVersion(): string
+    {
+        return sha1($this->getKey().'|'.$this->header_image_path.'|'.$this->updated_at?->timestamp);
     }
 
     public function localizedTitle(): string

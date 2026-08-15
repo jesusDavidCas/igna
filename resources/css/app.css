@@ -283,6 +283,114 @@
         margin: 0.15rem 0;
     }
 
+    .blog-article-content {
+        color: rgb(41 37 36);
+        font-size: clamp(1.06rem, 1.02rem + 0.14vw, 1.16rem);
+        line-height: 1.78;
+        overflow-wrap: anywhere;
+    }
+
+    .blog-article-content > * + * {
+        margin-top: 1.35rem;
+    }
+
+    .blog-article-content p {
+        margin: 0;
+    }
+
+    .blog-article-content h2 {
+        margin-top: clamp(2.75rem, 4.6vw, 3.5rem);
+        color: var(--brand-ink);
+        font-size: clamp(1.75rem, 1.46rem + 0.9vw, 2.35rem);
+        font-weight: 700;
+        letter-spacing: 0;
+        line-height: 1.16;
+    }
+
+    .blog-article-content h2 + * {
+        margin-top: 0.85rem;
+    }
+
+    .blog-article-content h3 {
+        margin-top: clamp(2rem, 3.2vw, 2.5rem);
+        color: var(--brand-ink);
+        font-size: clamp(1.28rem, 1.16rem + 0.36vw, 1.55rem);
+        font-weight: 700;
+        letter-spacing: 0;
+        line-height: 1.25;
+    }
+
+    .blog-article-content h3 + * {
+        margin-top: 0.7rem;
+    }
+
+    .blog-article-content ul,
+    .blog-article-content ol {
+        margin: 1.35rem 0 0;
+        padding-left: 1.45rem;
+    }
+
+    .blog-article-content ul {
+        list-style: disc;
+    }
+
+    .blog-article-content ol {
+        list-style: decimal;
+    }
+
+    .blog-article-content li {
+        display: list-item;
+        margin-top: 0.45rem;
+        padding-left: 0.15rem;
+    }
+
+    .blog-article-content li::marker {
+        color: var(--brand-forest);
+        font-weight: 700;
+    }
+
+    .blog-article-content a {
+        color: var(--brand-forest);
+        font-weight: 700;
+        text-decoration: underline;
+        text-decoration-thickness: 0.08em;
+        text-underline-offset: 0.18em;
+    }
+
+    .blog-article-content blockquote {
+        margin: 2rem 0;
+        border-left: 4px solid var(--brand-clay);
+        padding: 0.35rem 0 0.35rem 1.25rem;
+        color: rgb(68 64 60);
+        font-size: clamp(1.16rem, 1.06rem + 0.28vw, 1.36rem);
+        font-weight: 600;
+        line-height: 1.55;
+    }
+
+    .blog-article-content strong {
+        color: var(--brand-ink);
+        font-weight: 700;
+    }
+
+    .blog-article-content em {
+        font-style: italic;
+    }
+
+    .blog-article-content img {
+        height: auto;
+        max-width: 100%;
+        border-radius: 1rem;
+    }
+
+    .blog-article-content pre,
+    .blog-article-content code {
+        max-width: 100%;
+        overflow-x: auto;
+        border-radius: 0.75rem;
+        background: rgba(52, 83, 66, 0.08);
+        color: var(--brand-ink);
+    }
+
     .ticket-file-card {
         container-type: inline-size;
         width: 100%;

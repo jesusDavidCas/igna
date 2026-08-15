@@ -20,6 +20,7 @@ use App\Http\Controllers\Client\PortalController;
 use App\Http\Controllers\Client\TicketController as ClientTicketController;
 use App\Http\Controllers\Public\BrandFaviconController;
 use App\Http\Controllers\Public\BlogController;
+use App\Http\Controllers\Public\BlogHeaderImageController;
 use App\Http\Controllers\Public\LandingController;
 use App\Http\Controllers\Public\ProposalController;
 use App\Http\Controllers\Public\SeoResourceController;
@@ -75,6 +76,9 @@ Route::post('/tracking/tickets/{ticket}/documents', [TicketClientDocumentControl
     ->name('tracking.documents.store');
 
 Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
+Route::get('/blog/{post:slug}/header-image', BlogHeaderImageController::class)
+    ->middleware('throttle:120,1')
+    ->name('blog.header-image');
 Route::get('/blog/{post:slug}', [BlogController::class, 'show'])->name('blog.show');
 
 // Public proposal routing handles two types of client access:

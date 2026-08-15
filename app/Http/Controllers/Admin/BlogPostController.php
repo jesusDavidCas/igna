@@ -5,10 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\BlogPostRequest;
 use App\Models\BlogPost;
+use App\Services\Blog\BlogHeaderImageManager;
 use App\Support\Html\HtmlSanitizer;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Storage;
 
 class BlogPostController extends Controller
 {
@@ -89,12 +89,17 @@ class BlogPostController extends Controller
             return;
         }
 
+        $images = app(BlogHeaderImageManager::class);
+        $previousPath = $post->header_image_path;
+
+        $path = $images->store($request->file('header_image'));
+
         if ($post->header_image_path) {
-            Storage::disk('public')->delete($post->header_image_path);
+            $images->delete($previousPath);
         }
 
         $post->forceFill([
-            'header_image_path' => $request->file('header_image')->store('blog/headers', 'public'),
+            'header_image_path' => $path,
         ])->save();
     }
 }

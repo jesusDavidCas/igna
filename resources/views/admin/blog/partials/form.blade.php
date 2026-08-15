@@ -20,8 +20,11 @@
         <div>
             <label class="form-label">{{ __('site.header_image') }}</label>
             <input type="file" name="header_image" class="form-input" accept=".png,.jpg,.jpeg,.webp">
-            @if ($post->headerImageUrl())
-                <img src="{{ $post->headerImageUrl() }}" alt="{{ $post->title }}" class="mt-3 h-32 rounded-2xl object-cover">
+            @if ($headerImageUrl = $post->headerImageUrl())
+                <div class="mt-3 flex items-center gap-4 rounded-2xl border border-stone-200 bg-stone-50 p-3">
+                    <img src="{{ $headerImageUrl }}" alt="{{ $post->title }}" class="h-28 w-44 rounded-xl object-cover" loading="lazy" decoding="async">
+                    <p class="text-sm text-stone-600">{{ __('site.header_image') }}</p>
+                </div>
             @endif
         </div>
         <div>
