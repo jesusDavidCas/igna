@@ -261,39 +261,39 @@
                     <form action="{{ route('requests.store') }}" method="POST" enctype="multipart/form-data" class="request-form-surface relative z-10 grid gap-5 p-7 sm:grid-cols-2 sm:p-10 lg:p-14">
                         @csrf
                         <div>
-                            <label class="form-label">{{ __('site.form_first_name') }}</label>
-                            <input name="first_name" value="{{ old('first_name') }}" class="form-input" required>
+                            <label for="request-first-name" class="form-label">{{ __('site.form_first_name') }}</label>
+                            <input id="request-first-name" name="first_name" value="{{ old('first_name') }}" class="form-input" autocomplete="given-name" required>
                         </div>
                         <div>
-                            <label class="form-label">{{ __('site.form_last_name') }}</label>
-                            <input name="last_name" value="{{ old('last_name') }}" class="form-input" required>
+                            <label for="request-last-name" class="form-label">{{ __('site.form_last_name') }}</label>
+                            <input id="request-last-name" name="last_name" value="{{ old('last_name') }}" class="form-input" autocomplete="family-name" required>
                         </div>
                         <div>
-                            <label class="form-label">{{ __('site.form_email') }}</label>
-                            <input type="email" name="email" value="{{ old('email') }}" class="form-input" required>
+                            <label for="request-email" class="form-label">{{ __('site.form_email') }}</label>
+                            <input id="request-email" type="email" name="email" value="{{ old('email') }}" class="form-input" autocomplete="email" required>
                         </div>
                         <div>
-                            <label class="form-label">{{ __('site.form_phone') }}</label>
-                            <input name="phone" value="{{ old('phone') }}" class="form-input">
+                            <label for="request-phone" class="form-label">{{ __('site.form_phone') }}</label>
+                            <input id="request-phone" name="phone" value="{{ old('phone') }}" class="form-input" autocomplete="tel">
                         </div>
                         <div>
-                            <label class="form-label">{{ __('site.form_project_name') }}</label>
-                            <input name="project_name" value="{{ old('project_name') }}" class="form-input" required>
+                            <label for="request-project-name" class="form-label">{{ __('site.form_project_name') }}</label>
+                            <input id="request-project-name" name="project_name" value="{{ old('project_name') }}" class="form-input" required>
                         </div>
                         <div>
-                            <label class="form-label">{{ __('site.form_project_location') }}</label>
-                            <input name="project_location" value="{{ old('project_location') }}" class="form-input">
+                            <label for="request-project-location" class="form-label">{{ __('site.form_project_location') }}</label>
+                            <input id="request-project-location" name="project_location" value="{{ old('project_location') }}" class="form-input" autocomplete="address-level2">
                         </div>
                         <div>
-                            <label class="form-label">{{ __('site.form_preferred_language') }}</label>
-                            <select name="preferred_language" class="form-input" required>
+                            <label for="request-preferred-language" class="form-label">{{ __('site.form_preferred_language') }}</label>
+                            <select id="request-preferred-language" name="preferred_language" class="form-input" required>
                                 <option value="es" @selected(old('preferred_language', app()->getLocale()) === 'es')>{{ __('site.language_spanish') }}</option>
                                 <option value="en" @selected(old('preferred_language', app()->getLocale()) === 'en')>{{ __('site.language_english') }}</option>
                             </select>
                         </div>
                         <div>
-                            <label class="form-label">{{ __('site.form_service') }}</label>
-                            <select name="service_id" class="form-input" required>
+                            <label for="request-service" class="form-label">{{ __('site.form_service') }}</label>
+                            <select id="request-service" name="service_id" class="form-input" required aria-describedby="request-service-help">
                                 <option value="">{{ __('site.form_choose_service') }}</option>
                                 @foreach ($requestServiceGroups as $categoryCode => $groupedServices)
                                     @if ($groupedServices->isNotEmpty())
@@ -308,20 +308,20 @@
                                 @endforeach
                                 <option value="other" @selected(old('service_id') === 'other')>{{ __('site.service_public_category_other') }}</option>
                             </select>
-                            <p class="mt-2 text-[15px] leading-6 text-stone-500">{{ __('site.form_service_help') }}</p>
+                            <p id="request-service-help" class="mt-2 text-[15px] leading-6 text-stone-500">{{ __('site.form_service_help') }}</p>
                         </div>
                         <div class="sm:col-span-2">
-                            <label class="form-label">{{ __('site.form_description') }}</label>
-                            <textarea name="project_description" rows="6" class="form-input" required>{{ old('project_description') }}</textarea>
+                            <label for="request-project-description" class="form-label">{{ __('site.form_description') }}</label>
+                            <textarea id="request-project-description" name="project_description" rows="6" class="form-input" required>{{ old('project_description') }}</textarea>
                         </div>
                         <div>
-                            <label class="form-label">{{ __('site.form_target_date') }}</label>
-                            <input type="date" name="target_date" value="{{ old('target_date') }}" class="form-input">
+                            <label for="request-target-date" class="form-label">{{ __('site.form_target_date') }}</label>
+                            <input id="request-target-date" type="date" name="target_date" value="{{ old('target_date') }}" class="form-input">
                         </div>
                         <div>
-                            <label class="form-label">{{ __('site.form_initial_file') }}</label>
-                            <input type="file" name="initial_file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" class="form-input">
-                            <p class="mt-2 text-[15px] leading-6 text-stone-500">{{ __('site.form_initial_file_help') }}</p>
+                            <label for="request-initial-file" class="form-label">{{ __('site.form_initial_file') }}</label>
+                            <input id="request-initial-file" type="file" name="initial_file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" class="form-input" aria-describedby="request-initial-file-help">
+                            <p id="request-initial-file-help" class="mt-2 text-[15px] leading-6 text-stone-500">{{ __('site.form_initial_file_help') }}</p>
                         </div>
                         <div class="sm:col-span-2 pt-2">
                             <button type="submit" class="rounded-full bg-olive-700 px-6 py-3 text-sm font-semibold text-white shadow-[0_16px_36px_rgba(52,83,66,0.22)] transition hover:-translate-y-0.5 hover:bg-olive-800 active:translate-y-0">

@@ -15,12 +15,12 @@
                 @csrf
                 <div class="space-y-5">
                     <div>
-                        <label class="form-label">{{ __('site.form_ticket_code') }}</label>
-                        <input name="ticket_code" value="{{ old('ticket_code', session('tracking_lookup.ticket_code')) }}" class="form-input" required>
+                        <label for="tracking-ticket-code" class="form-label">{{ __('site.form_ticket_code') }}</label>
+                        <input id="tracking-ticket-code" name="ticket_code" value="{{ old('ticket_code', session('tracking_lookup.ticket_code')) }}" class="form-input" autocomplete="off" required>
                     </div>
                     <div>
-                        <label class="form-label">{{ __('site.form_email') }}</label>
-                        <input type="email" name="email" value="{{ old('email', session('tracking_lookup.email')) }}" class="form-input" required>
+                        <label for="tracking-email" class="form-label">{{ __('site.form_email') }}</label>
+                        <input id="tracking-email" type="email" name="email" value="{{ old('email', session('tracking_lookup.email')) }}" class="form-input" autocomplete="email" required>
                     </div>
                     <button type="submit" class="rounded-full bg-olive-700 px-6 py-3 text-sm font-semibold text-white transition hover:bg-olive-800">
                         {{ __('site.cta_track') }}
@@ -92,16 +92,16 @@
                                 <p class="mt-2 text-[15px] leading-6 text-stone-500">{{ __('site.client_upload_policy') }}</p>
                                 <div class="mt-5 space-y-4">
                                     <div>
-                                        <label class="form-label">{{ __('site.document_category') }}</label>
-                                        <select name="category" class="form-input" required>
+                                        <label for="tracking-document-category" class="form-label">{{ __('site.document_category') }}</label>
+                                        <select id="tracking-document-category" name="category" class="form-input" required>
                                             @foreach ($clientDocumentCategories as $category)
                                                 <option value="{{ $category }}">{{ __("site.ticket_file_category_{$category}") }}</option>
                                             @endforeach
                                         </select>
                                     </div>
                                     <div>
-                                        <label class="form-label">{{ __('site.document_file') }}</label>
-                                        <input type="file" name="document" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" class="form-input" required>
+                                        <label for="tracking-document-file" class="form-label">{{ __('site.document_file') }}</label>
+                                        <input id="tracking-document-file" type="file" name="document" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" class="form-input" required>
                                     </div>
                                     <button type="submit" class="rounded-full bg-olive-700 px-5 py-2.5 text-sm font-semibold text-white">{{ __('site.send_document') }}</button>
                                 </div>

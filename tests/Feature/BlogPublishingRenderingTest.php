@@ -60,12 +60,27 @@ class BlogPublishingRenderingTest extends TestCase
                 'header_image_path' => $file['path'],
             ]);
 
-            $this->get(route('blog.header-image', ['post' => $post->slug, 'v' => $post->headerImageVersion()]))
+            $response = $this->get(route('blog.header-image', ['post' => $post->slug, 'v' => $post->headerImageVersion()]))
                 ->assertOk()
                 ->assertHeader('content-type', $mimeType)
                 ->assertHeader('content-length')
                 ->assertHeader('x-content-type-options', 'nosniff')
-                ->assertHeader('cache-control', 'max-age=604800, public');
+                ->assertHeader('cache-control', 'immutable, max-age=31536000, public');
+
+            $this->get(
+                route('blog.header-image', ['post' => $post->slug, 'v' => $post->headerImageVersion()]),
+                ['If-None-Match' => (string) $response->headers->get('ETag')],
+            )
+                ->assertStatus(304)
+                ->assertHeader('cache-control', 'immutable, max-age=31536000, public');
+
+            $this->get(route('blog.header-image', ['post' => $post->slug]))
+                ->assertOk()
+                ->assertHeader('cache-control', 'no-cache, private');
+
+            $this->get(route('blog.header-image', ['post' => $post->slug, 'v' => 'stale-version']))
+                ->assertOk()
+                ->assertHeader('cache-control', 'no-cache, private');
         }
     }
 
@@ -93,6 +108,17 @@ class BlogPublishingRenderingTest extends TestCase
         $this->get(route('blog.header-image', ['post' => $private->slug, 'path' => '../credentials/private.pdf']))
             ->assertNotFound()
             ->assertDontSee('%PDF private');
+
+        $draft = $this->blogPost([
+            'slug' => 'draft-header',
+            'status' => 'draft',
+            'header_image_path' => 'blog/headers/article.jpg',
+        ]);
+
+        Storage::disk('public')->put($draft->header_image_path, $this->jpeg());
+
+        $this->get(route('blog.header-image', ['post' => $draft->slug, 'v' => $draft->headerImageVersion()]))
+            ->assertNotFound();
     }
 
     public function test_blog_header_image_manager_path_guard_accepts_only_public_blog_header_directory(): void
@@ -134,6 +160,7 @@ class BlogPublishingRenderingTest extends TestCase
         $this->get(route('blog.show', $post))
             ->assertOk()
             ->assertSee($route, false)
+            ->assertSee('fetchpriority="high"', false)
             ->assertSee('text-stone-600', false)
             ->assertSee('blog-article-content', false)
             ->assertSee('<h2>Semantic Heading</h2>', false)
@@ -144,6 +171,7 @@ class BlogPublishingRenderingTest extends TestCase
         $this->get(route('blog.index'))
             ->assertOk()
             ->assertSee($route, false)
+            ->assertDontSee('fetchpriority="high"', false)
             ->assertDontSee('/storage/blog/headers/article.png', false);
 
         $this->actingAs($this->superAdmin)

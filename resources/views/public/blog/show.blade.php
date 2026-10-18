@@ -11,7 +11,7 @@
 
         @if ($headerImageUrl = $post->headerImageUrl())
             <figure class="mx-auto mt-10 max-w-5xl">
-                <img src="{{ $headerImageUrl }}" alt="{{ $post->localizedTitle() }}" class="aspect-[16/9] w-full rounded-[1.5rem] object-cover shadow-sm" decoding="async">
+                <img src="{{ $headerImageUrl }}" alt="{{ $post->localizedTitle() }}" class="aspect-[16/9] w-full rounded-[1.5rem] object-cover shadow-sm" fetchpriority="high" decoding="async">
             </figure>
         @endif
 

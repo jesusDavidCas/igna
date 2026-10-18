@@ -38,6 +38,33 @@ class PublicPlatformTest extends TestCase
         $this->get('/login')->assertOk();
     }
 
+    public function test_public_forms_associate_labels_with_controls_and_announce_validation_errors(): void
+    {
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('<label for="request-first-name"', false)
+            ->assertSee('id="request-first-name"', false)
+            ->assertSee('<label for="request-service"', false)
+            ->assertSee('aria-describedby="request-service-help"', false)
+            ->assertSee('<label for="request-initial-file"', false)
+            ->assertSee('aria-describedby="request-initial-file-help"', false);
+
+        $this->from('/')
+            ->post(route('requests.store'), [])
+            ->assertRedirect('/');
+
+        $this->get('/')
+            ->assertSee('data-validation-summary', false)
+            ->assertSee('role="alert"', false);
+
+        $this->get(route('tracking.index'))
+            ->assertOk()
+            ->assertSee('<label for="tracking-ticket-code"', false)
+            ->assertSee('id="tracking-ticket-code"', false)
+            ->assertSee('<label for="tracking-email"', false)
+            ->assertSee('id="tracking-email"', false);
+    }
+
     public function test_missing_public_pages_render_a_localized_branded_404(): void
     {
         $this->get('/missing-public-page')

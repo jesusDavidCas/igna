@@ -13,7 +13,7 @@ content, a Hostinger review, or live analytics/Search Console evidence.
 | --- | --- | --- | --- | --- |
 | WEB-01 | Privacy policy | NOT IMPLEMENTED | P1 | Legal and product decisions |
 | WEB-02 | Terms and conditions | NOT IMPLEMENTED | P1 | Legal and product decisions |
-| WEB-03 | Secret exposure | PARTIALLY IMPLEMENTED | P1 | CI secret-scan decision |
+| WEB-03 | Secret exposure | IMPLEMENTED LOCALLY | P1 | Run the tracked-content hygiene gate in each release check; CI enforcement remains an operational decision |
 | WEB-04 | HTTPS and transport | NOT VERIFIED | P1 | Hostinger edge evidence |
 | WEB-05 | Cookies and consent | PARTIALLY IMPLEMENTED | P1 | Legal basis and analytics decision |
 | WEB-06 | Titles and descriptions | PARTIALLY IMPLEMENTED | P2 | Locale/crawl strategy |
@@ -74,3 +74,14 @@ links. Automated localization coverage remains the evidence for normal English
 and Spanish rendering; no production locale-routing claim is made. There is no
 comparable lab or field Core Web Vitals dataset, so WEB-12 remains `NOT
 VERIFIED`.
+
+## Sprint 3 change
+
+Sprint 3 adds a local release-hygiene gate and applies immutable caching only
+to the exact current version of a public blog-header image. Missing or stale
+versions revalidate, and the public image endpoint rejects unpublished posts.
+Sprint 3 prioritizes the article lead image and makes public request/tracking
+form labels and validation feedback programmatically accessible. WEB-03 is now
+`IMPLEMENTED LOCALLY`; WEB-11, WEB-13, and WEB-14 remain partial and
+WEB-04/WEB-12 retain their external infrastructure and measurement
+dependencies. See `PHASE_5B5_READINESS_SPRINT_3.md` for evidence.
