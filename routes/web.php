@@ -23,6 +23,7 @@ use App\Http\Controllers\Public\BlogController;
 use App\Http\Controllers\Public\BlogHeaderImageController;
 use App\Http\Controllers\Public\LandingController;
 use App\Http\Controllers\Public\ProposalController;
+use App\Http\Controllers\Public\PrivacyPreferenceController;
 use App\Http\Controllers\Public\SeoResourceController;
 use App\Http\Controllers\Public\ServiceRequestController;
 use App\Http\Controllers\Public\TeamCredentialController;
@@ -59,6 +60,9 @@ Route::get('/team/{teamMember:slug}/credentials/{credential}/file', [TeamCredent
     ->middleware(['signed', 'throttle:20,1'])
     ->name('team.credentials.file');
 Route::post('/locale/{locale}', [LandingController::class, 'locale'])->name('locale.switch');
+Route::post('/privacy/preferences', [PrivacyPreferenceController::class, 'store'])
+    ->middleware('throttle:20,1')
+    ->name('privacy.preferences.store');
 
 Route::post('/request', [ServiceRequestController::class, 'store'])
     ->middleware('throttle:10,1')

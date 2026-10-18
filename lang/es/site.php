@@ -860,4 +860,13 @@ return [
     'stage_audit_action_rolled_back_from' => 'Ejecución actual archivada',
     'stage_audit_action_reopened_previous' => 'Etapa anterior reabierta',
     'confirm_stage_reopen_message' => 'Esto moverá el flujo una etapa hacia atrás. La ejecución actual se archivará, los mensajes de ese intento abandonado dejarán de mostrarse al cliente y el historial de auditoría se conservará.',
+    'privacy_preferences_heading' => 'Preferencias de privacidad',
+    'privacy_preferences_intro' => 'Las tecnologías opcionales de medición y publicidad permanecen desactivadas a menos que las elijas.',
+    'privacy_analytics_label' => 'Analítica',
+    'privacy_analytics_description' => 'Permite una futura medición agregada del uso del sitio.',
+    'privacy_advertising_label' => 'Publicidad',
+    'privacy_advertising_description' => 'Permite futuras funciones de medición y personalización publicitaria.',
+    'privacy_save_preferences' => 'Guardar preferencias',
+    'privacy_reject_optional' => 'Rechazar tecnologías opcionales',
+    'privacy_preferences_saved' => 'Tus preferencias de privacidad fueron guardadas.',
 ];

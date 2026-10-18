@@ -100,6 +100,10 @@
             @yield('content')
         </main>
 
+        @if (config('privacy.optional_tracking_enabled'))
+            @include('privacy.preferences')
+        @endif
+
         <footer class="footer-route bg-igna-paper/90">
             <div class="site-shell grid gap-10 py-12 lg:grid-cols-[1.2fr_0.8fr_0.8fr]">
                 <div class="space-y-4">

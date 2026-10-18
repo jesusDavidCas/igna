@@ -11,11 +11,11 @@ content, a Hostinger review, or live analytics/Search Console evidence.
 
 | ID | Requirement | Status after sprint 1 | Priority | Dependency / next step |
 | --- | --- | --- | --- | --- |
-| WEB-01 | Privacy policy | NOT IMPLEMENTED | P1 | Legal and product decisions |
-| WEB-02 | Terms and conditions | NOT IMPLEMENTED | P1 | Legal and product decisions |
+| WEB-01 | Privacy policy | PARTIALLY IMPLEMENTED | P1 | Controller identity, contact, retention, processors and legal approval |
+| WEB-02 | Terms and conditions | PARTIALLY IMPLEMENTED | P1 | Approved business terms and legal approval |
 | WEB-03 | Secret exposure | IMPLEMENTED LOCALLY | P1 | Run the tracked-content hygiene gate in each release check; CI enforcement remains an operational decision |
 | WEB-04 | HTTPS and transport | NOT VERIFIED | P1 | Hostinger edge evidence |
-| WEB-05 | Cookies and consent | PARTIALLY IMPLEMENTED | P1 | Legal basis and analytics decision |
+| WEB-05 | Cookies and consent | IMPLEMENTED LOCALLY | P1 | Verify production cookie configuration; approve any future optional tracking |
 | WEB-06 | Titles and descriptions | PARTIALLY IMPLEMENTED | P2 | Locale/crawl strategy |
 | WEB-07 | Social previews | PARTIALLY IMPLEMENTED | P2 | Approved raster brand asset |
 | WEB-08 | Favicon | PARTIALLY IMPLEMENTED | P2 | Live MIME/device check |
@@ -85,3 +85,13 @@ form labels and validation feedback programmatically accessible. WEB-03 is now
 `IMPLEMENTED LOCALLY`; WEB-11, WEB-13, and WEB-14 remain partial and
 WEB-04/WEB-12 retain their external infrastructure and measurement
 dependencies. See `PHASE_5B5_READINESS_SPRINT_3.md` for evidence.
+
+## Sprint 4 change
+
+Sprint 4 records the source-verified processing and necessary-cookie inventory,
+adds a disabled-by-default, consent-first boundary for future optional analytics
+or advertising technology, and adds legal-review drafts outside public routes.
+No GA4, Ads, or other optional tracker is activated. WEB-01 and WEB-02 remain
+partial pending owner facts and legal approval; WEB-05 is implemented locally
+but needs production configuration verification. See
+`PHASE_5B5_READINESS_SPRINT_4.md` and `docs/legal/SPRINT_4_LEGAL_DRAFTS.md`.

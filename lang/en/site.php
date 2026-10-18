@@ -860,4 +860,13 @@ return [
     'stage_audit_action_rolled_back_from' => 'Current execution superseded',
     'stage_audit_action_reopened_previous' => 'Previous stage reopened',
     'confirm_stage_reopen_message' => 'This will move the workflow back one stage. The current stage execution will be archived, client-facing messages from that abandoned attempt will be hidden, and audit history will be retained.',
+    'privacy_preferences_heading' => 'Privacy preferences',
+    'privacy_preferences_intro' => 'Optional measurement and advertising technologies are disabled unless you choose them.',
+    'privacy_analytics_label' => 'Analytics',
+    'privacy_analytics_description' => 'Allow future aggregate measurement of site use.',
+    'privacy_advertising_label' => 'Advertising',
+    'privacy_advertising_description' => 'Allow future advertising measurement and personalization features.',
+    'privacy_save_preferences' => 'Save preferences',
+    'privacy_reject_optional' => 'Reject optional technologies',
+    'privacy_preferences_saved' => 'Your privacy preferences have been saved.',
 ];
