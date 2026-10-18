@@ -38,6 +38,41 @@ class PublicPlatformTest extends TestCase
         $this->get('/login')->assertOk();
     }
 
+    public function test_missing_public_pages_render_a_localized_branded_404(): void
+    {
+        $this->get('/missing-public-page')
+            ->assertNotFound()
+            ->assertSee(__('site.not_found_heading'))
+            ->assertSee(__('site.not_found_message'))
+            ->assertSee('name="robots" content="noindex, nofollow"', false)
+            ->assertSee(route('home'), false)
+            ->assertSee(route('blog.index'), false);
+
+        $this->getJson('/missing-public-page')
+            ->assertNotFound()
+            ->assertHeader('Content-Type', 'application/json');
+
+        foreach (['HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] as $method) {
+            $this->call($method, '/missing-public-page')->assertNotFound();
+        }
+
+        $this->post('/admin')->assertStatus(405);
+    }
+
+    public function test_missing_public_pages_use_the_configured_locale_when_session_locale_is_unavailable(): void
+    {
+        $configuredLocale = config('app.locale');
+
+        $this->withSession(['locale' => 'es'])
+            ->get('/missing-public-page')
+            ->assertNotFound()
+            ->assertSee(__('site.not_found_heading', [], $configuredLocale))
+            ->assertSee(__('site.not_found_home', [], $configuredLocale));
+
+        $this->get('/blog/not-a-real-article')->assertNotFound();
+        $this->get('/team/not-a-real-profile')->assertNotFound();
+    }
+
     public function test_public_pages_include_expected_seo_metadata(): void
     {
         $this->get('/')
