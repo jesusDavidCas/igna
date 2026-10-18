@@ -134,6 +134,7 @@ class BlogPublishingRenderingTest extends TestCase
         $this->get(route('blog.show', $post))
             ->assertOk()
             ->assertSee($route, false)
+            ->assertSee('text-stone-600', false)
             ->assertSee('blog-article-content', false)
             ->assertSee('<h2>Semantic Heading</h2>', false)
             ->assertSee('<h3>Semantic Subheading</h3>', false)

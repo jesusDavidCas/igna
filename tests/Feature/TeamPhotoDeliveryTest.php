@@ -220,6 +220,8 @@ class TeamPhotoDeliveryTest extends TestCase
         $this->get(route('team.show', $member->slug))
             ->assertOk()
             ->assertSee(route('team.photo', ['teamMember' => $member->slug]), false)
+            ->assertSee('loading="eager"', false)
+            ->assertSee('fetchpriority="high"', false)
             ->assertSee('decoding="async"', false)
             ->assertDontSee('/storage/team/photos/member.jpg', false);
     }

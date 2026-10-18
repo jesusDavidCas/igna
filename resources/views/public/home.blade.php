@@ -237,7 +237,7 @@
                             <a href="{{ route('blog.show', $post) }}" class="mt-6 inline-flex w-fit border-b border-olive-700 pb-1 text-sm font-semibold text-olive-800 transition hover:text-olive-700">{{ __('site.read_article') }}</a>
                         </article>
                     @empty
-                        <div class="border-t border-dashed border-stone-300 py-8 text-sm text-stone-500 lg:col-span-3">
+                        <div class="border-t border-dashed border-stone-300 py-8 text-sm text-stone-600 lg:col-span-3">
                             {{ __('site.blog_empty') }}
                         </div>
                     @endforelse

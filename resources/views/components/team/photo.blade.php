@@ -29,7 +29,8 @@
             alt="{{ $member->name }}"
             width="{{ $width }}"
             height="{{ $height }}"
-            loading="lazy"
+            loading="{{ $variant === 'profile' ? 'eager' : 'lazy' }}"
+            @if ($variant === 'profile') fetchpriority="high" @endif
             decoding="async"
             class="{{ $imageClass }}"
         >

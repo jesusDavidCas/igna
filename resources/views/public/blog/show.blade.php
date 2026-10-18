@@ -5,7 +5,7 @@
         <div class="mx-auto max-w-3xl">
             <a href="{{ route('blog.index') }}" class="text-sm font-semibold text-olive-700">{{ __('site.back_to_blog') }}</a>
             <h1 class="mt-6 text-4xl font-semibold leading-[1.06] text-stone-950 sm:text-5xl">{{ $post->localizedTitle() }}</h1>
-            <p class="mt-4 text-sm font-medium uppercase tracking-[0.12em] text-stone-500">{{ optional($post->published_at)->format('Y-m-d') }}</p>
+            <p class="mt-4 text-sm font-medium uppercase tracking-[0.12em] text-stone-600">{{ optional($post->published_at)->format('Y-m-d') }}</p>
             <p class="mt-7 text-xl leading-8 text-stone-600">{{ $post->localizedSummary() }}</p>
         </div>
 
