@@ -18,12 +18,12 @@ use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Client\PortalController;
 use App\Http\Controllers\Client\TicketController as ClientTicketController;
-use App\Http\Controllers\Public\BrandFaviconController;
 use App\Http\Controllers\Public\BlogController;
 use App\Http\Controllers\Public\BlogHeaderImageController;
+use App\Http\Controllers\Public\BrandFaviconController;
 use App\Http\Controllers\Public\LandingController;
-use App\Http\Controllers\Public\ProposalController;
 use App\Http\Controllers\Public\PrivacyPreferenceController;
+use App\Http\Controllers\Public\ProposalController;
 use App\Http\Controllers\Public\SeoResourceController;
 use App\Http\Controllers\Public\ServiceRequestController;
 use App\Http\Controllers\Public\TeamCredentialController;
@@ -33,12 +33,24 @@ use App\Http\Controllers\TicketClientDocumentController;
 use App\Http\Controllers\TicketFileDownloadController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', LandingController::class)->name('home');
+Route::middleware('public-locale:es')->group(function (): void {
+    Route::get('/', LandingController::class)->name('home');
+    Route::get('/team/{slug}', [LandingController::class, 'team'])->name('team.show');
+    Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
+    Route::get('/blog/{post:slug}', [BlogController::class, 'show'])->name('blog.show');
+});
+
+Route::prefix('en')->name('en.')->middleware('public-locale:en')->group(function (): void {
+    Route::get('/', [LandingController::class, 'english'])->name('home');
+    Route::get('/team/{slug}', [LandingController::class, 'englishTeam'])->name('team.show');
+    Route::get('/blog', [BlogController::class, 'englishIndex'])->name('blog.index');
+    Route::get('/blog/{post:slug}', [BlogController::class, 'englishShow'])->name('blog.show');
+});
+
 Route::get('/brand/favicon', BrandFaviconController::class)->name('brand.favicon');
 Route::get('/team/{teamMember:slug}/photo', TeamPhotoController::class)
     ->middleware('throttle:120,1')
     ->name('team.photo');
-Route::get('/team/{slug}', [LandingController::class, 'team'])->name('team.show');
 Route::get('/sitemap.xml', [SeoResourceController::class, 'sitemap'])->name('seo.sitemap');
 Route::get('/robots.txt', [SeoResourceController::class, 'robots'])->name('seo.robots');
 Route::get('/llms.txt', [SeoResourceController::class, 'llms'])->name('seo.llms');
@@ -79,11 +91,9 @@ Route::post('/tracking/tickets/{ticket}/documents', [TicketClientDocumentControl
     ->middleware(['signed', 'throttle:ticket-document-upload'])
     ->name('tracking.documents.store');
 
-Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
 Route::get('/blog/{post:slug}/header-image', BlogHeaderImageController::class)
     ->middleware('throttle:120,1')
     ->name('blog.header-image');
-Route::get('/blog/{post:slug}', [BlogController::class, 'show'])->name('blog.show');
 
 // Public proposal routing handles two types of client access:
 // 1. Token-based URL using a non-predictable 40-character string (similar to Google Docs links).

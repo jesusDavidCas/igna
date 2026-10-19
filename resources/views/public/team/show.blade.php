@@ -2,7 +2,7 @@
 
 @section('content')
     <section class="mx-auto max-w-5xl px-6 py-16 lg:px-8">
-        <a href="{{ route('home') }}#team" class="text-sm font-semibold text-olive-700">{{ __('site.back_to_team') }}</a>
+        <a href="{{ app(\App\Support\Seo\PublicLocaleUrls::class)->home() }}#team" class="text-sm font-semibold text-olive-700">{{ __('site.back_to_team') }}</a>
         <div class="mt-8 rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
             <div class="flex flex-col gap-6 md:flex-row md:items-start">
                 <x-team.photo :member="$profile" variant="profile" />

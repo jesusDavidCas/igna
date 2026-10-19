@@ -18,7 +18,7 @@
                         <p class="text-xs uppercase tracking-[0.18em] text-stone-500">{{ optional($post->published_at)->format('Y-m-d') }}</p>
                         <h2 class="mt-3 text-xl font-semibold leading-snug text-stone-950">{{ $post->localizedTitle() }}</h2>
                         <p class="mt-4 text-sm leading-7 text-stone-600">{{ $post->localizedSummary() }}</p>
-                        <a href="{{ route('blog.show', $post) }}" class="mt-6 inline-flex text-sm font-semibold text-olive-700">{{ __('site.read_article') }}</a>
+                        <a href="{{ app(\App\Support\Seo\PublicLocaleUrls::class)->blogShow($post->slug) }}" class="mt-6 inline-flex text-sm font-semibold text-olive-700">{{ __('site.read_article') }}</a>
                     </div>
                 </article>
             @endforeach

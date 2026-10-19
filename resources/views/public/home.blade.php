@@ -209,7 +209,7 @@
                                     @if ($profile->publicCredentials->isNotEmpty())
                                         <p class="mt-4 text-sm font-semibold text-olive-800">{{ trans_choice('site.credential_count', $profile->publicCredentials->count(), ['count' => $profile->publicCredentials->count()]) }}</p>
                                     @endif
-                                    <a href="{{ route('team.show', $profile->slug) }}" class="mt-6 inline-flex border-b border-olive-700 pb-1 text-sm font-semibold text-olive-800 transition hover:text-olive-700">{{ __('site.view_profile') }}</a>
+                                    <a href="{{ app(\App\Support\Seo\PublicLocaleUrls::class)->teamShow($profile->slug) }}" class="mt-6 inline-flex border-b border-olive-700 pb-1 text-sm font-semibold text-olive-800 transition hover:text-olive-700">{{ __('site.view_profile') }}</a>
                                 </div>
                             </div>
                         </article>
@@ -225,7 +225,7 @@
                         <p class="section-kicker">{{ __('site.nav_blog') }}</p>
                         <h2 class="section-title">{{ __('site.blog_title') }}</h2>
                     </div>
-                    <a href="{{ route('blog.index') }}" class="inline-flex w-fit border-b border-olive-700 pb-1 text-sm font-semibold text-olive-800 transition hover:text-olive-700">{{ __('site.view_all_posts') }}</a>
+                    <a href="{{ app(\App\Support\Seo\PublicLocaleUrls::class)->blogIndex() }}" class="inline-flex w-fit border-b border-olive-700 pb-1 text-sm font-semibold text-olive-800 transition hover:text-olive-700">{{ __('site.view_all_posts') }}</a>
                 </div>
 
                 <div class="mt-12 grid gap-x-10 lg:grid-cols-[1.15fr_0.85fr_0.85fr] lg:mt-16">
@@ -234,7 +234,7 @@
                             <p class="text-sm font-semibold tracking-[0.12em] text-olive-700">{{ optional($post->published_at)->format('Y-m-d') }}</p>
                             <h3 class="mt-4 text-3xl font-semibold leading-tight tracking-[-0.03em] text-igna-charcoal">{{ $post->localizedTitle() }}</h3>
                             <p class="mt-4 flex-1 text-[17px] leading-8 text-stone-600">{{ $post->localizedSummary() }}</p>
-                            <a href="{{ route('blog.show', $post) }}" class="mt-6 inline-flex w-fit border-b border-olive-700 pb-1 text-sm font-semibold text-olive-800 transition hover:text-olive-700">{{ __('site.read_article') }}</a>
+                            <a href="{{ app(\App\Support\Seo\PublicLocaleUrls::class)->blogShow($post->slug) }}" class="mt-6 inline-flex w-fit border-b border-olive-700 pb-1 text-sm font-semibold text-olive-800 transition hover:text-olive-700">{{ __('site.read_article') }}</a>
                         </article>
                     @empty
                         <div class="border-t border-dashed border-stone-300 py-8 text-sm text-stone-600 lg:col-span-3">

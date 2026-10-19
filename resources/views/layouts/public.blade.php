@@ -5,6 +5,9 @@
             ? (auth()->user()->canAccessAdmin() ? route('admin.dashboard') : route('client.dashboard'))
             : route('login');
         $accessLabel = auth()->check() ? __('site.nav_workspace') : __('site.nav_login');
+        $publicUrls = app(\App\Support\Seo\PublicLocaleUrls::class);
+        $publicContent = app(\App\Support\Seo\PublicContent::class);
+        $localeSwitch = $publicUrls->switchFor(request(), $publicContent);
     @endphp
     <head>
         @php
@@ -22,6 +25,9 @@
         <meta name="robots" content="{{ $seo['robots'] }}">
         @unless ($isNoindex)
             <link rel="canonical" href="{{ $seo['canonical'] }}">
+            @foreach ($seo['alternates'] as $alternate)
+                <link rel="alternate" hreflang="{{ $alternate['locale'] }}" href="{{ $alternate['href'] }}">
+            @endforeach
         @endunless
         <meta property="og:site_name" content="{{ $seo['site_name'] }}">
         <meta property="og:title" content="{{ $seo['title'] }}">
@@ -46,17 +52,17 @@
         <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-olive-800 focus:shadow-lg">
             {{ __('site.skip_to_content') }}
         </a>
-        <header @class(['public-site-header sticky top-0 z-40', 'public-site-header--hero' => request()->routeIs('home')]) @if (request()->routeIs('home')) data-hero-header @endif>
+        <header @class(['public-site-header sticky top-0 z-40', 'public-site-header--hero' => request()->routeIs('home', 'en.home')]) @if (request()->routeIs('home', 'en.home')) data-hero-header @endif>
             <div class="site-shell public-header-shell flex items-center justify-between gap-3">
-                <a href="{{ route('home') }}" class="public-wordmark group min-w-0" aria-label="{{ $brandSettings['company_name'] }}">
+                <a href="{{ $publicUrls->home() }}" class="public-wordmark group min-w-0" aria-label="{{ $brandSettings['company_name'] }}">
                     <span class="public-wordmark-igna">IGNA</span><span class="public-wordmark-studio">Studio</span>
                 </a>
                 <nav class="public-nav hidden items-center text-stone-700 xl:flex" aria-label="{{ __('site.footer_navigation') }}">
-                    <a href="{{ route('home') }}#services" class="nav-link px-3 py-2.5 transition hover:text-olive-800">{{ __('site.nav_services') }}</a>
-                    <a href="{{ route('home') }}#process" class="nav-link px-3 py-2.5 transition hover:text-olive-800">{{ __('site.nav_process') }}</a>
-                    <a href="{{ route('home') }}#projects" class="nav-link px-3 py-2.5 transition hover:text-olive-800">{{ __('site.nav_projects') }}</a>
-                    <a href="{{ route('home') }}#team" class="nav-link px-3 py-2.5 transition hover:text-olive-800">{{ __('site.nav_team') }}</a>
-                    <a href="{{ route('blog.index') }}" class="nav-link px-3 py-2.5 transition hover:text-olive-800">{{ __('site.nav_blog') }}</a>
+                    <a href="{{ $publicUrls->home() }}#services" class="nav-link px-3 py-2.5 transition hover:text-olive-800">{{ __('site.nav_services') }}</a>
+                    <a href="{{ $publicUrls->home() }}#process" class="nav-link px-3 py-2.5 transition hover:text-olive-800">{{ __('site.nav_process') }}</a>
+                    <a href="{{ $publicUrls->home() }}#projects" class="nav-link px-3 py-2.5 transition hover:text-olive-800">{{ __('site.nav_projects') }}</a>
+                    <a href="{{ $publicUrls->home() }}#team" class="nav-link px-3 py-2.5 transition hover:text-olive-800">{{ __('site.nav_team') }}</a>
+                    <a href="{{ $publicUrls->blogIndex() }}" class="nav-link px-3 py-2.5 transition hover:text-olive-800">{{ __('site.nav_blog') }}</a>
                     <a href="{{ route('tracking.index') }}" class="nav-link px-3 py-2.5 transition hover:text-olive-800">{{ __('site.nav_tracking') }}</a>
                 </nav>
                 <div class="public-header-actions flex flex-1 flex-wrap items-center justify-end gap-2 sm:flex-none">
@@ -69,24 +75,23 @@
                             </svg>
                         </summary>
                         <div class="public-mobile-menu fixed left-4 right-4 top-24 z-50 rounded-[1.5rem] border border-stone-200 p-3 text-sm font-semibold text-stone-700 shadow-2xl shadow-stone-900/10 sm:left-auto sm:right-6 sm:w-80">
-                            <a href="{{ route('home') }}#services" class="block rounded-2xl px-4 py-3 transition hover:bg-olive-50 hover:text-olive-800">{{ __('site.nav_services') }}</a>
-                            <a href="{{ route('home') }}#process" class="block rounded-2xl px-4 py-3 transition hover:bg-olive-50 hover:text-olive-800">{{ __('site.nav_process') }}</a>
-                            <a href="{{ route('home') }}#projects" class="block rounded-2xl px-4 py-3 transition hover:bg-olive-50 hover:text-olive-800">{{ __('site.nav_projects') }}</a>
-                            <a href="{{ route('home') }}#team" class="block rounded-2xl px-4 py-3 transition hover:bg-olive-50 hover:text-olive-800">{{ __('site.nav_team') }}</a>
-                            <a href="{{ route('blog.index') }}" class="block rounded-2xl px-4 py-3 transition hover:bg-olive-50 hover:text-olive-800">{{ __('site.nav_blog') }}</a>
+                            <a href="{{ $publicUrls->home() }}#services" class="block rounded-2xl px-4 py-3 transition hover:bg-olive-50 hover:text-olive-800">{{ __('site.nav_services') }}</a>
+                            <a href="{{ $publicUrls->home() }}#process" class="block rounded-2xl px-4 py-3 transition hover:bg-olive-50 hover:text-olive-800">{{ __('site.nav_process') }}</a>
+                            <a href="{{ $publicUrls->home() }}#projects" class="block rounded-2xl px-4 py-3 transition hover:bg-olive-50 hover:text-olive-800">{{ __('site.nav_projects') }}</a>
+                            <a href="{{ $publicUrls->home() }}#team" class="block rounded-2xl px-4 py-3 transition hover:bg-olive-50 hover:text-olive-800">{{ __('site.nav_team') }}</a>
+                            <a href="{{ $publicUrls->blogIndex() }}" class="block rounded-2xl px-4 py-3 transition hover:bg-olive-50 hover:text-olive-800">{{ __('site.nav_blog') }}</a>
                             <a href="{{ route('tracking.index') }}" class="block rounded-2xl px-4 py-3 transition hover:bg-olive-50 hover:text-olive-800">{{ __('site.nav_tracking') }}</a>
                         </div>
                     </details>
-                    <form method="POST" action="{{ route('locale.switch', app()->getLocale() === 'es' ? 'en' : 'es') }}">
-                        @csrf
-                        <button type="submit" class="public-utility-link public-locale-control" aria-label="{{ __('site.language_switch') }}">
-                            {{ app()->getLocale() === 'es' ? 'EN' : 'ES' }}
-                        </button>
-                    </form>
+                    @if ($localeSwitch)
+                        <a href="{{ $localeSwitch['url'] }}" class="public-utility-link public-locale-control" aria-label="{{ __('site.language_switch') }}">
+                            {{ $localeSwitch['label'] }}
+                        </a>
+                    @endif
                     <a href="{{ $accessUrl }}" class="public-utility-link public-login-link">
                         {{ $accessLabel }}
                     </a>
-                    <a href="{{ route('home') }}#request" class="public-request-link basis-full text-center sm:basis-auto">
+                    <a href="{{ $publicUrls->home() }}#request" class="public-request-link basis-full text-center sm:basis-auto">
                         {{ __('site.cta_request') }}
                     </a>
                 </div>
@@ -112,9 +117,9 @@
                 </div>
                 <div class="space-y-3 text-sm text-stone-600">
                     <p class="font-semibold text-stone-900">{{ __('site.footer_navigation') }}</p>
-                    <a href="{{ route('home') }}#services" class="block hover:text-olive-700">{{ __('site.nav_services') }}</a>
+                    <a href="{{ $publicUrls->home() }}#services" class="block hover:text-olive-700">{{ __('site.nav_services') }}</a>
                     <a href="{{ route('tracking.index') }}" class="block hover:text-olive-700">{{ __('site.nav_tracking') }}</a>
-                    <a href="{{ route('blog.index') }}" class="block hover:text-olive-700">{{ __('site.nav_blog') }}</a>
+                    <a href="{{ $publicUrls->blogIndex() }}" class="block hover:text-olive-700">{{ __('site.nav_blog') }}</a>
                 </div>
                 <div class="space-y-3 text-sm text-stone-600">
                     <p class="font-semibold text-stone-900">{{ __('site.footer_access') }}</p>

@@ -142,21 +142,94 @@ class PublicPlatformTest extends TestCase
             ->assertSee('<link rel="canonical" href="https://ignastudio.com/blog?page=2">', false)
             ->assertDontSee('utm_source', false)
             ->assertDontSee('hreflang=', false);
+
+        $this->get('/blog?page=3')->assertNotFound();
     }
 
-    public function test_public_html_language_tracks_the_server_rendered_locale_without_claiming_alternate_urls(): void
+    public function test_spanish_public_routes_ignore_session_and_browser_locale_preferences(): void
     {
-        $this->withSession(['locale' => 'es'])
-            ->get('/')
-            ->assertOk()
-            ->assertSee('<html lang="es">', false)
-            ->assertDontSee('hreflang=', false);
-
         $this->withSession(['locale' => 'en'])
             ->get('/')
             ->assertOk()
-            ->assertSee('<html lang="en">', false)
+            ->assertSee('<html lang="es">', false)
+            ->assertSee('Cuéntanos sobre el proyecto que necesitas avanzar.')
             ->assertDontSee('hreflang=', false);
+
+        $this->withHeader('Accept-Language', 'en-US,en;q=0.9')
+            ->get('/blog')
+            ->assertOk()
+            ->assertSee('<html lang="es">', false);
+    }
+
+    public function test_english_public_routes_fail_closed_until_complete_content_is_explicitly_approved(): void
+    {
+        $post = BlogPost::query()->create([
+            'title' => 'Spanish-only published article',
+            'slug' => 'spanish-only-published-article',
+            'summary' => 'Spanish-only summary.',
+            'body_html' => '<p>Spanish-only body.</p>',
+            'status' => 'published',
+            'published_at' => now(),
+        ]);
+
+        $this->withSession(['locale' => 'en'])->get('/en')->assertNotFound();
+        $this->get('/en/')->assertNotFound();
+        $this->get('/en/blog')->assertNotFound();
+        $this->get('/en/blog/'.$post->slug)->assertNotFound();
+        $this->get('/en/team/'.TeamMember::query()->firstOrFail()->slug)->assertNotFound();
+        $this->get('/en/missing-public-page')->assertNotFound();
+        $this->post('/en/missing-public-page')->assertNotFound();
+
+        config()->set('igna.seo.english_publication.blog_slugs', $post->slug);
+
+        $this->get('/en/blog')->assertNotFound();
+        $this->get('/sitemap.xml')->assertDontSee('/en/blog', false);
+    }
+
+    public function test_explicitly_approved_complete_english_blog_content_is_localized_and_reciprocal(): void
+    {
+        $post = BlogPost::query()->create([
+            'title' => 'Synthetic Spanish article',
+            'slug' => 'synthetic-approved-english-article',
+            'summary' => 'Synthetic Spanish summary.',
+            'body_html' => '<p>Synthetic Spanish body.</p>',
+            'status' => 'published',
+            'published_at' => now(),
+        ]);
+
+        app('translator')->addLines([
+            "demo.blog.{$post->slug}.title" => 'Synthetic approved English article',
+            "demo.blog.{$post->slug}.summary" => 'Synthetic approved English summary.',
+            "demo.blog.{$post->slug}.body_html" => '<p>Synthetic approved English body.</p>',
+        ], 'en');
+
+        config()->set('igna.seo.english_publication.blog_slugs', [$post->slug]);
+
+        $this->get('/en/blog')
+            ->assertOk()
+            ->assertSee('<html lang="en">', false)
+            ->assertSee('<link rel="canonical" href="https://ignastudio.com/en/blog">', false)
+            ->assertSee('<link rel="alternate" hreflang="es" href="https://ignastudio.com/blog">', false)
+            ->assertSee('<link rel="alternate" hreflang="en" href="https://ignastudio.com/en/blog">', false);
+
+        $this->get('/en/blog/'.$post->slug)
+            ->assertOk()
+            ->assertSee('Synthetic approved English article')
+            ->assertDontSee($post->body_html, false)
+            ->assertSee('<link rel="canonical" href="https://ignastudio.com/en/blog/'.$post->slug.'">', false)
+            ->assertSee('<link rel="alternate" hreflang="es" href="https://ignastudio.com/blog/'.$post->slug.'">', false)
+            ->assertSee('<link rel="alternate" hreflang="en" href="https://ignastudio.com/en/blog/'.$post->slug.'">', false);
+
+        $this->get('/blog/'.$post->slug)
+            ->assertOk()
+            ->assertSee('<html lang="es">', false)
+            ->assertSee('<link rel="canonical" href="https://ignastudio.com/blog/'.$post->slug.'">', false)
+            ->assertSee('<link rel="alternate" hreflang="en" href="https://ignastudio.com/en/blog/'.$post->slug.'">', false);
+
+        $this->get('/sitemap.xml')
+            ->assertOk()
+            ->assertSee('https://ignastudio.com/en/blog', false)
+            ->assertSee('https://ignastudio.com/en/blog/'.$post->slug, false);
     }
 
     public function test_www_host_redirects_to_canonical_non_www_host(): void
@@ -300,7 +373,7 @@ class PublicPlatformTest extends TestCase
             ->assertDontSee('Private SEO boundary credential');
     }
 
-    public function test_locale_switch_changes_public_copy(): void
+    public function test_locale_switch_does_not_override_a_deterministic_spanish_public_url(): void
     {
         $this->withSession(['locale' => 'es'])
             ->get('/')
@@ -312,8 +385,8 @@ class PublicPlatformTest extends TestCase
 
         $this->get('/')
             ->assertOk()
-            ->assertSee('Tell us about the project you need to move forward.')
-            ->assertSee('Login');
+            ->assertSee('Cuéntanos sobre el proyecto que necesitas avanzar.')
+            ->assertSee(__('site.nav_login', [], 'es'));
     }
 
     public function test_public_request_creates_a_ticket_with_workflow(): void

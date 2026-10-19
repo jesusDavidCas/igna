@@ -36,5 +36,11 @@ return [
         'excluded_blog_slugs' => [
             'dfsdf',
         ],
+        // Each entry is an editorial publication decision, not a translation fallback.
+        // Keep this registry empty until the owner has approved complete English content.
+        'english_publication' => [
+            'homepage' => false,
+            'blog_slugs' => [],
+        ],
     ],
 ];

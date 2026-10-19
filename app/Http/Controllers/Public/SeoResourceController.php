@@ -28,6 +28,19 @@ class SeoResourceController extends Controller
                 'lastmod' => optional($post->updated_at ?? $post->published_at)->toDateString(),
             ]));
 
+        if ($content->englishHomepageIsPublishable()) {
+            $urls->push(['loc' => $seo->canonicalUrl('/en'), 'lastmod' => null]);
+        }
+
+        if ($content->englishBlogArchiveIsPublishable()) {
+            $urls->push(['loc' => $seo->canonicalUrl('/en/blog'), 'lastmod' => null]);
+        }
+
+        $urls = $urls->merge($content->englishPublishedPosts()->map(fn (BlogPost $post): array => [
+            'loc' => $seo->canonicalUrl('/en/blog/'.$post->slug),
+            'lastmod' => optional($post->updated_at ?? $post->published_at)->toDateString(),
+        ]));
+
         $xml = view('seo.sitemap', ['urls' => $urls])->render();
 
         return response($xml, 200, ['Content-Type' => 'application/xml; charset=UTF-8']);

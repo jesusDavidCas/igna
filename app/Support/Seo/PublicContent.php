@@ -29,6 +29,52 @@ class PublicContent
             ->get();
     }
 
+    /** @return Builder<BlogPost> */
+    public function englishPublishedPostsQuery(): Builder
+    {
+        return $this->publishedPostsQuery()
+            ->whereIn('slug', $this->approvedEnglishBlogSlugs());
+    }
+
+    /** @return Collection<int, BlogPost> */
+    public function englishPublishedPosts(): Collection
+    {
+        return $this->englishPublishedPostsQuery()
+            ->latest('published_at')
+            ->get()
+            ->filter(fn (BlogPost $post): bool => $this->isEnglishBlogPostPublishable($post))
+            ->values();
+    }
+
+    public function englishBlogArchiveIsPublishable(): bool
+    {
+        return $this->englishPublishedPosts()->isNotEmpty();
+    }
+
+    public function englishHomepageIsPublishable(): bool
+    {
+        // Team profiles have no persisted bilingual primary-content fields or approval state.
+        // Do not publish an English homepage until that data model is reviewed and approved.
+        return false;
+    }
+
+    public function isEnglishBlogPostPublishable(mixed $post): bool
+    {
+        if (! $post instanceof BlogPost) {
+            return false;
+        }
+
+        return in_array($post->slug, $this->approvedEnglishBlogSlugs(), true)
+            && $post->hasCompleteEnglishContent()
+            && $this->publishedPostsQuery()->whereKey($post->getKey())->exists();
+    }
+
+    public function isEnglishTeamMemberPublishable(mixed $member): bool
+    {
+        // There is no safe English primary-content source for a TeamMember yet.
+        return false;
+    }
+
     /** @return Collection<int, TeamMember> */
     public function teamMembers(): Collection
     {
@@ -59,5 +105,20 @@ class PublicContent
     public function markdownSafe(?string $value): string
     {
         return trim(Str::of((string) $value)->replace(["\r\n", "\r"], "\n")->squish()->toString());
+    }
+
+    /** @return array<int, string> */
+    private function approvedEnglishBlogSlugs(): array
+    {
+        $slugs = config('igna.seo.english_publication.blog_slugs', []);
+
+        if (! is_array($slugs)) {
+            return [];
+        }
+
+        return collect($slugs)
+            ->filter(fn (mixed $slug): bool => is_string($slug) && $slug !== '')
+            ->values()
+            ->all();
     }
 }

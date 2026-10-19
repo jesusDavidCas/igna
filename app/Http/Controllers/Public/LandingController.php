@@ -3,10 +3,9 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
-use App\Models\BlogPost;
 use App\Models\Service;
-use App\Services\Services\PublicServiceTaxonomy;
 use App\Models\TeamMember;
+use App\Services\Services\PublicServiceTaxonomy;
 use App\Support\Seo\PublicContent;
 use App\Support\Seo\SeoManager;
 use Illuminate\Contracts\View\View;
@@ -15,6 +14,18 @@ use Illuminate\Http\Request;
 class LandingController extends Controller
 {
     public function __invoke(SeoManager $seo, PublicContent $content, PublicServiceTaxonomy $taxonomy): View
+    {
+        return $this->home($seo, $content, $taxonomy, '/');
+    }
+
+    public function english(SeoManager $seo, PublicContent $content, PublicServiceTaxonomy $taxonomy): View
+    {
+        abort_unless($content->englishHomepageIsPublishable(), 404);
+
+        return $this->home($seo, $content, $taxonomy, '/en');
+    }
+
+    private function home(SeoManager $seo, PublicContent $content, PublicServiceTaxonomy $taxonomy, string $path): View
     {
         $services = Service::query()
             ->with(['stages' => fn ($query) => $query->where('is_active', true)->orderBy('sort_order')])
@@ -37,11 +48,11 @@ class LandingController extends Controller
             'seo' => $seo->meta([
                 'title' => config('igna.seo.default_title'),
                 'description' => __('site.seo_home_description'),
-                'canonical' => $seo->canonicalUrl('/'),
+                'canonical' => $seo->canonicalUrl($path),
                 'schema' => [
                     $seo->organizationSchema(),
-                    $seo->websiteSchema(),
-                    $seo->webpageSchema(config('igna.seo.default_title'), __('site.seo_home_description'), '/'),
+                    $seo->websiteSchema($path),
+                    $seo->webpageSchema(config('igna.seo.default_title'), __('site.seo_home_description'), $path),
                 ],
             ]),
         ]);
@@ -67,6 +78,31 @@ class LandingController extends Controller
                 'schema' => [
                     $seo->webpageSchema($profile->name, $profile->short_description, '/team/'.$profile->slug),
                     $seo->personSchema($profile),
+                ],
+            ]),
+        ]);
+    }
+
+    public function englishTeam(string $slug, SeoManager $seo, PublicContent $content): View
+    {
+        $profile = TeamMember::query()
+            ->where('slug', $slug)
+            ->where('is_active', true)
+            ->with('publicCredentials')
+            ->first();
+
+        abort_unless($content->isEnglishTeamMemberPublishable($profile), 404);
+
+        return view('public.team.show', [
+            'profile' => $profile,
+            'seo' => $seo->meta([
+                'title' => $profile->name.' | IGNA Studio',
+                'description' => $profile->short_description,
+                'canonical' => $seo->canonicalUrl('/en/team/'.$profile->slug),
+                'type' => 'profile',
+                'schema' => [
+                    $seo->webpageSchema($profile->name, $profile->short_description, '/en/team/'.$profile->slug),
+                    $seo->personSchema($profile, '/en/team/'.$profile->slug),
                 ],
             ]),
         ]);

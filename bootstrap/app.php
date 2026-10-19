@@ -1,10 +1,13 @@
 <?php
 
+use App\Console\Commands\LaunchDataResetCommand;
+use App\Console\Commands\TranslateMissingContent;
 use App\Http\Middleware\AddSecurityHeaders;
 use App\Http\Middleware\EnsureActiveAuthenticatedSession;
 use App\Http\Middleware\EnsureUserRole;
 use App\Http\Middleware\RedirectCanonicalHost;
 use App\Http\Middleware\SetLocale;
+use App\Http\Middleware\SetPublicLocale;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -18,8 +21,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withCommands([
-        App\Console\Commands\LaunchDataResetCommand::class,
-        App\Console\Commands\TranslateMissingContent::class,
+        LaunchDataResetCommand::class,
+        TranslateMissingContent::class,
     ])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
@@ -38,6 +41,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $middleware->alias([
+            'public-locale' => SetPublicLocale::class,
             'role' => EnsureUserRole::class,
         ]);
     })

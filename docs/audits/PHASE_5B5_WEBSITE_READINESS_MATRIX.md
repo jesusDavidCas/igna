@@ -16,10 +16,10 @@ content, a Hostinger review, or live analytics/Search Console evidence.
 | WEB-03 | Secret exposure | IMPLEMENTED LOCALLY | P1 | Run the tracked-content hygiene gate in each release check; CI enforcement remains an operational decision |
 | WEB-04 | HTTPS and transport | NOT VERIFIED | P1 | Hostinger edge evidence |
 | WEB-05 | Cookies and consent | IMPLEMENTED LOCALLY | P1 | Verify production cookie configuration; approve any future optional tracking |
-| WEB-06 | Titles and descriptions | PARTIALLY IMPLEMENTED | P2 | Approved stable language URLs and translated primary content |
+| WEB-06 | Titles and descriptions | PARTIALLY IMPLEMENTED | P2 | Owner approval and persisted English Blog/Team primary content |
 | WEB-07 | Social previews | PARTIALLY IMPLEMENTED | P2 | Approved raster brand asset |
 | WEB-08 | Favicon | PARTIALLY IMPLEMENTED | P2 | Live MIME/device check |
-| WEB-09 | Sitemap and robots | PARTIALLY VERIFIED - SEARCH CONSOLE EVIDENCE | P2 | Approved localized URL architecture and post-release URL Inspection |
+| WEB-09 | Sitemap and robots | PARTIALLY VERIFIED - SEARCH CONSOLE EVIDENCE | P2 | Approved English content and post-release URL Inspection |
 | WEB-10 | Image alternatives | IMPLEMENTED LOCALLY | P2 | CMS media inventory and assistive-technology sample |
 | WEB-11 | Image compression and delivery | PARTIALLY IMPLEMENTED | P2 | Measured image budget and production transfer evidence |
 | WEB-12 | Loading speed / CWV | NOT VERIFIED | P2 | Comparable lab runs and field-data source |
@@ -106,3 +106,23 @@ discovered, and at least one URL is indexed. This does not prove universal
 indexing or independently crawlable English content. WEB-06 remains partial and
 WEB-09 is partially verified; a bilingual URL architecture decision is required
 before localized routes, redirects, or alternate annotations are introduced.
+
+## Sprint 6 change
+
+Sprint 6 adds the approved `/en` route namespace without altering existing
+Spanish URLs. Route-scoped locale middleware now makes `/`, `/blog`,
+`/blog/{slug}`, and `/team/{slug}` deterministically Spanish, regardless of
+session or browser preferences. English routes are server-side fail-closed:
+they return 404 until complete English primary content has a deliberate
+publication entry. Blog entries require complete curated English title, summary,
+and body content plus explicit approval; Team profiles and the homepage remain
+unavailable because their current single-locale data model has no safe
+publication authority for English primary content.
+
+When an approved Blog translation exists, it self-canonicalizes under `/en`,
+gets reciprocal `es`/`en` HTML alternates, and is added to the sitemap. Missing,
+draft, incomplete, private, and unapproved content is absent from English
+routes, alternates, and the sitemap. This is a local implementation only:
+WEB-06 and WEB-09 remain partial until content-owner approval, a durable Team
+translation/approval model, and production Search Console inspection are
+complete.

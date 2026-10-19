@@ -30,26 +30,17 @@ class PublicServiceTaxonomyRequestTest extends TestCase
         $this->superAdmin = User::query()->where('role', UserRole::SUPER_ADMIN)->firstOrFail();
     }
 
-    public function test_public_request_selector_renders_grouped_english_categories_in_order(): void
+    public function test_english_category_strings_do_not_publish_an_unapproved_english_homepage(): void
     {
         $this->post(route('locale.switch', 'en'));
 
-        $html = $this->get('/')
+        $this->get('/')
             ->assertOk()
-            ->assertSee('<optgroup label="Technology">', false)
-            ->assertSee('<optgroup label="Infrastructure Engineering">', false)
-            ->assertSee('Other / I am not sure')
-            ->getContent();
+            ->assertSee('<html lang="es">', false)
+            ->assertSee('<optgroup label="Tecnología">', false)
+            ->assertDontSee('<optgroup label="Technology">', false);
 
-        $this->assertStringContainsString('name="service_id"', $html);
-        $this->assertLessThan(
-            strpos($html, '<optgroup label="Infrastructure Engineering">'),
-            strpos($html, '<optgroup label="Technology">'),
-        );
-        $this->assertLessThan(
-            strpos($html, 'Other / I am not sure'),
-            strpos($html, '<optgroup label="Infrastructure Engineering">'),
-        );
+        $this->get('/en/')->assertNotFound();
     }
 
     public function test_public_request_selector_renders_grouped_spanish_categories(): void

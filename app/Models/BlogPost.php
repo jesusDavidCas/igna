@@ -81,11 +81,39 @@ class BlogPost extends Model
         );
     }
 
+    public function hasCompleteEnglishContent(): bool
+    {
+        return collect(['title', 'summary', 'body_html'])
+            ->every(fn (string $field): bool => filled($this->localizedValue($field, 'en')));
+    }
+
+    public function englishTitle(): ?string
+    {
+        return $this->localizedValue('title', 'en');
+    }
+
+    public function englishSummary(): ?string
+    {
+        return $this->localizedValue('summary', 'en');
+    }
+
+    public function englishBodyHtml(): ?string
+    {
+        $body = $this->localizedValue('body_html', 'en');
+
+        return $body === null ? null : app(HtmlSanitizer::class)->clean($body);
+    }
+
     private function localizedDemoValue(string $field, string $fallback): string
     {
-        $key = "demo.blog.{$this->slug}.{$field}";
-        $value = __($key);
+        return $this->localizedValue($field, app()->getLocale()) ?? $fallback;
+    }
 
-        return $value === $key ? $fallback : $value;
+    private function localizedValue(string $field, string $locale): ?string
+    {
+        $key = "demo.blog.{$this->slug}.{$field}";
+        $value = trans($key, [], $locale);
+
+        return $value === $key || ! is_string($value) || ! filled($value) ? null : $value;
     }
 }
