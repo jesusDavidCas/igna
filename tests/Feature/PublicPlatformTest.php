@@ -124,6 +124,41 @@ class PublicPlatformTest extends TestCase
             ->assertSee('<meta name="robots" content="noindex, nofollow">', false);
     }
 
+    public function test_blog_archive_pages_self_canonicalize_without_preserving_tracking_parameters(): void
+    {
+        foreach (range(1, 10) as $number) {
+            BlogPost::query()->create([
+                'title' => "Sprint 5 archive article {$number}",
+                'slug' => "sprint-5-archive-article-{$number}",
+                'summary' => 'Archive pagination regression content.',
+                'body_html' => '<p>Archive pagination regression content.</p>',
+                'status' => 'published',
+                'published_at' => now()->subMinutes($number),
+            ]);
+        }
+
+        $this->get('/blog?page=2&utm_source=search')
+            ->assertOk()
+            ->assertSee('<link rel="canonical" href="https://ignastudio.com/blog?page=2">', false)
+            ->assertDontSee('utm_source', false)
+            ->assertDontSee('hreflang=', false);
+    }
+
+    public function test_public_html_language_tracks_the_server_rendered_locale_without_claiming_alternate_urls(): void
+    {
+        $this->withSession(['locale' => 'es'])
+            ->get('/')
+            ->assertOk()
+            ->assertSee('<html lang="es">', false)
+            ->assertDontSee('hreflang=', false);
+
+        $this->withSession(['locale' => 'en'])
+            ->get('/')
+            ->assertOk()
+            ->assertSee('<html lang="en">', false)
+            ->assertDontSee('hreflang=', false);
+    }
+
     public function test_www_host_redirects_to_canonical_non_www_host(): void
     {
         $this->get('https://www.ignastudio.com/blog?source=test')

@@ -16,10 +16,10 @@ content, a Hostinger review, or live analytics/Search Console evidence.
 | WEB-03 | Secret exposure | IMPLEMENTED LOCALLY | P1 | Run the tracked-content hygiene gate in each release check; CI enforcement remains an operational decision |
 | WEB-04 | HTTPS and transport | NOT VERIFIED | P1 | Hostinger edge evidence |
 | WEB-05 | Cookies and consent | IMPLEMENTED LOCALLY | P1 | Verify production cookie configuration; approve any future optional tracking |
-| WEB-06 | Titles and descriptions | PARTIALLY IMPLEMENTED | P2 | Locale/crawl strategy |
+| WEB-06 | Titles and descriptions | PARTIALLY IMPLEMENTED | P2 | Approved stable language URLs and translated primary content |
 | WEB-07 | Social previews | PARTIALLY IMPLEMENTED | P2 | Approved raster brand asset |
 | WEB-08 | Favicon | PARTIALLY IMPLEMENTED | P2 | Live MIME/device check |
-| WEB-09 | Sitemap and robots | PARTIALLY IMPLEMENTED | P2 | Live delivery and Search Console |
+| WEB-09 | Sitemap and robots | PARTIALLY VERIFIED - SEARCH CONSOLE EVIDENCE | P2 | Approved localized URL architecture and post-release URL Inspection |
 | WEB-10 | Image alternatives | IMPLEMENTED LOCALLY | P2 | CMS media inventory and assistive-technology sample |
 | WEB-11 | Image compression and delivery | PARTIALLY IMPLEMENTED | P2 | Measured image budget and production transfer evidence |
 | WEB-12 | Loading speed / CWV | NOT VERIFIED | P2 | Comparable lab runs and field-data source |
@@ -95,3 +95,14 @@ No GA4, Ads, or other optional tracker is activated. WEB-01 and WEB-02 remain
 partial pending owner facts and legal approval; WEB-05 is implemented locally
 but needs production configuration verification. See
 `PHASE_5B5_READINESS_SPRINT_4.md` and `docs/legal/SPRINT_4_LEGAL_DRAFTS.md`.
+
+## Sprint 5 change
+
+Sprint 5 corrects paginated blog canonicals locally and adds regression coverage
+for canonical query handling, session-rendered language declarations, sitemap
+eligibility, and the absence of premature `hreflang`. The owner confirmed that
+the Domain property is verified, the sitemap is accepted, 18 URLs were
+discovered, and at least one URL is indexed. This does not prove universal
+indexing or independently crawlable English content. WEB-06 remains partial and
+WEB-09 is partially verified; a bilingual URL architecture decision is required
+before localized routes, redirects, or alternate annotations are introduced.

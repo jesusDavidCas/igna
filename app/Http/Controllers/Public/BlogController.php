@@ -12,14 +12,16 @@ class BlogController extends Controller
 {
     public function index(SeoManager $seo, PublicContent $content): View
     {
+        $posts = $content->publishedPostsQuery()
+            ->latest('published_at')
+            ->paginate(9);
+
         return view('public.blog.index', [
-            'posts' => $content->publishedPostsQuery()
-                ->latest('published_at')
-                ->paginate(9),
+            'posts' => $posts,
             'seo' => $seo->meta([
                 'title' => __('site.seo_blog_title'),
                 'description' => __('site.seo_blog_description'),
-                'canonical' => $seo->canonicalUrl('/blog'),
+                'canonical' => $seo->paginatedCanonical('/blog', $posts->currentPage()),
                 'schema' => [
                     $seo->webpageSchema(__('site.seo_blog_title'), __('site.seo_blog_description'), '/blog'),
                 ],

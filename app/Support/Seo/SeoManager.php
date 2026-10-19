@@ -31,6 +31,13 @@ class SeoManager
         return $this->canonicalUrl($request->path() === '/' ? '/' : $request->path());
     }
 
+    public function paginatedCanonical(string $path, int $page): string
+    {
+        $canonical = $this->canonicalUrl($path);
+
+        return $page > 1 ? $canonical.'?page='.$page : $canonical;
+    }
+
     public function socialImage(): string
     {
         return $this->canonicalUrl(config('igna.seo.social_image', '/social-card.svg'));
