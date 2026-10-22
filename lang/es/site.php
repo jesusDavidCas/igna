@@ -869,4 +869,12 @@ return [
     'privacy_save_preferences' => 'Guardar preferencias',
     'privacy_reject_optional' => 'Rechazar tecnologías opcionales',
     'privacy_preferences_saved' => 'Tus preferencias de privacidad fueron guardadas.',
+    'english_translation' => 'Traducción al inglés',
+    'translation_review_note' => 'Guardar el contenido no lo publica. Un Super Admin debe aprobar una traducción al inglés vigente antes de que pueda ser elegible para publicación.',
+    'translation_submit_for_review' => 'Enviar a revisión',
+    'translation_saved_for_review' => 'La traducción al inglés se guardó para revisión editorial.',
+    'translation_approved' => 'La traducción al inglés fue aprobada para la fuente actual en español.',
+    'seo_title' => 'Título SEO',
+    'seo_description' => 'Descripción SEO',
+    'approve_translation' => 'Aprobar traducción',
 ];

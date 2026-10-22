@@ -33,6 +33,7 @@ class PublicContent
     public function englishPublishedPostsQuery(): Builder
     {
         return $this->publishedPostsQuery()
+            ->with('englishTranslation')
             ->whereIn('slug', $this->approvedEnglishBlogSlugs());
     }
 
@@ -64,15 +65,26 @@ class PublicContent
             return false;
         }
 
-        return in_array($post->slug, $this->approvedEnglishBlogSlugs(), true)
-            && $post->hasCompleteEnglishContent()
+        return $this->englishPublicationEnabled()
+            && in_array($post->slug, $this->approvedEnglishBlogSlugs(), true)
+            && $post->englishTranslation?->isApprovedFor($post->spanishSourceFingerprint())
             && $this->publishedPostsQuery()->whereKey($post->getKey())->exists();
     }
 
     public function isEnglishTeamMemberPublishable(mixed $member): bool
     {
-        // There is no safe English primary-content source for a TeamMember yet.
-        return false;
+        if (is_string($member)) {
+            $member = TeamMember::query()
+                ->where('slug', $member)
+                ->where('is_active', true)
+                ->with('englishTranslation')
+                ->first();
+        }
+
+        return $member instanceof TeamMember
+            && $this->englishPublicationEnabled()
+            && $member->is_active
+            && $member->englishTranslation?->isApprovedFor($member->spanishSourceFingerprint());
     }
 
     /** @return Collection<int, TeamMember> */
@@ -83,6 +95,18 @@ class PublicContent
             ->with('publicCredentials')
             ->orderBy('sort_order')
             ->get();
+    }
+
+    /** @return Collection<int, TeamMember> */
+    public function englishTeamMembers(): Collection
+    {
+        return TeamMember::query()
+            ->where('is_active', true)
+            ->with('englishTranslation')
+            ->orderBy('sort_order')
+            ->get()
+            ->filter(fn (TeamMember $member): bool => $this->isEnglishTeamMemberPublishable($member))
+            ->values();
     }
 
     /** @return Collection<int, Service> */
@@ -120,5 +144,10 @@ class PublicContent
             ->filter(fn (mixed $slug): bool => is_string($slug) && $slug !== '')
             ->values()
             ->all();
+    }
+
+    private function englishPublicationEnabled(): bool
+    {
+        return config('igna.seo.english_publication.enabled', false) === true;
     }
 }

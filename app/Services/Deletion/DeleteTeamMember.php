@@ -84,6 +84,9 @@ class DeleteTeamMember
                 $credential->views()->delete();
                 $credential->delete();
             });
+            // Translation FKs intentionally restrict deletion. Remove them only inside
+            // this audited, dependency-aware path rather than through a database cascade.
+            $locked->translations()->delete();
             $locked->delete();
             $deleted = true;
         });

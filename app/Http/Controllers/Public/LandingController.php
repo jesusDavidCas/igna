@@ -58,7 +58,7 @@ class LandingController extends Controller
         ]);
     }
 
-    public function team(string $slug, SeoManager $seo): View
+    public function team(string $slug, SeoManager $seo, PublicContent $content): View
     {
         $profile = TeamMember::query()
             ->where('slug', $slug)
@@ -68,12 +68,17 @@ class LandingController extends Controller
 
         abort_if($profile === null, 404);
 
+        $alternates = $content->isEnglishTeamMemberPublishable($profile)
+            ? $seo->alternates('/team/'.$profile->slug, '/en/team/'.$profile->slug)
+            : [];
+
         return view('public.team.show', [
             'profile' => $profile,
             'seo' => $seo->meta([
                 'title' => $profile->name.' | IGNA Studio',
                 'description' => $profile->short_description,
                 'canonical' => $seo->canonicalUrl('/team/'.$profile->slug),
+                'alternates' => $alternates,
                 'type' => 'profile',
                 'schema' => [
                     $seo->webpageSchema($profile->name, $profile->short_description, '/team/'.$profile->slug),
@@ -88,21 +93,27 @@ class LandingController extends Controller
         $profile = TeamMember::query()
             ->where('slug', $slug)
             ->where('is_active', true)
-            ->with('publicCredentials')
+            ->with(['publicCredentials', 'englishTranslation'])
             ->first();
 
         abort_unless($content->isEnglishTeamMemberPublishable($profile), 404);
 
+        $translation = $profile->englishTranslation;
+        $title = $translation->seo_title ?: $profile->name;
+        $description = $translation->seo_description ?: $translation->short_description;
+
         return view('public.team.show', [
             'profile' => $profile,
+            'englishContent' => true,
             'seo' => $seo->meta([
-                'title' => $profile->name.' | IGNA Studio',
-                'description' => $profile->short_description,
+                'title' => $title.' | IGNA Studio',
+                'description' => $description,
                 'canonical' => $seo->canonicalUrl('/en/team/'.$profile->slug),
+                'alternates' => $seo->alternates('/team/'.$profile->slug, '/en/team/'.$profile->slug),
                 'type' => 'profile',
                 'schema' => [
-                    $seo->webpageSchema($profile->name, $profile->short_description, '/en/team/'.$profile->slug),
-                    $seo->personSchema($profile, '/en/team/'.$profile->slug),
+                    $seo->webpageSchema($title, $description, '/en/team/'.$profile->slug),
+                    $seo->personSchema($profile, '/en/team/'.$profile->slug, $translation),
                 ],
             ]),
         ]);

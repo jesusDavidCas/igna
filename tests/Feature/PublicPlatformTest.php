@@ -9,6 +9,7 @@ use App\Models\Proposal;
 use App\Models\Service;
 use App\Models\TeamMember;
 use App\Models\Ticket;
+use App\Models\User;
 use App\Services\Credentials\CredentialPreviewRenderer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -197,12 +198,21 @@ class PublicPlatformTest extends TestCase
             'published_at' => now(),
         ]);
 
-        app('translator')->addLines([
-            "demo.blog.{$post->slug}.title" => 'Synthetic approved English article',
-            "demo.blog.{$post->slug}.summary" => 'Synthetic approved English summary.',
-            "demo.blog.{$post->slug}.body_html" => '<p>Synthetic approved English body.</p>',
-        ], 'en');
+        $fingerprint = $post->spanishSourceFingerprint();
+        $approver = User::factory()->create();
+        $post->englishTranslation()->create([
+            'locale' => 'en',
+            'title' => 'Synthetic approved English article',
+            'summary' => 'Synthetic approved English summary.',
+            'body_html' => '<p>Synthetic approved English body.</p>',
+            'status' => 'approved',
+            'source_fingerprint' => $fingerprint,
+            'approved_source_fingerprint' => $fingerprint,
+            'approved_by_user_id' => $approver->id,
+            'approved_at' => now(),
+        ]);
 
+        config()->set('igna.seo.english_publication.enabled', true);
         config()->set('igna.seo.english_publication.blog_slugs', [$post->slug]);
 
         $this->get('/en/blog')

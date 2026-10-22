@@ -869,4 +869,12 @@ return [
     'privacy_save_preferences' => 'Save preferences',
     'privacy_reject_optional' => 'Reject optional technologies',
     'privacy_preferences_saved' => 'Your privacy preferences have been saved.',
+    'english_translation' => 'English translation',
+    'translation_review_note' => 'Saving content does not publish it. A Super Admin must approve a current English translation before it can be eligible for publication.',
+    'translation_submit_for_review' => 'Submit for review',
+    'translation_saved_for_review' => 'The English translation was saved for editorial review.',
+    'translation_approved' => 'The English translation was approved for the current Spanish source.',
+    'seo_title' => 'SEO title',
+    'seo_description' => 'SEO description',
+    'approve_translation' => 'Approve translation',
 ];

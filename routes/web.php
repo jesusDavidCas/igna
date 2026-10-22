@@ -2,6 +2,7 @@
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Admin\BlogPostController as AdminBlogPostController;
+use App\Http\Controllers\Admin\BlogPostTranslationController as AdminBlogPostTranslationController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\ProposalController as AdminProposalController;
 use App\Http\Controllers\Admin\ProposalProjectController as AdminProposalProjectController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\Admin\ServiceStageController as AdminServiceStageContro
 use App\Http\Controllers\Admin\SettingController as AdminSettingController;
 use App\Http\Controllers\Admin\TeamCredentialController as AdminTeamCredentialController;
 use App\Http\Controllers\Admin\TeamMemberController as AdminTeamMemberController;
+use App\Http\Controllers\Admin\TeamMemberTranslationController as AdminTeamMemberTranslationController;
 use App\Http\Controllers\Admin\TicketController as AdminTicketController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
@@ -156,7 +158,9 @@ Route::prefix('admin')
         Route::delete('/tickets/{ticket}', [AdminTicketController::class, 'destroy'])->name('tickets.destroy');
 
         Route::resource('blog', AdminBlogPostController::class)->parameters(['blog' => 'post'])->except(['show']);
+        Route::put('/blog/{post}/translations/en', [AdminBlogPostTranslationController::class, 'update'])->name('blog.translations.en.update');
         Route::resource('team', AdminTeamMemberController::class)->parameters(['team' => 'teamMember'])->except(['show', 'destroy']);
+        Route::put('/team/{teamMember}/translations/en', [AdminTeamMemberTranslationController::class, 'update'])->name('team.translations.en.update');
         Route::delete('/team/{teamMember}', [AdminTeamMemberController::class, 'destroy'])->name('team.destroy');
         Route::post('/team/{teamMember}/credentials', [AdminTeamCredentialController::class, 'store'])->name('team.credentials.store');
         Route::post('/team/{teamMember}/credentials/{credential}/regenerate', [AdminTeamCredentialController::class, 'regenerate'])->name('team.credentials.regenerate');
@@ -169,6 +173,8 @@ Route::prefix('admin')
         Route::delete('/proposals/{proposal}', [AdminProposalController::class, 'destroy'])->name('proposals.destroy');
 
         Route::middleware('role:'.UserRole::SUPER_ADMIN->value)->group(function (): void {
+            Route::post('/blog/{post}/translations/en/approve', [AdminBlogPostTranslationController::class, 'approve'])->name('blog.translations.en.approve');
+            Route::post('/team/{teamMember}/translations/en/approve', [AdminTeamMemberTranslationController::class, 'approve'])->name('team.translations.en.approve');
             Route::put('/users/{user}/password', [AdminUserController::class, 'updatePassword'])->name('users.password.update');
             Route::resource('users', AdminUserController::class)->except(['show', 'destroy']);
             Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');

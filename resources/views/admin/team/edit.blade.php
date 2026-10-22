@@ -7,6 +7,31 @@
         'teamMember' => $teamMember,
     ])
 
+    @php($translation = $teamMember->englishTranslation)
+    <section class="mt-8 rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
+        <h2 class="text-lg font-semibold text-stone-950">{{ __('site.english_translation') }}</h2>
+        <p class="mt-2 text-sm leading-6 text-stone-600">{{ __('site.translation_review_note') }}</p>
+        <form method="POST" action="{{ route('admin.team.translations.en.update', $teamMember) }}" class="mt-6 grid gap-5">
+            @csrf
+            @method('PUT')
+            <div><label class="form-label">{{ __('site.form_role') }}</label><input name="role" value="{{ old('role', $translation?->role) }}" class="form-input" required></div>
+            <div><label class="form-label">{{ __('site.short_description') }}</label><textarea name="short_description" rows="3" class="form-input" required>{{ old('short_description', $translation?->short_description) }}</textarea></div>
+            <div class="grid gap-5 md:grid-cols-2">
+                <div><label class="form-label">{{ __('site.bio') }}</label><textarea name="bio" rows="6" class="form-input" required>{{ old('bio', implode("\n", $translation?->bio ?? [])) }}</textarea></div>
+                <div><label class="form-label">{{ __('site.expertise') }}</label><textarea name="expertise" rows="6" class="form-input" required>{{ old('expertise', implode("\n", $translation?->expertise ?? [])) }}</textarea></div>
+            </div>
+            <div class="grid gap-5 md:grid-cols-2">
+                <div><label class="form-label">{{ __('site.seo_title') }}</label><input name="seo_title" value="{{ old('seo_title', $translation?->seo_title) }}" class="form-input"></div>
+                <div><label class="form-label">{{ __('site.seo_description') }}</label><input name="seo_description" value="{{ old('seo_description', $translation?->seo_description) }}" class="form-input"></div>
+            </div>
+            <label class="inline-flex items-center gap-2 text-sm text-stone-700"><input type="checkbox" name="submit_for_review" value="1">{{ __('site.translation_submit_for_review') }}</label>
+            <button type="submit" class="w-fit rounded-full bg-olive-700 px-5 py-2.5 text-sm font-semibold text-white">{{ __('site.save_changes') }}</button>
+        </form>
+        @if (auth()->user()?->isSuperAdmin() && $translation?->status?->value === 'in_review')
+            <form method="POST" action="{{ route('admin.team.translations.en.approve', $teamMember) }}" class="mt-4">@csrf<button class="rounded-full border border-olive-700 px-5 py-2.5 text-sm font-semibold text-olive-800">{{ __('site.approve_translation') }}</button></form>
+        @endif
+    </section>
+
     <div class="mt-8 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
         <form method="POST" action="{{ route('admin.team.credentials.store', $teamMember) }}" enctype="multipart/form-data" class="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm">
             @csrf

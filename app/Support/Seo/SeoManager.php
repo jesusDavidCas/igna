@@ -4,6 +4,7 @@ namespace App\Support\Seo;
 
 use App\Models\BlogPost;
 use App\Models\TeamMember;
+use App\Models\TeamMemberTranslation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -141,7 +142,7 @@ class SeoManager
         ];
     }
 
-    public function personSchema(TeamMember $member, ?string $path = null): array
+    public function personSchema(TeamMember $member, ?string $path = null, ?TeamMemberTranslation $translation = null): array
     {
         $path ??= '/team/'.$member->slug;
 
@@ -151,10 +152,10 @@ class SeoManager
             '@id' => $this->canonicalUrl($path.'#person'),
             'name' => $member->name,
             'url' => $this->canonicalUrl($path),
-            'jobTitle' => $member->role,
-            'description' => $member->short_description,
+            'jobTitle' => $translation?->role ?? $member->role,
+            'description' => $translation?->short_description ?? $member->short_description,
             'worksFor' => ['@id' => $this->canonicalUrl('/#organization')],
-            'knowsAbout' => array_values((array) $member->expertise),
+            'knowsAbout' => array_values((array) ($translation?->expertise ?? $member->expertise)),
         ];
     }
 

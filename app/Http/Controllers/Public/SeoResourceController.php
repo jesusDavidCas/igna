@@ -41,6 +41,11 @@ class SeoResourceController extends Controller
             'lastmod' => optional($post->updated_at ?? $post->published_at)->toDateString(),
         ]));
 
+        $urls = $urls->merge($content->englishTeamMembers()->map(fn ($member): array => [
+            'loc' => $seo->canonicalUrl('/en/team/'.$member->slug),
+            'lastmod' => optional($member->englishTranslation?->updated_at ?? $member->updated_at)->toDateString(),
+        ]));
+
         $xml = view('seo.sitemap', ['urls' => $urls])->render();
 
         return response($xml, 200, ['Content-Type' => 'application/xml; charset=UTF-8']);

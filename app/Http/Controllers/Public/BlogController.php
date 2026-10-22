@@ -7,6 +7,7 @@ use App\Models\BlogPost;
 use App\Support\Seo\PublicContent;
 use App\Support\Seo\SeoManager;
 use Illuminate\Contracts\View\View;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class BlogController extends Controller
 {
@@ -24,9 +25,21 @@ class BlogController extends Controller
 
     private function archive(SeoManager $seo, PublicContent $content, bool $english): View
     {
-        $posts = ($english ? $content->englishPublishedPostsQuery() : $content->publishedPostsQuery())
-            ->latest('published_at')
-            ->paginate(9);
+        if ($english) {
+            $allPosts = $content->englishPublishedPosts();
+            $page = LengthAwarePaginator::resolveCurrentPage();
+            $posts = new LengthAwarePaginator(
+                $allPosts->forPage($page, 9)->values(),
+                $allPosts->count(),
+                9,
+                $page,
+                ['path' => url('/en/blog'), 'pageName' => 'page'],
+            );
+        } else {
+            $posts = $content->publishedPostsQuery()
+                ->latest('published_at')
+                ->paginate(9);
+        }
 
         abort_if($posts->currentPage() > $posts->lastPage(), 404);
 
@@ -37,6 +50,7 @@ class BlogController extends Controller
 
         return view('public.blog.index', [
             'posts' => $posts,
+            'englishContent' => $english,
             'seo' => $seo->meta([
                 'title' => __('site.seo_blog_title'),
                 'description' => __('site.seo_blog_description'),
@@ -58,6 +72,7 @@ class BlogController extends Controller
 
     public function englishShow(BlogPost $post, SeoManager $seo, PublicContent $content): View
     {
+        $post->load('englishTranslation');
         abort_unless($content->isEnglishBlogPostPublishable($post), 404);
 
         return $this->post($post, $seo, $content, '/en/blog/'.$post->slug, true);
@@ -65,8 +80,8 @@ class BlogController extends Controller
 
     private function post(BlogPost $post, SeoManager $seo, PublicContent $content, string $path, bool $english): View
     {
-        $title = $english ? $post->englishTitle() : $post->localizedTitle();
-        $summary = $english ? $post->englishSummary() : $post->localizedSummary();
+        $title = $english ? ($post->englishTranslation?->seo_title ?: $post->englishTitle()) : $post->localizedTitle();
+        $summary = $english ? ($post->englishTranslation?->seo_description ?: $post->englishSummary()) : $post->localizedSummary();
         $alternates = $content->isEnglishBlogPostPublishable($post)
             ? $seo->alternates('/blog/'.$post->slug, '/en/blog/'.$post->slug)
             : [];

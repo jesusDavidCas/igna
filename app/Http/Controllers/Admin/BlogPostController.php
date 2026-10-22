@@ -40,6 +40,8 @@ class BlogPostController extends Controller
 
     public function edit(BlogPost $post): View
     {
+        $post->load('englishTranslation');
+
         return view('admin.blog.edit', [
             'post' => $post,
         ]);

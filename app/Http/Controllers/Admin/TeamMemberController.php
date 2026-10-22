@@ -37,7 +37,7 @@ class TeamMemberController extends Controller
 
     public function edit(TeamMember $teamMember, DeleteTeamMember $deleteTeamMember): View
     {
-        $teamMember->load('credentials.views');
+        $teamMember->load(['credentials.views', 'englishTranslation']);
 
         return view('admin.team.edit', [
             'teamMember' => $teamMember,

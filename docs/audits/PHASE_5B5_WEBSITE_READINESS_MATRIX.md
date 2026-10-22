@@ -19,16 +19,16 @@ content, a Hostinger review, or live analytics/Search Console evidence.
 | WEB-06 | Titles and descriptions | PARTIALLY IMPLEMENTED | P2 | Owner approval and persisted English Blog/Team primary content |
 | WEB-07 | Social previews | PARTIALLY IMPLEMENTED | P2 | Approved raster brand asset |
 | WEB-08 | Favicon | PARTIALLY IMPLEMENTED | P2 | Live MIME/device check |
-| WEB-09 | Sitemap and robots | PARTIALLY VERIFIED - SEARCH CONSOLE EVIDENCE | P2 | Approved English content and post-release URL Inspection |
+| WEB-09 | Sitemap and robots | PARTIALLY IMPLEMENTED | P2 | Search Console evidence exists; approved English content and post-release URL Inspection remain required |
 | WEB-10 | Image alternatives | IMPLEMENTED LOCALLY | P2 | CMS media inventory and assistive-technology sample |
 | WEB-11 | Image compression and delivery | PARTIALLY IMPLEMENTED | P2 | Measured image budget and production transfer evidence |
 | WEB-12 | Loading speed / CWV | NOT VERIFIED | P2 | Comparable lab runs and field-data source |
 | WEB-13 | Color contrast | PARTIALLY IMPLEMENTED | P2 | Full state-by-state WCAG 2.2 AA audit |
 | WEB-14 | Mobile responsiveness | PARTIALLY IMPLEMENTED | P2 | Wider public/auth/client browser matrix |
 | WEB-15 | Localized custom 404 | IMPLEMENTED LOCALLY | P2 | Human visual review and production smoke |
-| WEB-16 | Broken links | PARTIALLY VERIFIED - PRODUCTION SNAPSHOT | P2 | Recurring crawl ownership and external-link monitoring |
+| WEB-16 | Broken links | PARTIALLY IMPLEMENTED | P2 | Production snapshot exists; recurring crawl ownership and external-link monitoring remain required |
 | WEB-17 | Form validation | IMPLEMENTED LOCALLY | P1 | Preserve negative test coverage |
-| WEB-18 | Anti-spam | IMPLEMENTED LOCALLY | P1 | Phase 5B.5A Hostinger IP evidence |
+| WEB-18 | Anti-spam | BLOCKED — EXTERNAL EVIDENCE | P1 | Phase 5B.5A is isolated until Hostinger supplies trusted-proxy and real-client-IP evidence |
 | WEB-19 | GA4 | NOT IMPLEMENTED | P2 | Legal approval and measurement contract |
 | WEB-20 | Calls to action | PARTIALLY IMPLEMENTED | P2 | Analytics and content decision |
 | OPS-01 | Authentication/session security | IMPLEMENTED LOCALLY | P1 | Production smoke evidence |
@@ -126,3 +126,25 @@ routes, alternates, and the sitemap. This is a local implementation only:
 WEB-06 and WEB-09 remain partial until content-owner approval, a durable Team
 translation/approval model, and production Search Console inspection are
 complete.
+
+## Sprint 7B change
+
+Sprint 7B adds the durable Blog and Team translation records that Sprint 6
+intentionally lacked. Each English translation has an independent draft,
+in-review, approved, or unpublished state; an approver; a time; a Spanish
+source fingerprint; an approved source fingerprint; and stale protection.
+English Blog and Team pages remain unavailable by default. If a future owner
+enables English publication, a page still requires a complete, current,
+Super-Admin-approved translation; Blog publication also requires its explicit
+slug decision. The English sitemap and reciprocal alternates remain equally
+fail-closed. No translation was imported from demo language resources and no
+real English content was published.
+
+The local migration is additive and tested against a disposable database. It
+refuses to roll back populated translation tables, so an application rollback
+does not silently erase editorial records. Team translation rows use a
+restrictive foreign key and are removed only by the existing audited Team
+deletion service. WEB-06 remains `PARTIALLY IMPLEMENTED` and WEB-09 remains
+`PARTIALLY IMPLEMENTED`: real content approval, homepage governance, a
+production migration authorization, and post-release Search Console inspection
+are still required.

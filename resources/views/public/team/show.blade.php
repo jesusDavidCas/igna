@@ -7,20 +7,20 @@
             <div class="flex flex-col gap-6 md:flex-row md:items-start">
                 <x-team.photo :member="$profile" variant="profile" />
                 <div>
-                    <p class="text-sm font-semibold uppercase tracking-[0.18em] text-stone-500">{{ $profile->role }}</p>
+                    <p class="text-sm font-semibold uppercase tracking-[0.18em] text-stone-500">{{ ($englishContent ?? false) ? $profile->englishTranslation?->role : $profile->role }}</p>
                     <h1 class="mt-3 text-4xl font-semibold text-stone-950">{{ $profile->name }}</h1>
-                    <p class="mt-4 text-[17px] leading-8 text-stone-600">{{ $profile->short_description }}</p>
+                    <p class="mt-4 text-[17px] leading-8 text-stone-600">{{ ($englishContent ?? false) ? $profile->englishTranslation?->short_description : $profile->short_description }}</p>
                 </div>
             </div>
             <div class="mt-8 space-y-5 text-[17px] leading-8 text-stone-600">
-                @foreach ($profile->bio ?? [] as $paragraph)
+                @foreach (($englishContent ?? false) ? ($profile->englishTranslation?->bio ?? []) : ($profile->bio ?? []) as $paragraph)
                     <p>{{ $paragraph }}</p>
                 @endforeach
             </div>
             <div class="mt-10">
                 <h2 class="text-lg font-semibold text-stone-950">{{ __('site.expertise') }}</h2>
                 <div class="mt-4 flex flex-wrap gap-3">
-                    @foreach ($profile->expertise ?? [] as $item)
+                    @foreach (($englishContent ?? false) ? ($profile->englishTranslation?->expertise ?? []) : ($profile->expertise ?? []) as $item)
                         <span class="rounded-full bg-olive-50 px-4 py-2 text-sm text-olive-900">{{ $item }}</span>
                     @endforeach
                 </div>

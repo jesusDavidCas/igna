@@ -8,6 +8,8 @@ use App\Support\Html\HtmlSanitizer;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class BlogPost extends Model
@@ -37,6 +39,20 @@ class BlogPost extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::updated(function (self $post): void {
+            if (! $post->wasChanged(['title', 'summary', 'body_html', 'seo_keywords'])) {
+                return;
+            }
+
+            $post->englishTranslation()->update([
+                'stale_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by_user_id');
@@ -45,6 +61,26 @@ class BlogPost extends Model
     public function updater(): BelongsTo
     {
         return $this->belongsTo(User::class, 'updated_by_user_id');
+    }
+
+    public function englishTranslation(): HasOne
+    {
+        return $this->hasOne(BlogPostTranslation::class)->where('locale', 'en');
+    }
+
+    public function translations(): HasMany
+    {
+        return $this->hasMany(BlogPostTranslation::class);
+    }
+
+    public function spanishSourceFingerprint(): string
+    {
+        return hash('sha256', json_encode([
+            'title' => $this->title,
+            'summary' => $this->summary,
+            'body_html' => $this->body_html,
+            'seo_keywords' => $this->seo_keywords ?? [],
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
     }
 
     public function headerImageUrl(): ?string
@@ -83,23 +119,22 @@ class BlogPost extends Model
 
     public function hasCompleteEnglishContent(): bool
     {
-        return collect(['title', 'summary', 'body_html'])
-            ->every(fn (string $field): bool => filled($this->localizedValue($field, 'en')));
+        return $this->englishTranslation?->hasCompleteEnglishContent() ?? false;
     }
 
     public function englishTitle(): ?string
     {
-        return $this->localizedValue('title', 'en');
+        return $this->englishTranslation?->title;
     }
 
     public function englishSummary(): ?string
     {
-        return $this->localizedValue('summary', 'en');
+        return $this->englishTranslation?->summary;
     }
 
     public function englishBodyHtml(): ?string
     {
-        $body = $this->localizedValue('body_html', 'en');
+        $body = $this->englishTranslation?->body_html;
 
         return $body === null ? null : app(HtmlSanitizer::class)->clean($body);
     }
