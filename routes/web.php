@@ -143,6 +143,12 @@ Route::prefix('admin')
         Route::delete('/services/{service}/stages/{stage}', [AdminServiceStageController::class, 'destroy'])->name('services.stages.destroy');
 
         Route::get('/tickets', [AdminTicketController::class, 'index'])->name('tickets.index');
+        Route::post('/tickets/bulk-delete/preview', [AdminTicketController::class, 'bulkDeletePreview'])
+            ->middleware('role:'.UserRole::SUPER_ADMIN->value)
+            ->name('tickets.bulk-delete.preview');
+        Route::delete('/tickets/bulk-delete', [AdminTicketController::class, 'bulkDestroy'])
+            ->middleware('role:'.UserRole::SUPER_ADMIN->value)
+            ->name('tickets.bulk-delete.destroy');
         Route::get('/tickets/{ticket}', [AdminTicketController::class, 'show'])->name('tickets.show');
         Route::put('/tickets/{ticket}/client', [AdminTicketController::class, 'updateClient'])->name('tickets.client.update');
         Route::put('/tickets/{ticket}/stage', [AdminTicketController::class, 'updateStage'])->name('tickets.stage.update');

@@ -8,12 +8,40 @@ use App\Models\Ticket;
 use App\Models\TicketFile;
 use App\Models\User;
 use App\Support\Deletion\DeletionImpact;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 class DeleteProject
 {
+    /**
+     * Projects eligible for bulk removal must still be unprocessed intake.
+     * Linked, assigned, or worked-on projects require individual review.
+     *
+     * @param  iterable<int, int|string>  $ids
+     * @return Collection<int, Ticket>
+     */
+    public function bulkProtectedTickets(iterable $ids): Collection
+    {
+        $ticketIds = collect($ids)
+            ->filter(fn (mixed $id): bool => is_int($id) || ctype_digit((string) $id))
+            ->map(fn (mixed $id): int => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($ticketIds->isEmpty()) {
+            return collect();
+        }
+
+        return Ticket::query()
+            ->whereKey($ticketIds)
+            ->where(fn (Builder $query) => $this->applyBulkProtectionCriteria($query))
+            ->orderBy('ticket_code')
+            ->get(['id', 'ticket_code']);
+    }
+
     public function impact(Ticket $ticket): DeletionImpact
     {
         $ticket->loadCount(['files', 'deliverables', 'stageEvents', 'stageAudits']);
@@ -40,12 +68,12 @@ class DeleteProject
         );
     }
 
-    public function delete(Ticket $ticket, User $actor): bool
+    public function delete(Ticket $ticket, User $actor, bool $requireUnprocessedIntake = false): bool
     {
         $files = [];
         $deleted = false;
 
-        DB::transaction(function () use ($ticket, $actor, &$files, &$deleted): void {
+        DB::transaction(function () use ($ticket, $actor, $requireUnprocessedIntake, &$files, &$deleted): void {
             $locked = Ticket::query()
                 ->with(['files', 'proposal'])
                 ->whereKey($ticket->getKey())
@@ -53,6 +81,10 @@ class DeleteProject
                 ->first();
 
             if (! $locked) {
+                return;
+            }
+
+            if ($requireUnprocessedIntake && $this->bulkProtectedTickets([$locked->id])->isNotEmpty()) {
                 return;
             }
 
@@ -124,5 +156,31 @@ class DeleteProject
                 }
             })
             ->exists();
+    }
+
+    private function applyBulkProtectionCriteria(Builder $query): void
+    {
+        $query
+            ->whereNotNull('proposal_id')
+            ->orWhereNotNull('client_user_id')
+            ->orWhereHas('files', function (Builder $files): void {
+                $files->where(function (Builder $activity): void {
+                    $activity
+                        ->whereNull('upload_source')
+                        ->orWhere('upload_source', '!=', 'initial_request');
+                });
+            })
+            ->orWhereHas('stageEvents', function (Builder $events): void {
+                $events->where(function (Builder $activity): void {
+                    $activity
+                        ->whereNotNull('changed_by_user_id')
+                        ->orWhereNotNull('completed_at')
+                        ->orWhereNotNull('notes')
+                        ->orWhereNotNull('superseded_at')
+                        ->orWhere('attempt_number', '>', 1);
+                });
+            })
+            ->orWhereHas('stageAudits')
+            ->orWhereHas('deliverables', fn (Builder $deliverables) => $deliverables->where('status', '!=', 'pending'));
     }
 }
