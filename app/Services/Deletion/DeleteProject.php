@@ -2,6 +2,7 @@
 
 namespace App\Services\Deletion;
 
+use App\Enums\TicketStatus;
 use App\Models\DeletionAudit;
 use App\Models\Proposal;
 use App\Models\Ticket;
@@ -161,7 +162,14 @@ class DeleteProject
     private function applyBulkProtectionCriteria(Builder $query): void
     {
         $query
-            ->whereNotNull('proposal_id')
+            // Bulk deletion is strictly limited to untouched intake requests.
+            // Treat null or unrecognised persisted values as protected as well.
+            ->where(function (Builder $eligibility): void {
+                $eligibility
+                    ->whereNull('status')
+                    ->orWhere('status', '!=', TicketStatus::NEW->value);
+            })
+            ->orWhereNotNull('proposal_id')
             ->orWhereNotNull('client_user_id')
             ->orWhereHas('files', function (Builder $files): void {
                 $files->where(function (Builder $activity): void {
