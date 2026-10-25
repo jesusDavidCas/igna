@@ -46,6 +46,9 @@
         @foreach ($seo['schema'] as $schema)
             <script type="application/ld+json">{!! json_encode($schema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) !!}</script>
         @endforeach
+        @if (request()->routeIs('home', 'en.home') && config('services.turnstile.enabled') && filled(config('services.turnstile.site_key')))
+            <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+        @endif
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="public-site-body text-stone-900">

@@ -323,6 +323,20 @@
                             <input id="request-initial-file" type="file" name="initial_file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" class="form-input" aria-describedby="request-initial-file-help">
                             <p id="request-initial-file-help" class="mt-2 text-[15px] leading-6 text-stone-500">{{ __('site.form_initial_file_help') }}</p>
                         </div>
+                        <div class="sr-only" aria-hidden="true">
+                            <label for="request-website">{{ __('site.request_antispam_website') }}</label>
+                            <input id="request-website" type="text" name="website" value="" tabindex="-1" autocomplete="off" data-lpignore="true">
+                        </div>
+                        @if (config('services.turnstile.enabled'))
+                            <div class="sm:col-span-2" aria-describedby="request-turnstile-help">
+                                @if (filled(config('services.turnstile.site_key')))
+                                    <div class="cf-turnstile" data-sitekey="{{ config('services.turnstile.site_key') }}" data-action="{{ config('services.turnstile.expected_action') }}"></div>
+                                    <p id="request-turnstile-help" class="mt-2 text-[15px] leading-6 text-stone-500">{{ __('site.request_antispam_challenge_help') }}</p>
+                                @else
+                                    <p id="request-turnstile-help" class="text-sm text-rose-700" role="status">{{ __('site.request_antispam_unavailable') }}</p>
+                                @endif
+                            </div>
+                        @endif
                         <div class="sm:col-span-2 pt-2">
                             <button type="submit" class="rounded-full bg-olive-700 px-6 py-3 text-sm font-semibold text-white shadow-[0_16px_36px_rgba(52,83,66,0.22)] transition hover:-translate-y-0.5 hover:bg-olive-800 active:translate-y-0">
                                 {{ __('site.cta_submit_request') }}
