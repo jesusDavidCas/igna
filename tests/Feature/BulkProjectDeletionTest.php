@@ -12,8 +12,10 @@ use App\Models\TicketFile;
 use App\Models\TicketStageAudit;
 use App\Models\TicketStageEvent;
 use App\Models\User;
+use App\Services\Deletion\DeleteProject;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -427,6 +429,91 @@ class BulkProjectDeletionTest extends TestCase
         $this->assertDatabaseCount('deletion_audits', 0);
     }
 
+    public function test_related_record_edits_after_preview_invalidate_each_project(): void
+    {
+        $fileTicket = $this->ticket();
+        $deliverableTicket = $this->ticket();
+        $eventTicket = $this->ticket();
+        $auditTicket = $this->ticket();
+
+        $file = TicketFile::query()->create([
+            'ticket_id' => $fileTicket->id,
+            'title' => 'Original document',
+            'original_name' => 'original.pdf',
+            'storage_provider' => 'google_drive',
+            'google_drive_file_id' => 'drive-file-unchanged-remotely',
+            'visibility' => 'internal',
+            'delivery_type' => 'internal',
+            'upload_source' => 'admin',
+            'review_status' => 'reviewed',
+            'uploaded_at' => now(),
+        ]);
+        $deliverable = TicketDeliverable::query()->create([
+            'ticket_id' => $deliverableTicket->id,
+            'name' => 'Initial deliverable',
+            'status' => 'pending',
+            'sort_order' => 1,
+        ]);
+        $event = TicketStageEvent::query()->create([
+            'ticket_id' => $eventTicket->id,
+            'service_stage_id' => $eventTicket->current_service_stage_id,
+            'status' => 'pending',
+            'is_client_visible' => true,
+            'entered_at' => now(),
+        ]);
+        $audit = TicketStageAudit::query()->create([
+            'ticket_id' => $auditTicket->id,
+            'service_stage_id' => $auditTicket->current_service_stage_id,
+            'actor_user_id' => $this->superAdmin->id,
+            'action' => 'entered',
+        ]);
+        $ticketIds = [$fileTicket->id, $deliverableTicket->id, $eventTicket->id, $auditTicket->id];
+        $context = $this->selectionContext($ticketIds);
+
+        $preview = $this->actingAs($this->superAdmin)
+            ->withSession($context)
+            ->post(route('admin.tickets.bulk-delete.preview'), [
+                'selection_context' => $this->contextToken($context),
+                'ticket_ids' => $ticketIds,
+            ])
+            ->assertOk();
+
+        $file->update(['title' => 'Edited document']);
+        $deliverable->update(['status' => 'completed']);
+        $event->update(['notes' => 'Edited workflow history']);
+        $audit->update(['reason' => 'Edited audit history']);
+
+        $confirmation = session('bulk_ticket_delete.confirmations.'.$this->confirmationToken($preview->getContent()));
+        $deleteProject = app(DeleteProject::class);
+        $dependencyNames = [
+            $fileTicket->id => 'file',
+            $deliverableTicket->id => 'deliverable',
+            $eventTicket->id => 'stage event',
+            $auditTicket->id => 'stage audit',
+        ];
+
+        foreach ($ticketIds as $ticketId) {
+            $this->assertNotSame(
+                $confirmation['tickets'][$ticketId]['fingerprint'],
+                $deleteProject->fingerprint(Ticket::query()->findOrFail($ticketId)),
+                "The {$dependencyNames[$ticketId]} edit did not change ticket {$ticketId}'s fingerprint.",
+            );
+        }
+
+        $this->actingAs($this->superAdmin)
+            ->delete(route('admin.tickets.bulk-delete.destroy'), [
+                'confirmation_token' => $this->confirmationToken($preview->getContent()),
+                'confirm_deletion' => '1',
+            ])
+            ->assertSessionHasErrors('bulk_delete');
+
+        foreach ($ticketIds as $ticketId) {
+            $this->assertDatabaseHas('tickets', ['id' => $ticketId]);
+        }
+
+        $this->assertDatabaseCount('deletion_audits', 0);
+    }
+
     public function test_all_matching_uses_a_frozen_server_side_snapshot_and_requires_typed_confirmation(): void
     {
         $first = $this->ticket(['ticket_code' => 'PRJ-ALL-ONE']);
@@ -466,6 +553,43 @@ class BulkProjectDeletionTest extends TestCase
         $this->assertDatabaseMissing('tickets', ['id' => $second->id]);
         $this->assertDatabaseHas('tickets', ['id' => $newAfterSnapshot->id]);
         $this->assertDatabaseCount('deletion_audits', 2);
+    }
+
+    public function test_all_matching_handles_250_mixed_status_projects_with_a_session_snapshot(): void
+    {
+        $tickets = $this->ticketsWithSharedService(250);
+
+        $index = $this->actingAs($this->superAdmin)
+            ->get(route('admin.tickets.index', ['per_page' => 50]))
+            ->assertOk()
+            ->assertSee('proyectos coincidentes');
+        preg_match_all('/name="selection_context" value="([^"]+)"/', $index->getContent(), $matches);
+        $selectionContext = collect($matches[1] ?? [])->first(
+            fn (string $token): bool => session("bulk_ticket_delete.selection_contexts.{$token}.scope") === 'all_matching',
+        );
+        $this->assertIsString($selectionContext);
+        $allMatchingTicketIds = session("bulk_ticket_delete.selection_contexts.{$selectionContext}.ticket_ids");
+        $this->assertGreaterThanOrEqual(250, count($allMatchingTicketIds));
+        $this->assertEqualsCanonicalizing($tickets->pluck('id')->all(), array_values(array_intersect($allMatchingTicketIds, $tickets->pluck('id')->all())));
+
+        $preview = $this->actingAs($this->superAdmin)
+            ->post(route('admin.tickets.bulk-delete.all-matching.preview'), [
+                'selection_context' => $selectionContext,
+            ])
+            ->assertOk()
+            ->assertSee('DELETE ALL PROJECTS');
+
+        $this->actingAs($this->superAdmin)
+            ->delete(route('admin.tickets.bulk-delete.destroy'), [
+                'confirmation_token' => $this->confirmationToken($preview->getContent()),
+                'confirm_deletion' => '1',
+                'typed_confirmation' => 'DELETE ALL PROJECTS',
+            ])
+            ->assertRedirect(route('admin.tickets.index'));
+
+        $this->assertDatabaseMissing('tickets', ['id' => $tickets->first()->id]);
+        $this->assertDatabaseMissing('tickets', ['id' => $tickets->last()->id]);
+        $this->assertDatabaseCount('deletion_audits', count($allMatchingTicketIds));
     }
 
     public function test_expired_all_matching_context_is_rejected(): void
@@ -583,5 +707,37 @@ class BulkProjectDeletionTest extends TestCase
             'subject' => 'Synthetic', 'status' => 'sent', 'tax_rate' => 0, 'subtotal' => 0, 'tax_total' => 0, 'total' => 0,
             'issued_at' => now()->toDateString(), 'valid_until' => now()->addDays(30)->toDateString(),
         ]);
+    }
+
+    /** @return Collection<int, Ticket> */
+    private function ticketsWithSharedService(int $count): Collection
+    {
+        $service = Service::query()->create([
+            'name' => 'Batch Service', 'name_en' => 'Batch Service', 'name_es' => 'Servicio por lote',
+            'slug' => 'batch-service-'.Str::lower(Str::random(8)), 'code' => 'BATCH'.Str::upper(Str::random(4)),
+            'business_line' => 'digital', 'service_type' => 'web_platform', 'service_scope' => 'none',
+            'description' => 'Batch service', 'description_en' => 'Batch service', 'description_es' => 'Servicio por lote',
+            'deliverables_schema' => [], 'is_active' => true, 'sort_order' => 1,
+        ]);
+        $stage = $service->stages()->create([
+            'name' => 'Discovery', 'code' => 'discovery', 'sort_order' => 1, 'is_active' => true, 'is_client_visible' => true,
+        ]);
+        $statuses = TicketStatus::cases();
+
+        return collect(range(1, $count))->map(function (int $index) use ($service, $stage, $statuses): Ticket {
+            return Ticket::query()->create([
+                'ticket_code' => 'PRJ-BATCH-'.str_pad((string) $index, 3, '0', STR_PAD_LEFT),
+                'service_id' => $service->id,
+                'current_service_stage_id' => $stage->id,
+                'first_name' => 'Batch',
+                'last_name' => 'Client',
+                'email' => "batch-{$index}@example.com",
+                'project_name' => "Batch deletion project {$index}",
+                'preferred_language' => 'en',
+                'project_description' => 'Synthetic project.',
+                'status' => $statuses[($index - 1) % count($statuses)],
+                'submitted_at' => now(),
+            ]);
+        });
     }
 }
