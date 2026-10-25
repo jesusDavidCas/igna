@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\BulkProjectDeletionAllMatchingPreviewRequest;
 use App\Http\Requests\Admin\BulkProjectDeletionConfirmRequest;
 use App\Http\Requests\Admin\BulkProjectDeletionPreviewRequest;
 use App\Http\Requests\Admin\GuardedDeletionRequest;
@@ -30,6 +31,8 @@ use Throwable;
 
 class TicketController extends Controller
 {
+    private const ALL_MATCHING_CONFIRMATION_PHRASE = 'DELETE ALL PROJECTS';
+
     public function index(Request $request, DeleteProject $deleteProject): View
     {
         $sort = $request->query('sort') === 'created_at' ? 'created_at' : 'created_at';
@@ -40,22 +43,31 @@ class TicketController extends Controller
         $perPage = in_array((int) $request->query('per_page', 15), [15, 30, 50], true)
             ? (int) $request->query('per_page', 15)
             : 15;
-        $tickets = Ticket::query()
+        $tickets = $this->ticketIndexQuery($sort, $direction)
             ->with(['service', 'currentStage'])
-            ->orderBy($sort, $direction)
-            ->orderBy('id', $direction)
+            ->withCount(['files', 'deliverables', 'stageEvents', 'stageAudits'])
             ->paginate($perPage)
             ->withQueryString();
-        $bulkProtectedTicketIds = $request->user()?->isSuperAdmin()
-            ? $deleteProject->bulkProtectedTickets($tickets->getCollection()->pluck('id'))->pluck('id')->flip()
+        $bulkRelatedTicketIds = $request->user()?->isSuperAdmin()
+            ? $tickets->getCollection()
+                ->filter(fn (Ticket $ticket): bool => $deleteProject->hasRelatedInformation($ticket))
+                ->pluck('id')
+                ->flip()
             : collect();
+        $allMatchingTicketIds = $request->user()?->isSuperAdmin()
+            ? $this->ticketIndexQuery($sort, $direction)->pluck('id')->map(fn (mixed $id): int => (int) $id)->all()
+            : [];
 
         return view('admin.tickets.index', [
             'tickets' => $tickets,
-            'bulkProtectedTicketIds' => $bulkProtectedTicketIds,
+            'bulkRelatedTicketIds' => $bulkRelatedTicketIds,
             'selectionContext' => $request->user()?->isSuperAdmin()
-                ? $this->storeSelectionContext($request, $tickets->getCollection()->pluck('id')->map(fn (mixed $id): int => (int) $id)->all())
+                ? $this->storeSelectionContext($request, 'visible', $tickets->getCollection()->pluck('id')->map(fn (mixed $id): int => (int) $id)->all())
                 : null,
+            'allMatchingSelectionContext' => $request->user()?->isSuperAdmin() && $allMatchingTicketIds !== []
+                ? $this->storeSelectionContext($request, 'all_matching', $allMatchingTicketIds)
+                : null,
+            'allMatchingCount' => count($allMatchingTicketIds),
             'sort' => $sort,
             'direction' => $direction,
             'perPage' => $perPage,
@@ -67,6 +79,23 @@ class TicketController extends Controller
         DeleteProject $deleteProject,
     ): View {
         $ids = collect($request->validated('ticket_ids'))->map(fn (mixed $id): int => (int) $id)->values();
+
+        return $this->renderBulkDeletePreview($request, $deleteProject, $ids, false);
+    }
+
+    public function bulkDeleteAllMatchingPreview(
+        BulkProjectDeletionAllMatchingPreviewRequest $request,
+        DeleteProject $deleteProject,
+    ): View {
+        return $this->renderBulkDeletePreview($request, $deleteProject, collect($request->ticketIds()), true);
+    }
+
+    private function renderBulkDeletePreview(
+        Request $request,
+        DeleteProject $deleteProject,
+        Collection $ids,
+        bool $isAllMatching,
+    ): View {
         $tickets = $this->bulkTickets($ids);
 
         if ($tickets->count() !== $ids->count()) {
@@ -77,14 +106,30 @@ class TicketController extends Controller
         session()->put('bulk_ticket_delete.confirmations.'.$confirmationToken, [
             'user_id' => $request->user()->id,
             'expires_at' => now()->addMinutes(10)->getTimestamp(),
+            'scope' => $isAllMatching ? 'all_matching' : 'visible',
             'tickets' => $tickets->mapWithKeys(fn (Ticket $ticket): array => [
-                $ticket->id => $this->bulkTicketFingerprint($ticket),
+                $ticket->id => [
+                    'ticket_code' => $ticket->ticket_code,
+                    'fingerprint' => $deleteProject->fingerprint($ticket),
+                ],
             ])->all(),
         ]);
 
+        $impacts = $tickets->mapWithKeys(fn (Ticket $ticket): array => [$ticket->id => $deleteProject->impact($ticket)]);
+
         return view('admin.tickets.bulk-delete-preview', [
             'tickets' => $ids->map(fn (int $id): Ticket => $tickets->get($id)),
-            'impacts' => $tickets->mapWithKeys(fn (Ticket $ticket): array => [$ticket->id => $deleteProject->impact($ticket)]),
+            'impacts' => $impacts,
+            'totalImpactCounts' => collect($impacts)->map(fn ($impact) => $impact->counts())
+                ->reduce(function (array $totals, array $counts): array {
+                    foreach ($counts as $key => $count) {
+                        $totals[$key] = ($totals[$key] ?? 0) + $count;
+                    }
+
+                    return $totals;
+                }, []),
+            'isAllMatching' => $isAllMatching,
+            'allMatchingConfirmationPhrase' => self::ALL_MATCHING_CONFIRMATION_PHRASE,
             'confirmationToken' => $confirmationToken,
         ]);
     }
@@ -99,18 +144,18 @@ class TicketController extends Controller
         if (! is_array($confirmation)
             || ($confirmation['user_id'] ?? null) !== $request->user()->id
             || ($confirmation['expires_at'] ?? 0) < now()->getTimestamp()
+            || ! in_array($confirmation['scope'] ?? null, ['visible', 'all_matching'], true)
             || ! is_array($confirmation['tickets'] ?? null)) {
             throw ValidationException::withMessages(['confirmation_token' => __('site.bulk_delete_confirmation_expired')]);
         }
 
+        if (($confirmation['scope'] ?? null) === 'all_matching'
+            && $request->validated('typed_confirmation') !== self::ALL_MATCHING_CONFIRMATION_PHRASE) {
+            throw ValidationException::withMessages(['typed_confirmation' => __('site.bulk_delete_all_matching_phrase_invalid')]);
+        }
+
         $ids = collect(array_keys($confirmation['tickets']))->map(fn (mixed $id): int => (int) $id)->values();
         $tickets = $this->bulkTickets($ids);
-
-        if ($tickets->count() !== $ids->count()
-            || $deleteProject->bulkProtectedTickets($ids)->isNotEmpty()
-            || $ids->contains(fn (int $id): bool => ($confirmation['tickets'][$id] ?? null) !== $this->bulkTicketFingerprint($tickets->get($id)))) {
-            throw ValidationException::withMessages(['confirmation_token' => __('site.bulk_delete_selection_changed')]);
-        }
 
         // Consume before side effects so the confirmation cannot be replayed.
         session()->forget('bulk_ticket_delete.confirmations.'.$token);
@@ -120,9 +165,19 @@ class TicketController extends Controller
 
         foreach ($ids as $id) {
             $ticket = $tickets->get($id);
+            $snapshot = $confirmation['tickets'][$id] ?? null;
+
+            if (! is_array($snapshot)
+                || ! is_string($snapshot['fingerprint'] ?? null)
+                || ! $ticket
+                || ! hash_equals($snapshot['fingerprint'], $deleteProject->fingerprint($ticket))) {
+                $skippedCodes[] = is_array($snapshot) ? ($snapshot['ticket_code'] ?? "#{$id}") : "#{$id}";
+
+                continue;
+            }
 
             try {
-                if ($deleteProject->delete($ticket, $request->user(), requireUnprocessedIntake: true)) {
+                if ($deleteProject->delete($ticket, $request->user(), $snapshot['fingerprint'])) {
                     $deletedCodes[] = $ticket->ticket_code;
                 } else {
                     $skippedCodes[] = $ticket->ticket_code;
@@ -141,7 +196,10 @@ class TicketController extends Controller
 
         return $skippedCodes === []
             ? $response
-            : $response->withErrors(['bulk_delete' => __('site.bulk_delete_partial_failure', ['projects' => implode(', ', $skippedCodes)])]);
+            : $response->withErrors(['bulk_delete' => __('site.bulk_delete_partial_failure', [
+                'count' => count($skippedCodes),
+                'projects' => implode(', ', $skippedCodes),
+            ])]);
     }
 
     public function show(Ticket $ticket, DeleteProject $deleteProject): View
@@ -430,10 +488,17 @@ class TicketController extends Controller
             ->keyBy('id');
     }
 
+    private function ticketIndexQuery(string $sort, string $direction)
+    {
+        return Ticket::query()
+            ->orderBy($sort, $direction)
+            ->orderBy('id', $direction);
+    }
+
     /**
      * @param  array<int, int>  $ticketIds
      */
-    private function storeSelectionContext(Request $request, array $ticketIds): string
+    private function storeSelectionContext(Request $request, string $scope, array $ticketIds): string
     {
         $contexts = collect(session()->get('bulk_ticket_delete.selection_contexts', []))
             ->filter(fn (mixed $context): bool => is_array($context) && ($context['expires_at'] ?? 0) >= now()->getTimestamp())
@@ -442,30 +507,12 @@ class TicketController extends Controller
         $contexts[$token] = [
             'user_id' => $request->user()->id,
             'expires_at' => now()->addMinutes(10)->getTimestamp(),
+            'scope' => $scope,
             'ticket_ids' => $ticketIds,
         ];
 
         session()->put('bulk_ticket_delete.selection_contexts', $contexts);
 
         return $token;
-    }
-
-    private function bulkTicketFingerprint(Ticket $ticket): string
-    {
-        return hash('sha256', json_encode([
-            'id' => $ticket->id,
-            'updated_at' => $ticket->updated_at?->format('U.u'),
-            'ticket_code' => $ticket->ticket_code,
-            'project_name' => $ticket->project_name,
-            'email' => $ticket->email,
-            'proposal_id' => $ticket->proposal_id,
-            'client_user_id' => $ticket->client_user_id,
-            'current_service_stage_id' => $ticket->current_service_stage_id,
-            'status' => $ticket->status?->value,
-            'files' => $ticket->files_count,
-            'deliverables' => $ticket->deliverables_count,
-            'stage_events' => $ticket->stage_events_count,
-            'stage_audits' => $ticket->stage_audits_count,
-        ], JSON_THROW_ON_ERROR));
     }
 }

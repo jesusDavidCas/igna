@@ -2,45 +2,49 @@
 
 namespace App\Services\Deletion;
 
-use App\Enums\TicketStatus;
 use App\Models\DeletionAudit;
 use App\Models\Proposal;
 use App\Models\Ticket;
 use App\Models\TicketFile;
 use App\Models\User;
 use App\Support\Deletion\DeletionImpact;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 class DeleteProject
 {
-    /**
-     * Projects eligible for bulk removal must still be unprocessed intake.
-     * Linked, assigned, or worked-on projects require individual review.
-     *
-     * @param  iterable<int, int|string>  $ids
-     * @return Collection<int, Ticket>
-     */
-    public function bulkProtectedTickets(iterable $ids): Collection
+    public function hasRelatedInformation(Ticket $ticket): bool
     {
-        $ticketIds = collect($ids)
-            ->filter(fn (mixed $id): bool => is_int($id) || ctype_digit((string) $id))
-            ->map(fn (mixed $id): int => (int) $id)
-            ->unique()
-            ->values();
+        $ticket->loadCount(['files', 'deliverables', 'stageEvents', 'stageAudits']);
 
-        if ($ticketIds->isEmpty()) {
-            return collect();
-        }
+        return $ticket->proposal_id !== null
+            || $ticket->client_user_id !== null
+            || $ticket->files_count > 0
+            || $ticket->deliverables_count > 0
+            || $ticket->stage_events_count > 0
+            || $ticket->stage_audits_count > 0;
+    }
 
-        return Ticket::query()
-            ->whereKey($ticketIds)
-            ->where(fn (Builder $query) => $this->applyBulkProtectionCriteria($query))
-            ->orderBy('ticket_code')
-            ->get(['id', 'ticket_code']);
+    public function fingerprint(Ticket $ticket): string
+    {
+        $ticket->loadCount(['files', 'deliverables', 'stageEvents', 'stageAudits']);
+
+        return hash('sha256', json_encode([
+            'id' => $ticket->id,
+            'updated_at' => $ticket->updated_at?->format('U.u'),
+            'ticket_code' => $ticket->ticket_code,
+            'project_name' => $ticket->project_name,
+            'email' => $ticket->email,
+            'proposal_id' => $ticket->proposal_id,
+            'client_user_id' => $ticket->client_user_id,
+            'current_service_stage_id' => $ticket->current_service_stage_id,
+            'status' => $ticket->getRawOriginal('status'),
+            'files' => $ticket->files_count,
+            'deliverables' => $ticket->deliverables_count,
+            'stage_events' => $ticket->stage_events_count,
+            'stage_audits' => $ticket->stage_audits_count,
+        ], JSON_THROW_ON_ERROR));
     }
 
     public function impact(Ticket $ticket): DeletionImpact
@@ -69,14 +73,15 @@ class DeleteProject
         );
     }
 
-    public function delete(Ticket $ticket, User $actor, bool $requireUnprocessedIntake = false): bool
+    public function delete(Ticket $ticket, User $actor, ?string $expectedFingerprint = null): bool
     {
         $files = [];
         $deleted = false;
 
-        DB::transaction(function () use ($ticket, $actor, $requireUnprocessedIntake, &$files, &$deleted): void {
+        DB::transaction(function () use ($ticket, $actor, $expectedFingerprint, &$files, &$deleted): void {
             $locked = Ticket::query()
                 ->with(['files', 'proposal'])
+                ->withCount(['files', 'deliverables', 'stageEvents', 'stageAudits'])
                 ->whereKey($ticket->getKey())
                 ->lockForUpdate()
                 ->first();
@@ -85,7 +90,7 @@ class DeleteProject
                 return;
             }
 
-            if ($requireUnprocessedIntake && $this->bulkProtectedTickets([$locked->id])->isNotEmpty()) {
+            if ($expectedFingerprint !== null && ! hash_equals($expectedFingerprint, $this->fingerprint($locked))) {
                 return;
             }
 
@@ -157,38 +162,5 @@ class DeleteProject
                 }
             })
             ->exists();
-    }
-
-    private function applyBulkProtectionCriteria(Builder $query): void
-    {
-        $query
-            // Bulk deletion is strictly limited to untouched intake requests.
-            // Treat null or unrecognised persisted values as protected as well.
-            ->where(function (Builder $eligibility): void {
-                $eligibility
-                    ->whereNull('status')
-                    ->orWhere('status', '!=', TicketStatus::NEW->value);
-            })
-            ->orWhereNotNull('proposal_id')
-            ->orWhereNotNull('client_user_id')
-            ->orWhereHas('files', function (Builder $files): void {
-                $files->where(function (Builder $activity): void {
-                    $activity
-                        ->whereNull('upload_source')
-                        ->orWhere('upload_source', '!=', 'initial_request');
-                });
-            })
-            ->orWhereHas('stageEvents', function (Builder $events): void {
-                $events->where(function (Builder $activity): void {
-                    $activity
-                        ->whereNotNull('changed_by_user_id')
-                        ->orWhereNotNull('completed_at')
-                        ->orWhereNotNull('notes')
-                        ->orWhereNotNull('superseded_at')
-                        ->orWhere('attempt_number', '>', 1);
-                });
-            })
-            ->orWhereHas('stageAudits')
-            ->orWhereHas('deliverables', fn (Builder $deliverables) => $deliverables->where('status', '!=', 'pending'));
     }
 }

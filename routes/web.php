@@ -146,6 +146,9 @@ Route::prefix('admin')
         Route::post('/tickets/bulk-delete/preview', [AdminTicketController::class, 'bulkDeletePreview'])
             ->middleware('role:'.UserRole::SUPER_ADMIN->value)
             ->name('tickets.bulk-delete.preview');
+        Route::post('/tickets/bulk-delete/all-matching/preview', [AdminTicketController::class, 'bulkDeleteAllMatchingPreview'])
+            ->middleware('role:'.UserRole::SUPER_ADMIN->value)
+            ->name('tickets.bulk-delete.all-matching.preview');
         Route::delete('/tickets/bulk-delete', [AdminTicketController::class, 'bulkDestroy'])
             ->middleware('role:'.UserRole::SUPER_ADMIN->value)
             ->name('tickets.bulk-delete.destroy');
