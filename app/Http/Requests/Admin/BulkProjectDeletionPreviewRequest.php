@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Services\Deletion\DeleteProject;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -50,18 +49,9 @@ class BulkProjectDeletionPreviewRequest extends FormRequest
                 if (! is_array($context)
                     || ($context['user_id'] ?? null) !== $this->user()?->id
                     || ($context['expires_at'] ?? 0) < now()->getTimestamp()
+                    || ($context['scope'] ?? null) !== 'visible'
                     || ! $ids->every(fn (int $id): bool => in_array($id, $context['ticket_ids'] ?? [], true))) {
                     $validator->errors()->add('ticket_ids', __('site.bulk_delete_invalid_selection'));
-
-                    return;
-                }
-
-                $protected = app(DeleteProject::class)->bulkProtectedTickets($ids);
-
-                if ($protected->isNotEmpty()) {
-                    $validator->errors()->add('ticket_ids', __('site.bulk_delete_requires_individual_review', [
-                        'projects' => $protected->pluck('ticket_code')->implode(', '),
-                    ]));
                 }
             },
         ];

@@ -7,10 +7,15 @@ use App\Enums\UserRole;
 use App\Models\Proposal;
 use App\Models\Service;
 use App\Models\Ticket;
+use App\Models\TicketDeliverable;
 use App\Models\TicketFile;
+use App\Models\TicketStageAudit;
+use App\Models\TicketStageEvent;
 use App\Models\User;
+use App\Services\Deletion\DeleteProject;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -34,9 +39,15 @@ class BulkProjectDeletionTest extends TestCase
     {
         $ticket = $this->ticket();
         $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+        $client = User::factory()->create(['role' => UserRole::CLIENT]);
         $context = $this->selectionContext([$ticket->id]);
 
         $this->actingAs($admin)
+            ->withSession($context)
+            ->post(route('admin.tickets.bulk-delete.preview'), $this->selectionPayload($ticket->id, $this->contextToken($context)))
+            ->assertForbidden();
+
+        $this->actingAs($client)
             ->withSession($context)
             ->post(route('admin.tickets.bulk-delete.preview'), $this->selectionPayload($ticket->id, $this->contextToken($context)))
             ->assertForbidden();
@@ -79,7 +90,7 @@ class BulkProjectDeletionTest extends TestCase
             ->assertSessionHasErrors('ticket_ids');
     }
 
-    public function test_preview_rejects_duplicate_and_protected_projects(): void
+    public function test_preview_rejects_duplicates_but_allows_related_projects(): void
     {
         $ticket = $this->ticket();
         $context = $this->selectionContext([$ticket->id]);
@@ -99,57 +110,74 @@ class BulkProjectDeletionTest extends TestCase
         $this->actingAs($this->superAdmin)
             ->withSession($protectedContext)
             ->post(route('admin.tickets.bulk-delete.preview'), $this->selectionPayload($protected->id, $this->contextToken($protectedContext)))
-            ->assertSessionHasErrors('ticket_ids');
+            ->assertOk()
+            ->assertSee($protected->ticket_code);
     }
 
-    public function test_only_new_requests_are_eligible_for_bulk_deletion(): void
+    public function test_every_supported_status_is_eligible_for_bulk_deletion(): void
     {
-        foreach ([
+        $tickets = collect([
+            TicketStatus::NEW,
             TicketStatus::IN_PROGRESS,
             TicketStatus::COMPLETED,
             TicketStatus::ON_HOLD,
             TicketStatus::CANCELLED,
-        ] as $status) {
-            $ticket = $this->ticket(['status' => $status]);
-            $context = $this->selectionContext([$ticket->id]);
+        ])->map(fn (TicketStatus $status): Ticket => $this->ticket(['status' => $status]));
+        $context = $this->selectionContext($tickets->pluck('id')->all());
 
-            $this->actingAs($this->superAdmin)
-                ->withSession($context)
-                ->post(route('admin.tickets.bulk-delete.preview'), $this->selectionPayload($ticket->id, $this->contextToken($context)))
-                ->assertSessionHasErrors('ticket_ids');
-
-            $this->assertDatabaseHas('tickets', ['id' => $ticket->id, 'status' => $status->value]);
-        }
-
-        $newTicket = $this->ticket(['status' => TicketStatus::NEW]);
-        $newContext = $this->selectionContext([$newTicket->id]);
+        $preview = $this->actingAs($this->superAdmin)
+            ->withSession($context)
+            ->post(route('admin.tickets.bulk-delete.preview'), [
+                'selection_context' => $this->contextToken($context),
+                'ticket_ids' => $tickets->pluck('id')->all(),
+            ])
+            ->assertOk()
+            ->assertSee($tickets->first()->ticket_code)
+            ->assertSee($tickets->last()->ticket_code);
 
         $this->actingAs($this->superAdmin)
-            ->withSession($newContext)
-            ->post(route('admin.tickets.bulk-delete.preview'), $this->selectionPayload($newTicket->id, $this->contextToken($newContext)))
-            ->assertOk()
-            ->assertSee($newTicket->ticket_code);
+            ->delete(route('admin.tickets.bulk-delete.destroy'), [
+                'confirmation_token' => $this->confirmationToken($preview->getContent()),
+                'confirm_deletion' => '1',
+            ])
+            ->assertRedirect(route('admin.tickets.index'));
+
+        foreach ($tickets as $ticket) {
+            $this->assertDatabaseMissing('tickets', ['id' => $ticket->id]);
+        }
+
+        $this->assertDatabaseCount('deletion_audits', $tickets->count());
     }
 
-    public function test_unexpected_persisted_status_is_protected(): void
+    public function test_unexpected_persisted_status_can_be_deleted_without_breaking_the_flow(): void
     {
         $unexpectedStatus = $this->ticket();
 
         Ticket::query()->whereKey($unexpectedStatus->id)->update(['status' => 'unexpected']);
         $context = $this->selectionContext([$unexpectedStatus->id]);
 
-        $this->actingAs($this->superAdmin)
+        $preview = $this->actingAs($this->superAdmin)
             ->withSession($context)
             ->post(route('admin.tickets.bulk-delete.preview'), $this->selectionPayload($unexpectedStatus->id, $this->contextToken($context)))
-            ->assertSessionHasErrors('ticket_ids');
+            ->assertOk()
+            ->assertSee('Unexpected');
 
-        $this->assertDatabaseHas('tickets', ['id' => $unexpectedStatus->id]);
+        $this->actingAs($this->superAdmin)
+            ->delete(route('admin.tickets.bulk-delete.destroy'), [
+                'confirmation_token' => $this->confirmationToken($preview->getContent()),
+                'confirm_deletion' => '1',
+            ])
+            ->assertRedirect(route('admin.tickets.index'));
+
+        $this->assertDatabaseMissing('tickets', ['id' => $unexpectedStatus->id]);
     }
 
-    public function test_rejected_protected_project_preserves_its_related_file(): void
+    public function test_related_project_deletion_removes_only_its_records_and_preserves_shared_entities(): void
     {
         Storage::fake('local');
-        $ticket = $this->ticket();
+        $proposal = $this->proposal();
+        $client = User::factory()->create(['role' => UserRole::CLIENT]);
+        $ticket = $this->ticket(['proposal_id' => $proposal->id, 'client_user_id' => $client->id, 'status' => TicketStatus::COMPLETED]);
         Storage::disk('local')->put('ticket-files/protected.pdf', 'private file');
         $file = TicketFile::query()->create([
             'ticket_id' => $ticket->id,
@@ -165,20 +193,96 @@ class BulkProjectDeletionTest extends TestCase
             'is_client_visible' => false,
             'uploaded_at' => now(),
         ]);
+        $event = TicketStageEvent::query()->create([
+            'ticket_id' => $ticket->id,
+            'service_stage_id' => $ticket->current_service_stage_id,
+            'changed_by_user_id' => $this->superAdmin->id,
+            'status' => 'completed',
+            'is_client_visible' => true,
+            'entered_at' => now()->subDay(),
+            'completed_at' => now(),
+        ]);
+        $audit = TicketStageAudit::query()->create([
+            'ticket_id' => $ticket->id,
+            'ticket_stage_event_id' => $event->id,
+            'service_stage_id' => $ticket->current_service_stage_id,
+            'actor_user_id' => $this->superAdmin->id,
+            'action' => 'completed',
+        ]);
+        $deliverable = TicketDeliverable::query()->create([
+            'ticket_id' => $ticket->id,
+            'name' => 'Final deliverable',
+            'status' => 'completed',
+            'sort_order' => 1,
+        ]);
         $context = $this->selectionContext([$ticket->id]);
 
-        $this->actingAs($this->superAdmin)
+        $preview = $this->actingAs($this->superAdmin)
             ->withSession($context)
             ->post(route('admin.tickets.bulk-delete.preview'), $this->selectionPayload($ticket->id, $this->contextToken($context)))
-            ->assertSessionHasErrors('ticket_ids');
+            ->assertOk();
+        $token = $this->confirmationToken($preview->getContent());
 
-        $this->assertDatabaseHas('tickets', ['id' => $ticket->id]);
-        $this->assertDatabaseHas('ticket_files', ['id' => $file->id, 'ticket_id' => $ticket->id]);
-        Storage::disk('local')->assertExists('ticket-files/protected.pdf');
-        $this->assertDatabaseCount('deletion_audits', 0);
+        $this->actingAs($this->superAdmin)
+            ->delete(route('admin.tickets.bulk-delete.destroy'), ['confirmation_token' => $token, 'confirm_deletion' => '1'])
+            ->assertRedirect(route('admin.tickets.index'));
+
+        $this->assertDatabaseMissing('tickets', ['id' => $ticket->id]);
+        $this->assertDatabaseMissing('ticket_files', ['id' => $file->id]);
+        $this->assertDatabaseMissing('ticket_stage_events', ['id' => $event->id]);
+        $this->assertDatabaseMissing('ticket_stage_audits', ['id' => $audit->id]);
+        $this->assertDatabaseMissing('ticket_deliverables', ['id' => $deliverable->id]);
+        $this->assertDatabaseHas('proposals', ['id' => $proposal->id]);
+        $this->assertDatabaseHas('users', ['id' => $client->id]);
+        $this->assertDatabaseHas('services', ['id' => $ticket->service_id]);
+        Storage::disk('local')->assertMissing('ticket-files/protected.pdf');
+        $this->assertDatabaseCount('deletion_audits', 1);
     }
 
-    public function test_confirmed_snapshot_deletes_only_the_previewed_unprocessed_projects_and_audits_each(): void
+    public function test_shared_storage_object_is_preserved_for_an_independent_project(): void
+    {
+        Storage::fake('local');
+        $deletedTicket = $this->ticket();
+        $retainedTicket = $this->ticket();
+        Storage::disk('local')->put('ticket-files/shared.pdf', 'shared private file');
+
+        foreach ([$deletedTicket, $retainedTicket] as $ticket) {
+            TicketFile::query()->create([
+                'ticket_id' => $ticket->id,
+                'title' => 'Shared file',
+                'original_name' => 'shared.pdf',
+                'storage_provider' => 'local',
+                'storage_disk' => 'local',
+                'storage_path' => 'ticket-files/shared.pdf',
+                'visibility' => 'internal',
+                'delivery_type' => 'internal',
+                'upload_source' => 'admin',
+                'review_status' => 'reviewed',
+                'is_client_visible' => false,
+                'uploaded_at' => now(),
+            ]);
+        }
+
+        $context = $this->selectionContext([$deletedTicket->id]);
+        $preview = $this->actingAs($this->superAdmin)
+            ->withSession($context)
+            ->post(route('admin.tickets.bulk-delete.preview'), $this->selectionPayload($deletedTicket->id, $this->contextToken($context)))
+            ->assertOk();
+
+        $this->actingAs($this->superAdmin)
+            ->delete(route('admin.tickets.bulk-delete.destroy'), [
+                'confirmation_token' => $this->confirmationToken($preview->getContent()),
+                'confirm_deletion' => '1',
+            ])
+            ->assertRedirect(route('admin.tickets.index'));
+
+        $this->assertDatabaseMissing('tickets', ['id' => $deletedTicket->id]);
+        $this->assertDatabaseHas('tickets', ['id' => $retainedTicket->id]);
+        $this->assertDatabaseHas('ticket_files', ['ticket_id' => $retainedTicket->id]);
+        Storage::disk('local')->assertExists('ticket-files/shared.pdf');
+    }
+
+    public function test_confirmed_snapshot_deletes_every_previewed_project_and_audits_each(): void
     {
         $first = $this->ticket(['ticket_code' => 'PRJ-BULK-ONE']);
         $second = $this->ticket(['ticket_code' => 'PRJ-BULK-TWO']);
@@ -209,25 +313,54 @@ class BulkProjectDeletionTest extends TestCase
         $this->assertDatabaseHas('deletion_audits', ['entity_public_identifier' => 'PRJ-BULK-TWO']);
     }
 
-    public function test_changed_or_replayed_confirmation_never_deletes_projects(): void
+    public function test_changed_project_is_skipped_without_blocking_an_unchanged_project(): void
     {
-        $ticket = $this->ticket();
-        $context = $this->selectionContext([$ticket->id]);
+        $changed = $this->ticket();
+        $unchanged = $this->ticket();
+        $context = $this->selectionContext([$changed->id, $unchanged->id]);
         $preview = $this->actingAs($this->superAdmin)
             ->withSession($context)
-            ->post(route('admin.tickets.bulk-delete.preview'), $this->selectionPayload($ticket->id, $this->contextToken($context)))
+            ->post(route('admin.tickets.bulk-delete.preview'), [
+                'selection_context' => $this->contextToken($context),
+                'ticket_ids' => [$changed->id, $unchanged->id],
+            ])
             ->assertOk();
         $token = $this->confirmationToken($preview->getContent());
-        $ticket->update(['project_name' => 'Changed after preview']);
+        $changed->update(['project_name' => 'Changed after preview']);
 
         $this->actingAs($this->superAdmin)
             ->delete(route('admin.tickets.bulk-delete.destroy'), ['confirmation_token' => $token, 'confirm_deletion' => '1'])
-            ->assertSessionHasErrors('confirmation_token');
-        $this->assertDatabaseHas('tickets', ['id' => $ticket->id]);
+            ->assertSessionHasErrors('bulk_delete');
+        $this->assertDatabaseHas('tickets', ['id' => $changed->id]);
+        $this->assertDatabaseMissing('tickets', ['id' => $unchanged->id]);
+        $this->assertDatabaseCount('deletion_audits', 1);
+    }
+
+    public function test_missing_project_is_skipped_without_deleting_an_unrelated_project(): void
+    {
+        $missing = $this->ticket();
+        $unchanged = $this->ticket();
+        $context = $this->selectionContext([$missing->id, $unchanged->id]);
+        $preview = $this->actingAs($this->superAdmin)
+            ->withSession($context)
+            ->post(route('admin.tickets.bulk-delete.preview'), [
+                'selection_context' => $this->contextToken($context),
+                'ticket_ids' => [$missing->id, $unchanged->id],
+            ])
+            ->assertOk();
+
+        Ticket::query()->whereKey($missing->id)->delete();
 
         $this->actingAs($this->superAdmin)
-            ->delete(route('admin.tickets.bulk-delete.destroy'), ['confirmation_token' => $token, 'confirm_deletion' => '1'])
-            ->assertSessionHasErrors('confirmation_token');
+            ->delete(route('admin.tickets.bulk-delete.destroy'), [
+                'confirmation_token' => $this->confirmationToken($preview->getContent()),
+                'confirm_deletion' => '1',
+            ])
+            ->assertSessionHasErrors('bulk_delete');
+
+        $this->assertDatabaseMissing('tickets', ['id' => $missing->id]);
+        $this->assertDatabaseMissing('tickets', ['id' => $unchanged->id]);
+        $this->assertDatabaseCount('deletion_audits', 1);
     }
 
     public function test_successful_confirmation_token_cannot_be_replayed(): void
@@ -252,6 +385,31 @@ class BulkProjectDeletionTest extends TestCase
         $this->assertDatabaseCount('deletion_audits', 1);
     }
 
+    public function test_expired_confirmation_token_cannot_delete_a_project(): void
+    {
+        $ticket = $this->ticket();
+        $token = Str::random(40);
+
+        $this->actingAs($this->superAdmin)
+            ->withSession(['bulk_ticket_delete.confirmations' => [$token => [
+                'user_id' => $this->superAdmin->id,
+                'expires_at' => now()->subSecond()->getTimestamp(),
+                'scope' => 'visible',
+                'tickets' => [$ticket->id => [
+                    'ticket_code' => $ticket->ticket_code,
+                    'fingerprint' => Str::random(64),
+                ]],
+            ]]])
+            ->delete(route('admin.tickets.bulk-delete.destroy'), [
+                'confirmation_token' => $token,
+                'confirm_deletion' => '1',
+            ])
+            ->assertSessionHasErrors('confirmation_token');
+
+        $this->assertDatabaseHas('tickets', ['id' => $ticket->id]);
+        $this->assertDatabaseCount('deletion_audits', 0);
+    }
+
     public function test_status_change_after_preview_invalidates_deletion(): void
     {
         $ticket = $this->ticket();
@@ -265,10 +423,186 @@ class BulkProjectDeletionTest extends TestCase
 
         $this->actingAs($this->superAdmin)
             ->delete(route('admin.tickets.bulk-delete.destroy'), ['confirmation_token' => $token, 'confirm_deletion' => '1'])
-            ->assertSessionHasErrors('confirmation_token');
+            ->assertSessionHasErrors('bulk_delete');
 
         $this->assertDatabaseHas('tickets', ['id' => $ticket->id, 'status' => TicketStatus::IN_PROGRESS->value]);
         $this->assertDatabaseCount('deletion_audits', 0);
+    }
+
+    public function test_related_record_edits_after_preview_invalidate_each_project(): void
+    {
+        $fileTicket = $this->ticket();
+        $deliverableTicket = $this->ticket();
+        $eventTicket = $this->ticket();
+        $auditTicket = $this->ticket();
+
+        $file = TicketFile::query()->create([
+            'ticket_id' => $fileTicket->id,
+            'title' => 'Original document',
+            'original_name' => 'original.pdf',
+            'storage_provider' => 'google_drive',
+            'google_drive_file_id' => 'drive-file-unchanged-remotely',
+            'visibility' => 'internal',
+            'delivery_type' => 'internal',
+            'upload_source' => 'admin',
+            'review_status' => 'reviewed',
+            'uploaded_at' => now(),
+        ]);
+        $deliverable = TicketDeliverable::query()->create([
+            'ticket_id' => $deliverableTicket->id,
+            'name' => 'Initial deliverable',
+            'status' => 'pending',
+            'sort_order' => 1,
+        ]);
+        $event = TicketStageEvent::query()->create([
+            'ticket_id' => $eventTicket->id,
+            'service_stage_id' => $eventTicket->current_service_stage_id,
+            'status' => 'pending',
+            'is_client_visible' => true,
+            'entered_at' => now(),
+        ]);
+        $audit = TicketStageAudit::query()->create([
+            'ticket_id' => $auditTicket->id,
+            'service_stage_id' => $auditTicket->current_service_stage_id,
+            'actor_user_id' => $this->superAdmin->id,
+            'action' => 'entered',
+        ]);
+        $ticketIds = [$fileTicket->id, $deliverableTicket->id, $eventTicket->id, $auditTicket->id];
+        $context = $this->selectionContext($ticketIds);
+
+        $preview = $this->actingAs($this->superAdmin)
+            ->withSession($context)
+            ->post(route('admin.tickets.bulk-delete.preview'), [
+                'selection_context' => $this->contextToken($context),
+                'ticket_ids' => $ticketIds,
+            ])
+            ->assertOk();
+
+        $file->update(['title' => 'Edited document']);
+        $deliverable->update(['status' => 'completed']);
+        $event->update(['notes' => 'Edited workflow history']);
+        $audit->update(['reason' => 'Edited audit history']);
+
+        $confirmation = session('bulk_ticket_delete.confirmations.'.$this->confirmationToken($preview->getContent()));
+        $deleteProject = app(DeleteProject::class);
+        $dependencyNames = [
+            $fileTicket->id => 'file',
+            $deliverableTicket->id => 'deliverable',
+            $eventTicket->id => 'stage event',
+            $auditTicket->id => 'stage audit',
+        ];
+
+        foreach ($ticketIds as $ticketId) {
+            $this->assertNotSame(
+                $confirmation['tickets'][$ticketId]['fingerprint'],
+                $deleteProject->fingerprint(Ticket::query()->findOrFail($ticketId)),
+                "The {$dependencyNames[$ticketId]} edit did not change ticket {$ticketId}'s fingerprint.",
+            );
+        }
+
+        $this->actingAs($this->superAdmin)
+            ->delete(route('admin.tickets.bulk-delete.destroy'), [
+                'confirmation_token' => $this->confirmationToken($preview->getContent()),
+                'confirm_deletion' => '1',
+            ])
+            ->assertSessionHasErrors('bulk_delete');
+
+        foreach ($ticketIds as $ticketId) {
+            $this->assertDatabaseHas('tickets', ['id' => $ticketId]);
+        }
+
+        $this->assertDatabaseCount('deletion_audits', 0);
+    }
+
+    public function test_all_matching_uses_a_frozen_server_side_snapshot_and_requires_typed_confirmation(): void
+    {
+        $first = $this->ticket(['ticket_code' => 'PRJ-ALL-ONE']);
+        $second = $this->ticket(['ticket_code' => 'PRJ-ALL-TWO', 'status' => TicketStatus::COMPLETED]);
+        $context = $this->selectionContext([$first->id, $second->id], 'all_matching');
+
+        $preview = $this->actingAs($this->superAdmin)
+            ->withSession($context)
+            ->post(route('admin.tickets.bulk-delete.all-matching.preview'), [
+                'selection_context' => $this->contextToken($context),
+            ])
+            ->assertOk()
+            ->assertSee('PRJ-ALL-ONE')
+            ->assertSee('PRJ-ALL-TWO')
+            ->assertSee('DELETE ALL PROJECTS');
+        $token = $this->confirmationToken($preview->getContent());
+
+        $newAfterSnapshot = $this->ticket(['ticket_code' => 'PRJ-NOT-IN-SNAPSHOT']);
+
+        $this->actingAs($this->superAdmin)
+            ->delete(route('admin.tickets.bulk-delete.destroy'), [
+                'confirmation_token' => $token,
+                'confirm_deletion' => '1',
+                'typed_confirmation' => 'wrong phrase',
+            ])
+            ->assertSessionHasErrors('typed_confirmation');
+
+        $this->actingAs($this->superAdmin)
+            ->delete(route('admin.tickets.bulk-delete.destroy'), [
+                'confirmation_token' => $token,
+                'confirm_deletion' => '1',
+                'typed_confirmation' => 'DELETE ALL PROJECTS',
+            ])
+            ->assertRedirect(route('admin.tickets.index'));
+
+        $this->assertDatabaseMissing('tickets', ['id' => $first->id]);
+        $this->assertDatabaseMissing('tickets', ['id' => $second->id]);
+        $this->assertDatabaseHas('tickets', ['id' => $newAfterSnapshot->id]);
+        $this->assertDatabaseCount('deletion_audits', 2);
+    }
+
+    public function test_all_matching_handles_250_mixed_status_projects_with_a_session_snapshot(): void
+    {
+        $tickets = $this->ticketsWithSharedService(250);
+
+        $index = $this->actingAs($this->superAdmin)
+            ->get(route('admin.tickets.index', ['per_page' => 50]))
+            ->assertOk()
+            ->assertSee('proyectos coincidentes');
+        preg_match_all('/name="selection_context" value="([^"]+)"/', $index->getContent(), $matches);
+        $selectionContext = collect($matches[1] ?? [])->first(
+            fn (string $token): bool => session("bulk_ticket_delete.selection_contexts.{$token}.scope") === 'all_matching',
+        );
+        $this->assertIsString($selectionContext);
+        $allMatchingTicketIds = session("bulk_ticket_delete.selection_contexts.{$selectionContext}.ticket_ids");
+        $this->assertGreaterThanOrEqual(250, count($allMatchingTicketIds));
+        $this->assertEqualsCanonicalizing($tickets->pluck('id')->all(), array_values(array_intersect($allMatchingTicketIds, $tickets->pluck('id')->all())));
+
+        $preview = $this->actingAs($this->superAdmin)
+            ->post(route('admin.tickets.bulk-delete.all-matching.preview'), [
+                'selection_context' => $selectionContext,
+            ])
+            ->assertOk()
+            ->assertSee('DELETE ALL PROJECTS');
+
+        $this->actingAs($this->superAdmin)
+            ->delete(route('admin.tickets.bulk-delete.destroy'), [
+                'confirmation_token' => $this->confirmationToken($preview->getContent()),
+                'confirm_deletion' => '1',
+                'typed_confirmation' => 'DELETE ALL PROJECTS',
+            ])
+            ->assertRedirect(route('admin.tickets.index'));
+
+        $this->assertDatabaseMissing('tickets', ['id' => $tickets->first()->id]);
+        $this->assertDatabaseMissing('tickets', ['id' => $tickets->last()->id]);
+        $this->assertDatabaseCount('deletion_audits', count($allMatchingTicketIds));
+    }
+
+    public function test_expired_all_matching_context_is_rejected(): void
+    {
+        $ticket = $this->ticket();
+        $context = $this->selectionContext([$ticket->id], 'all_matching', now()->subSecond());
+
+        $this->actingAs($this->superAdmin)
+            ->withSession($context)
+            ->post(route('admin.tickets.bulk-delete.all-matching.preview'), [
+                'selection_context' => $this->contextToken($context),
+            ])
+            ->assertSessionHasErrors('selection_context');
     }
 
     public function test_list_page_sizes_are_whitelisted_and_spanish_ui_renders(): void
@@ -289,6 +623,20 @@ class BulkProjectDeletionTest extends TestCase
             ->assertSee('Revisar eliminación');
     }
 
+    public function test_index_exposes_enabled_selection_for_all_visible_projects_and_all_matching_snapshot(): void
+    {
+        $related = $this->ticket(['proposal_id' => $this->proposal()->id, 'status' => TicketStatus::COMPLETED]);
+        $ordinary = $this->ticket();
+
+        $this->actingAs($this->superAdmin)
+            ->get(route('admin.tickets.index'))
+            ->assertOk()
+            ->assertSee('value="'.$related->id.'" data-bulk-delete-ticket', false)
+            ->assertSee('value="'.$ordinary->id.'" data-bulk-delete-ticket', false)
+            ->assertSee(__('site.bulk_delete_related_information_badge'))
+            ->assertSee('proyectos coincidentes');
+    }
+
     public function test_preview_requires_csrf_protection(): void
     {
         $ticket = $this->ticket();
@@ -303,13 +651,14 @@ class BulkProjectDeletionTest extends TestCase
     }
 
     /** @return array<string, array<string, array<string, int|array<int, int>>>> */
-    private function selectionContext(array $ticketIds): array
+    private function selectionContext(array $ticketIds, string $scope = 'visible', mixed $expiresAt = null): array
     {
         $token = Str::random(40);
 
         return ['bulk_ticket_delete.selection_contexts' => [$token => [
             'user_id' => $this->superAdmin->id,
-            'expires_at' => now()->addMinutes(10)->getTimestamp(),
+            'expires_at' => ($expiresAt ?? now()->addMinutes(10))->getTimestamp(),
+            'scope' => $scope,
             'ticket_ids' => $ticketIds,
         ]]];
     }
@@ -358,5 +707,37 @@ class BulkProjectDeletionTest extends TestCase
             'subject' => 'Synthetic', 'status' => 'sent', 'tax_rate' => 0, 'subtotal' => 0, 'tax_total' => 0, 'total' => 0,
             'issued_at' => now()->toDateString(), 'valid_until' => now()->addDays(30)->toDateString(),
         ]);
+    }
+
+    /** @return Collection<int, Ticket> */
+    private function ticketsWithSharedService(int $count): Collection
+    {
+        $service = Service::query()->create([
+            'name' => 'Batch Service', 'name_en' => 'Batch Service', 'name_es' => 'Servicio por lote',
+            'slug' => 'batch-service-'.Str::lower(Str::random(8)), 'code' => 'BATCH'.Str::upper(Str::random(4)),
+            'business_line' => 'digital', 'service_type' => 'web_platform', 'service_scope' => 'none',
+            'description' => 'Batch service', 'description_en' => 'Batch service', 'description_es' => 'Servicio por lote',
+            'deliverables_schema' => [], 'is_active' => true, 'sort_order' => 1,
+        ]);
+        $stage = $service->stages()->create([
+            'name' => 'Discovery', 'code' => 'discovery', 'sort_order' => 1, 'is_active' => true, 'is_client_visible' => true,
+        ]);
+        $statuses = TicketStatus::cases();
+
+        return collect(range(1, $count))->map(function (int $index) use ($service, $stage, $statuses): Ticket {
+            return Ticket::query()->create([
+                'ticket_code' => 'PRJ-BATCH-'.str_pad((string) $index, 3, '0', STR_PAD_LEFT),
+                'service_id' => $service->id,
+                'current_service_stage_id' => $stage->id,
+                'first_name' => 'Batch',
+                'last_name' => 'Client',
+                'email' => "batch-{$index}@example.com",
+                'project_name' => "Batch deletion project {$index}",
+                'preferred_language' => 'en',
+                'project_description' => 'Synthetic project.',
+                'status' => $statuses[($index - 1) % count($statuses)],
+                'submitted_at' => now(),
+            ]);
+        });
     }
 }

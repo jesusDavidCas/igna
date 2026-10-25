@@ -2,45 +2,88 @@
 
 namespace App\Services\Deletion;
 
-use App\Enums\TicketStatus;
 use App\Models\DeletionAudit;
 use App\Models\Proposal;
 use App\Models\Ticket;
 use App\Models\TicketFile;
 use App\Models\User;
 use App\Support\Deletion\DeletionImpact;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 class DeleteProject
 {
-    /**
-     * Projects eligible for bulk removal must still be unprocessed intake.
-     * Linked, assigned, or worked-on projects require individual review.
-     *
-     * @param  iterable<int, int|string>  $ids
-     * @return Collection<int, Ticket>
-     */
-    public function bulkProtectedTickets(iterable $ids): Collection
+    public function hasRelatedInformation(Ticket $ticket): bool
     {
-        $ticketIds = collect($ids)
-            ->filter(fn (mixed $id): bool => is_int($id) || ctype_digit((string) $id))
-            ->map(fn (mixed $id): int => (int) $id)
-            ->unique()
-            ->values();
+        $ticket->loadCount(['files', 'deliverables', 'stageEvents', 'stageAudits']);
 
-        if ($ticketIds->isEmpty()) {
-            return collect();
-        }
+        return $ticket->proposal_id !== null
+            || $ticket->client_user_id !== null
+            || $ticket->files_count > 0
+            || $ticket->deliverables_count > 0
+            || $ticket->stage_events_count > 0
+            || $ticket->stage_audits_count > 0;
+    }
 
-        return Ticket::query()
-            ->whereKey($ticketIds)
-            ->where(fn (Builder $query) => $this->applyBulkProtectionCriteria($query))
-            ->orderBy('ticket_code')
-            ->get(['id', 'ticket_code']);
+    public function fingerprint(Ticket $ticket): string
+    {
+        $ticket->loadCount(['files', 'deliverables', 'stageEvents', 'stageAudits']);
+
+        return hash('sha256', json_encode([
+            'id' => $ticket->id,
+            'updated_at' => $ticket->updated_at?->format('U.u'),
+            'ticket_code' => $ticket->ticket_code,
+            'project_name' => $ticket->project_name,
+            'email' => $ticket->email,
+            'proposal_id' => $ticket->proposal_id,
+            'client_user_id' => $ticket->client_user_id,
+            'current_service_stage_id' => $ticket->current_service_stage_id,
+            'status' => $ticket->getRawOriginal('status'),
+            'files' => $ticket->files_count,
+            'deliverables' => $ticket->deliverables_count,
+            'stage_events' => $ticket->stage_events_count,
+            'stage_audits' => $ticket->stage_audits_count,
+            'dependencies' => $this->dependencyFingerprint($ticket->id),
+        ], JSON_THROW_ON_ERROR));
+    }
+
+    private function dependencyFingerprint(int $ticketId): string
+    {
+        $dependencies = DB::query()
+            ->fromSub($this->dependencyRowsQuery([$ticketId]), 'ticket_dependencies')
+            ->orderBy('relation_type')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (object $row): array => (array) $row)
+            ->all();
+
+        return hash('sha256', json_encode($dependencies, JSON_THROW_ON_ERROR));
+    }
+
+    /**
+     * Selects material fields from every dependent row in one query. The digest
+     * complements counts so an in-place dependency edit cannot reuse a preview.
+     */
+    private function dependencyRowsQuery(array $ticketIds)
+    {
+        $files = DB::table('ticket_files')
+            ->whereIn('ticket_id', $ticketIds)
+            ->selectRaw("'file' AS relation_type, id, stored_name AS value_one, mime_type AS value_two, size_bytes AS value_three, storage_provider AS value_four, storage_disk AS value_five, storage_path AS value_six, google_drive_file_id AS value_seven, google_drive_url AS value_eight, ticket_deliverable_id AS value_nine, visibility AS value_ten, delivery_type AS value_eleven, upload_source AS value_twelve, review_status AS value_thirteen, is_client_visible AS value_fourteen, watermark_status AS value_fifteen, submitted_context_hash AS value_sixteen, title AS value_seventeen, original_name AS value_eighteen, deliverable_type AS value_nineteen, uploaded_by_user_id AS value_twenty, reviewed_by_user_id AS value_twenty_one, rejected_by_user_id AS value_twenty_two, rejection_reason AS value_twenty_three, first_admin_downloaded_by_user_id AS value_twenty_four, first_admin_downloaded_at AS value_twenty_five, reviewed_at AS value_twenty_six, rejected_at AS value_twenty_seven, updated_at");
+        $deliverables = DB::table('ticket_deliverables')
+            ->whereIn('ticket_id', $ticketIds)
+            ->selectRaw("'deliverable' AS relation_type, id, service_deliverable_id AS value_one, name AS value_two, description AS value_three, status AS value_four, sort_order AS value_five, NULL AS value_six, NULL AS value_seven, NULL AS value_eight, NULL AS value_nine, NULL AS value_ten, NULL AS value_eleven, NULL AS value_twelve, NULL AS value_thirteen, NULL AS value_fourteen, NULL AS value_fifteen, NULL AS value_sixteen, NULL AS value_seventeen, NULL AS value_eighteen, NULL AS value_nineteen, NULL AS value_twenty, NULL AS value_twenty_one, NULL AS value_twenty_two, NULL AS value_twenty_three, NULL AS value_twenty_four, NULL AS value_twenty_five, NULL AS value_twenty_six, NULL AS value_twenty_seven, updated_at");
+        $events = DB::table('ticket_stage_events')
+            ->whereIn('ticket_id', $ticketIds)
+            ->selectRaw("'stage_event' AS relation_type, id, service_stage_id AS value_one, changed_by_user_id AS value_two, status AS value_three, is_client_visible AS value_four, notes AS value_five, attempt_number AS value_six, entered_at AS value_seven, completed_at AS value_eight, superseded_at AS value_nine, superseded_by_user_id AS value_ten, superseded_reason AS value_eleven, NULL AS value_twelve, NULL AS value_thirteen, NULL AS value_fourteen, NULL AS value_fifteen, NULL AS value_sixteen, NULL AS value_seventeen, NULL AS value_eighteen, NULL AS value_nineteen, NULL AS value_twenty, NULL AS value_twenty_one, NULL AS value_twenty_two, NULL AS value_twenty_three, NULL AS value_twenty_four, NULL AS value_twenty_five, NULL AS value_twenty_six, NULL AS value_twenty_seven, updated_at");
+        $audits = DB::table('ticket_stage_audits')
+            ->whereIn('ticket_id', $ticketIds)
+            ->selectRaw("'stage_audit' AS relation_type, id, ticket_stage_event_id AS value_one, service_stage_id AS value_two, actor_user_id AS value_three, action AS value_four, status_before AS value_five, status_after AS value_six, attempt_number AS value_seven, entered_at_snapshot AS value_eight, completed_at_snapshot AS value_nine, notes_snapshot AS value_ten, rollback_from_stage_id AS value_eleven, rollback_to_stage_id AS value_twelve, reason AS value_thirteen, NULL AS value_fourteen, NULL AS value_fifteen, NULL AS value_sixteen, NULL AS value_seventeen, NULL AS value_eighteen, NULL AS value_nineteen, NULL AS value_twenty, NULL AS value_twenty_one, NULL AS value_twenty_two, NULL AS value_twenty_three, NULL AS value_twenty_four, NULL AS value_twenty_five, NULL AS value_twenty_six, NULL AS value_twenty_seven, updated_at");
+
+        return $files
+            ->unionAll($deliverables)
+            ->unionAll($events)
+            ->unionAll($audits);
     }
 
     public function impact(Ticket $ticket): DeletionImpact
@@ -69,14 +112,15 @@ class DeleteProject
         );
     }
 
-    public function delete(Ticket $ticket, User $actor, bool $requireUnprocessedIntake = false): bool
+    public function delete(Ticket $ticket, User $actor, ?string $expectedFingerprint = null): bool
     {
         $files = [];
         $deleted = false;
 
-        DB::transaction(function () use ($ticket, $actor, $requireUnprocessedIntake, &$files, &$deleted): void {
+        DB::transaction(function () use ($ticket, $actor, $expectedFingerprint, &$files, &$deleted): void {
             $locked = Ticket::query()
                 ->with(['files', 'proposal'])
+                ->withCount(['files', 'deliverables', 'stageEvents', 'stageAudits'])
                 ->whereKey($ticket->getKey())
                 ->lockForUpdate()
                 ->first();
@@ -85,7 +129,7 @@ class DeleteProject
                 return;
             }
 
-            if ($requireUnprocessedIntake && $this->bulkProtectedTickets([$locked->id])->isNotEmpty()) {
+            if ($expectedFingerprint !== null && ! hash_equals($expectedFingerprint, $this->fingerprint($locked))) {
                 return;
             }
 
@@ -157,38 +201,5 @@ class DeleteProject
                 }
             })
             ->exists();
-    }
-
-    private function applyBulkProtectionCriteria(Builder $query): void
-    {
-        $query
-            // Bulk deletion is strictly limited to untouched intake requests.
-            // Treat null or unrecognised persisted values as protected as well.
-            ->where(function (Builder $eligibility): void {
-                $eligibility
-                    ->whereNull('status')
-                    ->orWhere('status', '!=', TicketStatus::NEW->value);
-            })
-            ->orWhereNotNull('proposal_id')
-            ->orWhereNotNull('client_user_id')
-            ->orWhereHas('files', function (Builder $files): void {
-                $files->where(function (Builder $activity): void {
-                    $activity
-                        ->whereNull('upload_source')
-                        ->orWhere('upload_source', '!=', 'initial_request');
-                });
-            })
-            ->orWhereHas('stageEvents', function (Builder $events): void {
-                $events->where(function (Builder $activity): void {
-                    $activity
-                        ->whereNotNull('changed_by_user_id')
-                        ->orWhereNotNull('completed_at')
-                        ->orWhereNotNull('notes')
-                        ->orWhereNotNull('superseded_at')
-                        ->orWhere('attempt_number', '>', 1);
-                });
-            })
-            ->orWhereHas('stageAudits')
-            ->orWhereHas('deliverables', fn (Builder $deliverables) => $deliverables->where('status', '!=', 'pending'));
     }
 }

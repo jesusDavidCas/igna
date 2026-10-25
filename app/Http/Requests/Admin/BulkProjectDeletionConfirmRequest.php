@@ -19,6 +19,7 @@ class BulkProjectDeletionConfirmRequest extends FormRequest
         return [
             'confirmation_token' => ['required', 'string', 'size:40'],
             'confirm_deletion' => ['required', 'accepted'],
+            'typed_confirmation' => ['nullable', 'string', 'max:64'],
         ];
     }
 }
