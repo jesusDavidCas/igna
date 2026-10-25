@@ -79,7 +79,7 @@ Route::post('/privacy/preferences', [PrivacyPreferenceController::class, 'store'
     ->name('privacy.preferences.store');
 
 Route::post('/request', [ServiceRequestController::class, 'store'])
-    ->middleware('throttle:10,1')
+    ->middleware('throttle:public-service-request')
     ->name('requests.store');
 
 Route::get('/tracking', [TicketTrackingController::class, 'index'])->name('tracking.index');

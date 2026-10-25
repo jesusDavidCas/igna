@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Support\Settings\BrandSettings;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
@@ -25,6 +26,24 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        RateLimiter::for('public-service-request', function (Request $request): array {
+            $client = hash_hmac('sha256', $request->ip(), (string) config('app.key'));
+            $response = function () use ($client) {
+                Log::notice('request_antispam.rate_limited', ['client' => $client]);
+
+                return response(__('site.request_antispam_rate_limited'), 429);
+            };
+
+            return [
+                Limit::perMinute((int) config('services.turnstile.requests_per_minute', 5))
+                    ->by($client)
+                    ->response($response),
+                Limit::perHour((int) config('services.turnstile.requests_per_hour', 20))
+                    ->by($client)
+                    ->response($response),
+            ];
+        });
+
         RateLimiter::for('ticket-document-upload', function (Request $request): Limit {
             $ticket = $request->route('ticket');
             $ticketKey = is_object($ticket) && method_exists($ticket, 'getKey') ? $ticket->getKey() : (string) $ticket;

@@ -58,4 +58,17 @@ return [
         'gs' => env('GHOSTSCRIPT_PATH'),
     ],
 
+    'turnstile' => [
+        // Disabled by default. Enabling without every required setting fails closed.
+        'enabled' => env('REQUEST_ANTISPAM_ENABLED', false),
+        'site_key' => env('TURNSTILE_SITE_KEY'),
+        'secret_key' => env('TURNSTILE_SECRET_KEY'),
+        'expected_hostname' => env('TURNSTILE_EXPECTED_HOSTNAME'),
+        'expected_action' => env('TURNSTILE_EXPECTED_ACTION', 'service_request'),
+        'connect_timeout' => env('TURNSTILE_CONNECT_TIMEOUT', 2),
+        'timeout' => env('TURNSTILE_TIMEOUT', 5),
+        'requests_per_minute' => env('REQUEST_ANTISPAM_PER_MINUTE', 5),
+        'requests_per_hour' => env('REQUEST_ANTISPAM_PER_HOUR', 20),
+    ],
+
 ];

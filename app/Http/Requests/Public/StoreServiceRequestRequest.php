@@ -9,6 +9,11 @@ use Illuminate\Validation\Validator;
 
 class StoreServiceRequestRequest extends FormRequest
 {
+    protected $dontFlash = [
+        'cf-turnstile-response',
+        'website',
+    ];
+
     public function authorize(): bool
     {
         return true;
@@ -34,6 +39,8 @@ class StoreServiceRequestRequest extends FormRequest
                 'mimes:pdf,jpg,jpeg,png',
                 'mimetypes:application/pdf,image/jpeg,image/png',
             ],
+            'website' => ['nullable', 'string', 'max:255'],
+            'cf-turnstile-response' => ['nullable', 'string', 'max:2048'],
         ];
     }
 
